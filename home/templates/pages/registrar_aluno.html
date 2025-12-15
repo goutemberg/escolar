@@ -1037,11 +1037,16 @@
             wireCPF(document.getElementById('pai_cpf'), 'pai_cpf');
             wireCPF(document.getElementById('mae_cpf'), 'mae_cpf');
 
-            // Datas no blur
-            const dn = document.getElementById('data_nascimento');
-            const di = document.getElementById('data_ingresso');
-            if (dn) dn.addEventListener('blur', validateDataNascimento);
-            if (di) di.addEventListener('blur', validateDataIngresso);
+              // Datas no blur
+        const dn = document.getElementById('data_nascimento');
+        const di = document.getElementById('data_ingresso');
+        const campoDataIngresso = document.getElementById('data_ingresso');
+        if (campoDataIngresso && !campoDataIngresso.value) {
+        campoDataIngresso.value = new Date().toISOString().split('T')[0];
+        }
+
+        if (dn) dn.addEventListener('blur', validateDataNascimento);
+        if (di) di.addEventListener('blur', validateDataIngresso);
 
             // Radios de alergia
             const rSim = document.getElementById('alergia_sim');
