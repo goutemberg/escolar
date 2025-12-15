@@ -507,6 +507,11 @@
        </small>
       </div>
       <div class="form-group short-field">
+    <label for="responsavel_telefone2">Telefone 2</label>
+    <input id="responsavel_telefone2" name="responsavel_telefone2" type="text"/>
+    <small class="field-error d-none" id="responsavel_telefone2_error"></small>
+</div>
+      <div class="form-group short-field">
        <label for="responsavel_cpf">
         CPF (se houver)
        </label>
@@ -581,6 +586,11 @@
        </small>
       </div>
       <div class="form-group short-field">
+    <label for="pai_telefone2">Telefone 2</label>
+    <input id="pai_telefone2" type="text"/>
+    <small class="field-error d-none" id="pai_telefone2_error"></small>
+</div>
+      <div class="form-group short-field">
        <label for="pai_email">
         Email
        </label>
@@ -644,6 +654,12 @@
        <small class="field-error d-none" id="mae_telefone_error">
        </small>
       </div>
+      <div class="form-group short-field">
+    <label for="mae_telefone2">Telefone 2</label>
+    <input id="mae_telefone2" type="text"/>
+    <small class="field-error d-none" id="mae_telefone2_error"></small>
+</div>
+
       <div class="form-group short-field">
        <label for="mae_email">
         Email
@@ -1126,6 +1142,9 @@
                     estado: (document.getElementById('estado').value || '').trim(),
                     email: (document.getElementById('email').value || '').trim(),
                     telefone: (document.getElementById('telefone').value || '').trim(),
+                    responsavel_telefone2: (document.getElementById('responsavel_telefone2').value || '').trim(),
+                    pai_telefone2: (document.getElementById('pai_telefone2').value || '').trim(),
+                    mae_telefone2: (document.getElementById('mae_telefone2').value || '').trim(),
 
                     // ===== Novos do aluno (opcionais)
                     data_ingresso: (document.getElementById('data_ingresso').value || '').trim(),

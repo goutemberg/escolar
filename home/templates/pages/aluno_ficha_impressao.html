@@ -131,7 +131,7 @@ table.sheet td { padding:2px 3px; vertical-align:top; }
     <div class="foto-box">Foto 3x4</div>
 </div>
 
-<div class="line"></div>
+<!-- <div class="line"></div> -->
 
 <!-- TÍTULO -->
 <div style="text-align:center; font-weight:bold; font-size:12pt; text-transform:uppercase; margin-bottom:6px;">
@@ -231,8 +231,15 @@ declarando estar ciente do regimento interno e responsabilizando-me pela autenti
 </tr>
 
 <tr>
-<td><span class="label">Fone:</span>
-<span class="fieldline" style="min-width:150px">{{ dados_mae.telefone }}</span></td>
+<td>
+    <span class="label">Fone(s):</span>
+    <span class="fieldline" style="min-width:180px">
+        {{ dados_mae.telefone }}
+        {% if dados_mae.telefone_secundario %}
+            • {{ dados_mae.telefone_secundario }}
+        {% endif %}
+    </span>
+</td>
 <td><span class="label">E-mail:</span>
 <span class="fieldline" style="min-width:150px">{{ dados_mae.email }}</span></td>
 </tr>
@@ -262,8 +269,15 @@ declarando estar ciente do regimento interno e responsabilizando-me pela autenti
 </tr>
 
 <tr>
-<td><span class="label">Fone:</span>
-<span class="fieldline" style="min-width:150px">{{ dados_pai.telefone }}</span></td>
+<td>
+    <span class="label">Fone(s):</span>
+    <span class="fieldline" style="min-width:180px">
+        {{ dados_pai.telefone }}
+        {% if dados_pai.telefone_secundario %}
+            • {{ dados_pai.telefone_secundario }}
+        {% endif %}
+    </span>
+</td>
 <td><span class="label">E-mail:</span>
 <span class="fieldline" style="min-width:150px">{{ dados_pai.email }}</span></td>
 </tr>
@@ -293,8 +307,15 @@ declarando estar ciente do regimento interno e responsabilizando-me pela autenti
 </tr>
 
 <tr>
-<td><span class="label">Fone:</span>
-<span class="fieldline" style="min-width:150px">{{ dados_resp.telefone }}</span></td>
+<td>
+    <span class="label">Fone(s):</span>
+    <span class="fieldline" style="min-width:180px">
+        {{ dados_resp.telefone }}
+        {% if dados_resp.telefone_secundario %}
+            • {{ dados_resp.telefone_secundario }}
+        {% endif %}
+    </span>
+</td>
 <td><span class="label">E-mail:</span>
 <span class="fieldline" style="min-width:150px">{{ dados_resp.email }}</span></td>
 </tr>
@@ -418,7 +439,6 @@ Camocim de São Félix — PE,
 {{ hoje_extenso }}
 </div>
 
-<!-- Assinaturas -->
 <div class="signrow">
 <div class="sign"><div class="sign-line"></div>Assinatura do(a) Pai/Mãe ou Responsável</div>
 <div class="sign"><div class="sign-line"></div>Diretor(a)</div>

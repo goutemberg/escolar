@@ -226,6 +226,7 @@ class Responsavel(models.Model):
     cpf = models.CharField(max_length=14, default='')
     parentesco = models.CharField(max_length=50, default='')
     telefone = models.CharField(max_length=20, default='')
+    telefone_secundario = models.CharField(max_length=20, blank=True, null=True, default='')
     email = models.EmailField(default='')
 
     TIPO_CHOICES = [

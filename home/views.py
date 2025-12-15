@@ -442,26 +442,16 @@ def to_bool(v):
 def salvar_aluno(request):
     if request.method != "POST":
         return JsonResponse({'mensagem': 'Método não permitido'}, status=405)
-
-    # --------------------------------------------------------------
-    # 1) Ler JSON
-    # --------------------------------------------------------------
     try:
         data = json.loads(request.body or "{}")
     except Exception:
         return HttpResponseBadRequest("JSON inválido")
 
-    # --------------------------------------------------------------
-    # 2) Validar campos obrigatórios ANTES de criar aluno
-    # --------------------------------------------------------------
     obrig = ['nome','data_nascimento','rua','numero','bairro','cidade','estado']
     for c in obrig:
         if not data.get(c):
             return JsonResponse({'status':'erro','mensagem': f'O campo \"{c}\" é obrigatório.'}, status=400)
 
-    # --------------------------------------------------------------
-    # 3) Gerar matrícula se não vier
-    # --------------------------------------------------------------
     if not data.get('matricula'):
         ano = datetime.now().year
         ultimo = (
@@ -565,6 +555,7 @@ def salvar_aluno(request):
                     'cpf': data.get('responsavel_cpf',''),
                     'parentesco': parentesco_raw,
                     'telefone': data.get('responsavel_telefone',''),
+                    'telefone_secundario': data.get("responsavel_telefone2", ''),
                     'email': data.get('responsavel_email',''),
                     'tipo': tipo
                 })
@@ -578,6 +569,7 @@ def salvar_aluno(request):
                     'escolaridade': data.get('pai_escolaridade',''),
                     'profissao': data.get('pai_profissao',''),
                     'telefone': data.get('pai_telefone',''),
+                    'telefone_secundario': data.get("pai_telefone2", ''),
                     'email': data.get('pai_email',''),
                     'parentesco': 'Pai',
                     'tipo': 'pai'
@@ -592,6 +584,7 @@ def salvar_aluno(request):
                     'escolaridade': data.get('mae_escolaridade',''),
                     'profissao': data.get('mae_profissao',''),
                     'telefone': data.get('mae_telefone',''),
+                    'telefone_secundario': data.get("mae_telefone2", ''),
                     'email': data.get('mae_email',''),
                     'parentesco': 'Mãe',
                     'tipo': 'mae'
