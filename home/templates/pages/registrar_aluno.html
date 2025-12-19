@@ -3,6 +3,10 @@
  <head>
   {% include 'partials/_head.html' %}
   <style>
+    .input-error {
+      border: 2px solid #ff4d4d !important;
+      background-color: #ffecec !important;
+}
    /* Borda laranja para a aba ativa E durante o foco/click */
       .tab-buttons button.active,
       .tab-buttons button:focus,
@@ -446,12 +450,38 @@
        </small>
       </div>
       <div class="form-group">
-       <label for="estado">
-        Estado
-       </label>
-       <input id="estado" name="estado" type="text"/>
-       <small class="field-error d-none" id="estado_error">
-       </small>
+      <label for="estado">Estado</label>
+    <select id="estado" name="estado">
+    <option value="">Selecione...</option>
+    <option value="AC">Acre (AC)</option>
+    <option value="AL">Alagoas (AL)</option>
+    <option value="AP">Amapá (AP)</option>
+    <option value="AM">Amazonas (AM)</option>
+    <option value="BA">Bahia (BA)</option>
+    <option value="CE">Ceará (CE)</option>
+    <option value="DF">Distrito Federal (DF)</option>
+    <option value="ES">Espírito Santo (ES)</option>
+    <option value="GO">Goiás (GO)</option>
+    <option value="MA">Maranhão (MA)</option>
+    <option value="MT">Mato Grosso (MT)</option>
+    <option value="MS">Mato Grosso do Sul (MS)</option>
+    <option value="MG">Minas Gerais (MG)</option>
+    <option value="PA">Pará (PA)</option>
+    <option value="PB">Paraíba (PB)</option>
+    <option value="PR">Paraná (PR)</option>
+    <option value="PE">Pernambuco (PE)</option>
+    <option value="PI">Piauí (PI)</option>
+    <option value="RJ">Rio de Janeiro (RJ)</option>
+    <option value="RN">Rio Grande do Norte (RN)</option>
+    <option value="RS">Rio Grande do Sul (RS)</option>
+    <option value="RO">Rondônia (RO)</option>
+    <option value="RR">Roraima (RR)</option>
+    <option value="SC">Santa Catarina (SC)</option>
+    <option value="SP">São Paulo (SP)</option>
+    <option value="SE">Sergipe (SE)</option>
+    <option value="TO">Tocantins (TO)</option>
+    </select>
+    <small class="field-error d-none" id="estado_error"></small>
       </div>
      </div>
      <div class="form-row">
@@ -1223,15 +1253,52 @@
                     },
                     body: JSON.stringify(dados)
                 })
-                .then(async (res) => {
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok) {
-                        const msg = data.mensagem || data.error || `Erro HTTP ${res.status}`;
-                        alert("❌ Erro ao salvar:\n\n" + msg);
-                        throw new Error(msg);
-                    }
-                    return data;
-                })
+                .then(async (response) => {
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+
+        // === TRATAMENTO DE ERRO PROFISSIONAL COM FOCO NO CAMPO ===
+        const campo = data.campo;       // o backend envia => "estado", "cidade", "bairro" etc
+        const mensagem = data.mensagem; // mensagem amigável enviada pela view
+
+        if (campo) {
+            const input = document.getElementById(campo);
+            const small = document.getElementById(`${campo}_error`);
+
+            if (input) {
+
+    // Se for um campo de CPF, remove estilo antigo
+    if (campo.includes("cpf")) {
+        input.classList.remove("cpf-invalido");
+    }
+
+    input.classList.add("input-error");
+
+    if (small) {
+        small.textContent = mensagem;
+        small.classList.remove("d-none");
+    }
+
+    input.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    input.addEventListener(
+        "input",
+        () => {
+            input.classList.remove("input-error");
+            if (small) small.classList.add("d-none");
+        },
+        { once: true }
+      );
+      }
+        }
+        const msg = mensagem || "Ocorreu um erro inesperado.";
+        alert("❌ Erro ao salvar:\n\n" + msg);
+        throw new Error(msg);
+          }
+            return data;
+              })
+
                 .then((data) => {
                     if (data.status === 'sucesso') {
                         const alunoId = data.aluno_id;
