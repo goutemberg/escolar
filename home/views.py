@@ -9,6 +9,8 @@ import locale
 from datetime import date, datetime
 from io import BytesIO
 from babel.dates import format_date
+from django.db.utils import DataError, IntegrityError
+from django.core.exceptions import ValidationError
 
 # ---- Django Core ----
 from django.conf import settings
@@ -438,6 +440,7 @@ def to_bool(v):
     return str(v).strip().lower() in ("1","true","t","sim","yes","y")
 
 @csrf_exempt
+@csrf_exempt
 @login_required
 def salvar_aluno(request):
     if request.method != "POST":
@@ -634,9 +637,30 @@ def salvar_aluno(request):
             'matricula': aluno.matricula
         })
 
-    except Exception as e:
-        return JsonResponse({'status':'erro','mensagem': str(e)}, status=400)
+    # --------------------------------------------------------------
+    # 6) Tratamento PROFISSIONAL de erros
+    # --------------------------------------------------------------
+    except (DataError, ValidationError, IntegrityError) as e:
+        mensagem = str(e)
+        campo = None
 
+        limites = {
+        20: ["rg", "certidao_numero", "certidao_livro", "telefone",
+             "telefone_secundario", "pai_telefone", "mae_telefone"],
+        14: ["cpf", "pai_cpf", "mae_cpf", "responsavel_cpf"],
+    }
+
+    # Detecta o max_length que estourou
+        if "character varying(20)" in mensagem:
+            campo = "rg"   # coloque aqui o que você quer destacar primeiro
+
+        return JsonResponse({
+            "status": "erro",
+            "mensagem": "O valor informado excede o tamanho permitido para o campo.",
+            "campo": campo,
+    }, status=400)
+        
+   
     
 @login_required
 def aluno_pdf(request, aluno_id):
