@@ -1,0 +1,177 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    {% include 'partials/_head.html' %}
+
+    <style>
+        /* BLOCO PADRÃO */
+        .box-padrao {
+            background: #ffffff;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        /* HEADER */
+        .box-header {
+            background-color: #6c757d;
+            color: #ffffff;
+            padding: 12px 20px;
+            font-weight: 600;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* CONTEÚDO */
+        .box-body {
+            padding: 16px 20px;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .badge-professor {
+            background-color: #0d6efd;
+            margin-right: 4px;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .table thead th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .table-sm td,
+        .table-sm th {
+            padding: 6px 10px;
+        }
+
+        .empty-state {
+            padding: 20px 0;
+            color: #6c757d;
+            font-size: 14px;
+        }
+
+        .box-sub {
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            background-color: #fafafa;
+        }
+    </style>
+</head>
+
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<section class="form-container">
+    <div class="container">
+
+        <!-- 🔑 BLOCO ÚNICO -->
+        <section class="box-padrao">
+
+            <!-- HEADER -->
+            <div class="box-header">
+                <i class="bi bi-clipboard"></i>
+                Detalhes da Turma – {{ turma.nome }}
+            </div>
+
+            <!-- CONTEÚDO -->
+            <div class="box-body">
+
+                <!-- PROFESSORES -->
+                <div class="box-sub">
+                    <div class="section-title">
+                        Professores da Turma
+                    </div>
+
+                    {% for p in professores %}
+                        <span class="badge badge-professor">
+                            {{ p.nome }}
+                        </span>
+                    {% empty %}
+                        <div class="text-muted">Nenhum professor vinculado.</div>
+                    {% endfor %}
+                </div>
+
+                <!-- DISCIPLINAS -->
+                <div class="box-sub">
+                    <div class="section-title">
+                        Disciplinas e Professores
+                    </div>
+
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Disciplina</th>
+                                <th>Professor(a)</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                        {% for td in disciplinas %}
+                            <tr>
+                                <td>{{ td.disciplina.nome }}</td>
+                                <td>{{ td.professor.nome }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center empty-state">
+                                    Nenhuma disciplina vinculada.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- ALUNOS -->
+                <div class="box-sub">
+                    <div class="section-title">
+                        Alunos da Turma
+                    </div>
+
+                    <table class="table table-sm table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                        {% for a in alunos %}
+                            <tr>
+                                <td>{{ a.nome }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td class="text-center empty-state">
+                                    Nenhum aluno cadastrado.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </section>
+
+    </div>
+</section>
+
+{% include 'partials/_footer.html' %}
+
+</body>
+</html>

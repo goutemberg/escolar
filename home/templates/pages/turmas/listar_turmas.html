@@ -1,0 +1,152 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    {% include 'partials/_head.html' %}
+
+    <style>
+        /* BLOCO ÚNICO (HEADER + CONTEÚDO) */
+        .box-padrao {
+            background: #ffffff;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            overflow: hidden; /* 🔑 elimina espaços indesejados */
+        }
+
+        /* HEADER PADRÃO */
+        .box-header {
+            background-color: #6c757d;
+            color: #ffffff;
+            padding: 12px 20px;
+            font-weight: 600;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* CONTEÚDO IMEDIATO */
+        .box-body {
+            padding: 12px 20px 20px 20px; /* 🔑 aproxima a tabela */
+        }
+
+        .table {
+            margin-top: 0; /* 🔑 cola no header */
+        }
+
+        .table thead th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: #f1f3f5;
+        }
+
+        .badge-professor {
+            background-color: #0d6efd;
+            margin-right: 4px;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        /* BOTÃO DE AÇÃO */
+        .btn-acao {
+            padding: 4px 10px;
+            font-size: 13px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .empty-state {
+            padding: 40px 0;
+            color: #6c757d;
+            font-size: 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<section class="form-container">
+    <div class="container">
+
+        <!-- 🔑 BLOCO ÚNICO -->
+        <section class="box-padrao">
+
+            <!-- HEADER -->
+            <div class="box-header">
+                <i class="bi bi-people-fill"></i>
+                Turmas Cadastradas
+            </div>
+
+            <!-- CONTEÚDO -->
+            <div class="box-body">
+
+                <table class="table table-bordered table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Nome da Turma</th>
+                            <th>Professor(es)</th>
+                            <th class="text-center">Alunos</th>
+                            <th class="text-center" style="width: 150px;">Ações</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                    {% for t in turmas %}
+                        <tr>
+                            <td>
+                                <strong>{{ t.nome }}</strong>
+                            </td>
+
+                            <td>
+                                {% for p in t.professores.all|dictsort:"nome" %}
+                                    <span class="badge badge-professor">
+                                        {{ p.nome }}
+                                    </span>
+                                {% empty %}
+                                    <span class="text-muted">Nenhum professor</span>
+                                {% endfor %}
+                            </td>
+
+                            <td class="text-center">
+                                <span class="badge bg-secondary">
+                                    {{ t.alunos.count }}
+                                </span>
+                            </td>
+
+                            <td class="text-center">
+                                <a href="{% url 'turmas:detalhe' turma_id=t.id %}"
+                                   class="btn btn-outline-primary btn-sm btn-acao"
+                                   title="Ver detalhes da turma">
+                                    <i class="bi bi-eye"></i>
+                                    Detalhes
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center empty-state">
+                                <i class="bi bi-info-circle"></i>
+                                Nenhuma turma cadastrada até o momento.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+        </section>
+
+    </div>
+</section>
+
+{% include 'partials/_footer.html' %}
+
+</body>
+</html>

@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        fetch('/criar_turma/', {
+        fetch('/turmas/cadastrar/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

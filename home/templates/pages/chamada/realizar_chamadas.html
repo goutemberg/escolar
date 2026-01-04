@@ -1,0 +1,368 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    {% include 'partials/_head.html' %}
+
+    <style>
+        /* ================================
+           BLOCO PADRÃO DO SISTEMA
+        =================================*/
+        .box-padrao {
+            background: #ffffff;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            overflow: hidden;
+            max-width: 1100px;
+            margin: 1px auto 30px auto;
+        }
+
+        .box-header {
+            background: #6c757d;
+            color: #ffffff;
+            padding: 10px 18px; /* menos altura */
+            font-weight: 600;
+            font-size: 17px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .box-body {
+            padding: 12px 18px 16px 18px; /* tudo mais compacto */
+        }
+
+        /* ================================
+           FORMULÁRIO
+        =================================*/
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .form-control,
+        select,
+        input[type="date"],
+        input[type="text"] {
+            height: 40px !important;
+            border-radius: 6px !important;
+        }
+
+        /* ================================
+           TABELA
+        =================================*/
+        table.chamada-table {
+            width: 100%;
+            background: #fff;
+            border-collapse: collapse;
+            margin-top: 8px; /* menos distância */
+        }
+
+        table.chamada-table th,
+        table.chamada-table td {
+            padding: 9px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table.chamada-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        tr.erro-linha {
+            background-color: #ffe2e2 !important;
+        }
+
+        /* ================================
+           SWITCH
+        =================================*/
+        .switch-presenca {
+            width: 46px;
+            height: 24px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .switch-presenca input {
+            display: none;
+        }
+
+        .switch-presenca span {
+            position: absolute;
+            inset: 0;
+            background: #ccc;
+            border-radius: 24px;
+            cursor: pointer;
+            transition: .3s;
+        }
+
+        .switch-presenca span:before {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            left: 2px;
+            top: 2px;
+            background: #fff;
+            border-radius: 50%;
+            transition: .3s;
+        }
+
+        .switch-presenca input:checked + span {
+            background: #28a745;
+        }
+
+        .switch-presenca input:checked + span:before {
+            transform: translateX(22px);
+        }
+
+        /* ================================
+           RESUMO / LOADER
+        =================================*/
+        .resumo-box {
+            margin-top: 10px;
+            background: #fafafa;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            font-weight: 500;
+        }
+
+        .erro-msg {
+            color: #c00;
+            font-size: .85rem;
+            margin-top: 3px;
+            display: none;
+        }
+
+        .loader {
+            display: none;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<section class="box-padrao">
+
+    <!-- HEADER -->
+    <div class="box-header">
+        <i class="fas fa-check-square"></i>
+        Realizar Chamada
+    </div>
+
+    <!-- CORPO -->
+    <div class="box-body">
+
+        <!-- FILTROS -->
+        <div class="row mb-2">
+
+            <div class="form-group col-md-4">
+                <label>Data da aula</label>
+                <input type="date" id="data_aula" class="form-control" value="{{ data_hoje }}">
+            </div>
+
+            <div class="form-group col-md-4">
+                <label>Turma</label>
+                <select id="turma_id" class="form-control">
+                    <option value="">Selecione...</option>
+                    {% for turma in turmas %}
+                        <option value="{{ turma.id }}">{{ turma.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group col-md-4">
+                <label>Disciplina</label>
+                <select id="disciplina_id" class="form-control">
+                    <option value="">Selecione...</option>
+                    {% for d in disciplinas %}
+                        <option value="{{ d.id }}">{{ d.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+        </div>
+
+        <button class="btn btn-primary mb-2" id="carregarButton" style="width: 220px;">
+            Carregar alunos
+        </button>
+
+        <hr class="my-2">
+
+        <!-- TABELA -->
+        <div id="areaTabela" style="display:none;">
+
+            <table class="chamada-table" id="tabelaChamada">
+                <thead>
+                    <tr>
+                        <th>Aluno</th>
+                        <th style="width:120px; text-align:center;">Presente?</th>
+                        <th>Observação</th>
+                        <th style="width:40px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="tbodyChamada"></tbody>
+            </table>
+
+            <div class="resumo-box">
+                Presentes: <span id="countP">0</span> |
+                Faltas: <span id="countF">0</span> |
+                Presença: <span id="percentP">0%</span>
+            </div>
+
+            <div class="mt-2">
+                <button class="btn btn-success" id="salvarChamadaBtn">
+                    Salvar Chamada
+                </button>
+                <span class="loader" id="loader">⏳ Salvando...</span>
+            </div>
+
+        </div>
+
+    </div>
+</section>
+
+<script>
+/* ============================================================
+   1) CARREGAR ALUNOS
+============================================================ */
+document.getElementById("carregarButton").addEventListener("click", function () {
+    const turma = document.getElementById("turma_id").value;
+
+    if (!turma) {
+        alert("Selecione uma turma.");
+        return;
+    }
+
+    const urlCarregar = "{% url 'chamada:api_carregar_alunos' 0 %}".replace("0", turma);
+
+    fetch(urlCarregar)
+        .then(res => res.json())
+        .then(data => {
+
+            if (!data.alunos || data.alunos.length === 0) {
+                alert("Nenhum aluno encontrado.");
+                return;
+            }
+
+            const tbody = document.getElementById("tbodyChamada");
+            tbody.innerHTML = "";
+
+            data.alunos.forEach(a => {
+                tbody.innerHTML += `
+                    <tr data-id="${a.id}">
+                        <td>${a.nome}</td>
+                        <td style="text-align:center;">
+                            <label class="switch-presenca">
+                                <input type="checkbox" class="presenca-switch">
+                                <span></span>
+                            </label>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control obs-input" placeholder="Observação (opcional)">
+                            <div class="erro-msg"></div>
+                        </td>
+                        <td></td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById("areaTabela").style.display = "block";
+            atualizarResumo();
+            bindEventosTabela();
+        });
+});
+
+/* ============================================================
+   2) RESUMO
+============================================================ */
+function atualizarResumo() {
+    const rows = document.querySelectorAll("#tbodyChamada tr");
+    let p = 0, f = 0;
+
+    rows.forEach(r => {
+        const checked = r.querySelector(".presenca-switch").checked;
+        checked ? p++ : f++;
+    });
+
+    const total = p + f;
+    const perc = total === 0 ? 0 : Math.round((p / total) * 100);
+
+    document.getElementById("countP").textContent = p;
+    document.getElementById("countF").textContent = f;
+    document.getElementById("percentP").textContent = perc + "%";
+}
+
+function bindEventosTabela() {
+    document.querySelectorAll(".presenca-switch").forEach(sw => {
+        sw.addEventListener("change", atualizarResumo);
+    });
+}
+
+/* ============================================================
+   3) SALVAR PRESENÇAS
+============================================================ */
+document.getElementById("salvarChamadaBtn").addEventListener("click", function () {
+
+    const loader = document.getElementById("loader");
+    loader.style.display = "inline";
+
+    const lista = [];
+
+    document.querySelectorAll("#tbodyChamada tr").forEach(row => {
+        lista.push({
+            aluno_id: row.dataset.id,
+            presente: row.querySelector(".presenca-switch").checked,
+            observacao: row.querySelector(".obs-input").value.trim()
+        });
+    });
+
+    const urlSalvar = "{% url 'chamada:salvar_presencas' %}";
+
+    fetch(urlSalvar, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+            turma: document.getElementById("turma_id").value,
+            disciplina: document.getElementById("disciplina_id").value,
+            data: document.getElementById("data_aula").value,
+            lista: lista
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        loader.style.display = "none";
+
+        if (data.status === "sucesso") {
+            alert("Chamada salva com sucesso!");
+        } else {
+            alert("Alguns registros não foram salvos.");
+
+            data.erros.forEach(err => {
+                const row = document.querySelector(`tr[data-id="${err.aluno_id}"]`);
+                if (row) {
+                    row.classList.add("erro-linha");
+                    const msg = row.querySelector(".erro-msg");
+                    msg.style.display = "block";
+                    msg.textContent = err.mensagem;
+                }
+            });
+        }
+    })
+    .catch(() => {
+        loader.style.display = "none";
+        alert("Erro inesperado ao salvar chamada.");
+    });
+});
+</script>
+ 
+</body>
+</html>

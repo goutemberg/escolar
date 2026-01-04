@@ -113,16 +113,30 @@ class Docente(models.Model):
     cidade = models.CharField(max_length=50, default='Cidade')
     estado = models.CharField(max_length=2, default='PE')
     cargo = models.CharField(max_length=50, default='Professor')
+
     disciplinas = models.ManyToManyField(Disciplina, blank=True)
+
     formacao = models.CharField(max_length=100, default='')
     experiencia = models.TextField(default='')
     sexo = models.CharField(max_length=50, default='Masculino')
     ativo = models.CharField(max_length=9, default='Sim')
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
-    escola = models.ForeignKey(Escola, on_delete=models.CASCADE, related_name='docentes')
+
+    # 🔴 AQUI ESTÁ A CORREÇÃO
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="docente"
+    )
+
+    escola = models.ForeignKey(
+        Escola,
+        on_delete=models.CASCADE,
+        related_name='docentes'
+    )
 
     def __str__(self):
         return self.nome
+
 
 
 # ================================================
@@ -302,34 +316,37 @@ class Turma(models.Model):
 # ================================================
 #  TURMA + DISCIPLINA + PROFESSOR
 # ================================================
+# ================================================
+#  TURMA + DISCIPLINA + PROFESSOR
+# ================================================
 class TurmaDisciplina(models.Model):
     turma = models.ForeignKey(Turma, on_delete=models.CASCADE)
     disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE)
     professor = models.ForeignKey(Docente, on_delete=models.CASCADE)
     escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True)
 
-    class Meta:
-        unique_together = ('turma', 'disciplina', 'professor')
-
-    def __str__(self):
-        return f"{self.turma.nome} - {self.disciplina.nome} ({self.professor.nome})"
-
+    def save(self, *args, **kwargs):
+        if not self.escola:
+            self.escola = self.professor.escola
+        super().save(*args, **kwargs)
 
 # ================================================
 #  CHAMADA + PRESENÇA
 # ================================================
 class Chamada(models.Model):
-    data = models.DateField(auto_now_add=True)
+    data = models.DateField()
     turma = models.ForeignKey(Turma, on_delete=models.CASCADE)
     disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE)
-    professor = models.ForeignKey(Docente, on_delete=models.CASCADE)
+    professor = models.ForeignKey(Docente, null=True, blank=True, on_delete=models.SET_NULL)
+    feita_por = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
 
     class Meta:
-        unique_together = ('data', 'turma', 'disciplina', 'professor')
-
-    def __str__(self):
-        return f"{self.data} - {self.turma.nome} - {self.disciplina.nome}"
-
+        constraints = [
+            models.UniqueConstraint(
+                fields=["data", "turma", "disciplina"],
+                name="unique_chamada_por_dia"
+            )
+        ]
 
 class Presenca(models.Model):
     chamada = models.ForeignKey(Chamada, on_delete=models.CASCADE)
@@ -385,3 +402,6 @@ class NomeTurma(models.Model):
 
     def __str__(self):
         return self.nome
+
+
+
