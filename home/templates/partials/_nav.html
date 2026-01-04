@@ -6,7 +6,7 @@
   .navbar-nav .nav-item:hover { background-color: #fab982; border-radius: 5px; transition: background-color 0.3s ease; }
   .navbar-nav .nav-item .nav-link.active { color: #212529 !important; background-color: transparent !important; }
   .nav-item.dropdown:hover { background-color: #fab982; border-radius: 5px; }
-  .dropdown-menu { border: none; border-radius: 5px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+  .dropdown-menu { border: none; border-radius: 5px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
   .dropdown-item { padding: 10px 20px; color: #212529; transition: background-color 0.3s ease; }
   .dropdown-item:hover { background-color: #fab982; color: #000; border-radius: 5px; }
   .nav-disabled { pointer-events: none; opacity: 0.5; cursor: not-allowed; }
@@ -59,19 +59,20 @@
       <div class="dropdown-menu">
 
         {% if user|has_role:'diretor,coordenador' %}
-
         <!-- PROFESSORES -->
         <h6 class="dropdown-header"><i class="fas fa-chalkboard-teacher mr-1"></i> Professor</h6>
+
         <a class="dropdown-item" href="{% url 'cadastro_professor' %}">
           <i class="fas fa-user-plus mr-1"></i> Cadastrar Professor
         </a>
+
         <a class="dropdown-item" href="{% url 'listar_professores' %}">
           <i class="fas fa-list mr-1"></i> Listar Professores
         </a>
 
         <div class="dropdown-divider"></div>
 
-        <!-- ALUNO -->
+        <!-- ALUNOS -->
         <h6 class="dropdown-header"><i class="fas fa-user-graduate mr-1"></i> Aluno</h6>
 
         <a class="dropdown-item" href="{% url 'cadastro_aluno' %}">
@@ -90,7 +91,7 @@
         {% endif %}
 
         {% if user|has_role:'professor,diretor,coordenador' %}
-        <a class="dropdown-item nav-disabled" href="{% url 'registrar_notas' %}">
+        <a class="dropdown-item" href="{% url 'registrar_notas' %}">
           <i class="fas fa-pen-alt mr-1"></i> Lançar Notas
         </a>
         {% endif %}
@@ -99,26 +100,30 @@
         <a class="dropdown-item nav-disabled" href="{% url 'listar_turmas_boletim' %}">
           <i class="fas fa-file-alt mr-1"></i> Ver Boletim
         </a>
+
         <a class="dropdown-item" href="{% url 'pagina_cadastrar_disciplina' %}">
           <i class="fas fa-clipboard-list mr-1"></i> Cadastrar Disciplinas
         </a>
         {% endif %}
 
         {% if user|has_role:'professor,diretor,coordenador' %}
+        <a class="dropdown-item" href="{% url 'chamada:registrar_chamada' %}">
+          <i class="fas fa-check-square mr-1"></i> Registrar Chamada
+        </a>
+
+        <a class="dropdown-item" href="{% url 'chamada:listar_chamadas' %}">
+          <i class="fas fa-list mr-1"></i> Histórico de Chamadas
+        </a>
+
         <a class="dropdown-item nav-disabled" href="{% url 'diario_classe' %}">
           <i class="fas fa-book mr-1"></i> Diário de Classe
         </a>
-        <a class="dropdown-item nav-disabled" href="{% url 'visualizar_chamada' %}">
-          <i class="fas fa-eye mr-1"></i> Visualizar Presenças
-        </a>
         {% endif %}
-
       </div>
     </li>
     {% endif %}
 
     {% if user|has_role:'diretor,coordenador' %}
-
     <!-- GESTÃO GERAL -->
     <li class="nav-item dropdown">
       <a class="nav-link dropdown-toggle" href="#" id="gestaoGeralDropdown" role="button"
@@ -136,21 +141,17 @@
 
         <div class="dropdown-divider"></div>
 
+        <!-- TURMAS (AJUSTADO) -->
         <h6 class="dropdown-header"><i class="fas fa-users mr-1"></i> Turmas</h6>
-
-        <a class="dropdown-item" href="{% url 'cadastro_turma' %}">
-          <i class="fas fa-plus-circle mr-1"></i> Criar
-        </a>
-
-        <!-- 🌟 NOVO MENU: NOME DAS TURMAS -->
-        <a class="dropdown-item" href="{% url 'pagina_nome_turma' %}">
+        <a class="dropdown-item" href="{% url 'turmas:pagina_nome' %}">
           <i class="fas fa-tag mr-1"></i> Nome das Turmas
         </a>
-
-        <a class="dropdown-item" href="{% url 'listar_turmas' %}">
-          <i class="fas fa-list mr-1"></i> Listar
+        <a class="dropdown-item" href="{% url 'turmas:cadastrar_turma' %}">
+          <i class="fas fa-plus-circle mr-1"></i> Criar
         </a>
-
+        <a class="dropdown-item" href="{% url 'turmas:listar' %}">
+          <i class="fas fa-list mr-1"></i> Listar Turmas
+        </a>
         <div class="dropdown-divider"></div>
 
         <a class="dropdown-item nav-disabled" href="{% url 'cadastro_funcionarios' %}">
@@ -167,10 +168,10 @@
     {% if user.is_authenticated %}
     <li class="nav-item">
       <span class="nav-link text-dark">
-        <i class="fas fa-user-circle mr-1"></i>
-        Olá, {{ user.first_name }} 👋
+        <i class="fas fa-user-circle mr-1"></i> Olá, {{ user.first_name }} 👋
       </span>
     </li>
+
     <li class="nav-item">
       <a class="nav-link text-danger" href="{% url 'logout' %}">
         <i class="fas fa-sign-out-alt mr-1"></i> Sair

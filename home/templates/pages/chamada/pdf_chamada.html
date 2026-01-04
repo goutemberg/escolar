@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<style>
+body { font-family: DejaVu Sans, sans-serif; font-size: 11pt; }
+h2 { text-align: center; margin-bottom: 10px; }
+table { width: 100%; border-collapse: collapse; }
+td, th { border: 1px solid #000; padding: 5px; }
+th { background: #f0f0f0; }
+.assinatura { margin-top: 40px; text-align: center; }
+</style>
+</head>
+<body>
+
+<h2>Folha de Chamada</h2>
+
+<p><strong>Data:</strong> {{ chamada.data|date:"d/m/Y" }}</p>
+<p><strong>Turma:</strong> {{ chamada.turma.nome }}</p>
+<p><strong>Disciplina:</strong> {{ chamada.disciplina.nome }}</p>
+<p><strong>Professor:</strong> {{ chamada.professor.nome }}</p>
+<p><strong>Chamada registrada por:</strong> {{ chamada.feita_por.get_full_name }}</p>
+<br>
+<table>
+<thead>
+    <tr>
+        <th>Aluno</th>
+        <th>Presente</th>
+        <th>Observação</th>
+    </tr>
+</thead>
+<tbody>
+    {% for p in presencas %}
+    <tr>
+        <td>{{ p.aluno.nome }}</td>
+        <td>{{ "Sim" if p.presente else "Não" }}</td>
+        <td>{{ p.observacao|default:"" }}</td>
+    </tr>
+    {% endfor %}
+</tbody>
+</table>
+
+<div class="assinatura">
+    ___________________________________________<br>
+    Assinatura do Professor
+</div>
+
+</body>
+</html>

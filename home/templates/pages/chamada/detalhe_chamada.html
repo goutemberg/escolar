@@ -1,0 +1,263 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    {% include 'partials/_head.html' %}
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <style>
+        /* BLOCO PADRÃO (igual turmas) */
+        .box-padrao {
+            background: #ffffff;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            overflow: hidden;
+            max-width: 1100px;
+            margin: 110px auto 40px auto;
+        }
+
+        /* HEADER */
+        .box-header {
+            background: #6c757d;
+            color: #ffffff;
+            padding: 12px 20px;
+            font-weight: 600;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* CORPO */
+        .box-body {
+            padding: 16px 20px 20px 20px;
+        }
+
+        /* Cards internos */
+        .card {
+            margin-bottom: 16px;
+        }
+
+        /* Switch padrão */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+
+        .switch input {
+            display: none;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background-color: #dc3545;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #28a745;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
+        /* Toast */
+        #toast {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: #333;
+            color: #fff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            opacity: 0;
+            transition: 0.5s;
+            z-index: 9999;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<section class="box-padrao">
+
+    <!-- HEADER -->
+    <div class="box-header">
+        <i class="bi bi-clipboard"></i>
+        Detalhe da Chamada
+    </div>
+
+    <!-- CORPO -->
+    <div class="box-body">
+
+        <!-- DADOS DA CHAMADA -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+
+                <div class="row mb-2">
+                    <div class="col-md-4"><strong>Data:</strong> {{ chamada.data|date:"d/m/Y" }}</div>
+                    <div class="col-md-4"><strong>Turma:</strong> {{ chamada.turma.nome }}</div>
+                    <div class="col-md-4"><strong>Disciplina:</strong> {{ chamada.disciplina.nome }}</div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6"><strong>Professor:</strong> {{ chamada.professor.nome }}</div>
+                    <div class="col-md-6">
+                        <strong>Feita por:</strong>
+                        {{ chamada.feita_por.get_full_name|default:chamada.feita_por.username }}
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="{% url 'chamada:pdf_chamada' chamada_id=chamada.id %}"
+                       class="btn btn-danger">
+                        <i class="bi bi-file-earmark-pdf"></i> Gerar PDF
+                    </a>
+
+                    <button id="btnEditar" class="btn btn-warning">
+                        <i class="bi bi-pencil"></i> Editar
+                    </button>
+
+                    <button id="btnSalvar" class="btn btn-success" style="display:none;">
+                        <i class="bi bi-check-lg"></i> Salvar
+                    </button>
+
+                    <button id="btnCancelar" class="btn btn-secondary" style="display:none;">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABELA DE PRESENÇA -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Aluno</th>
+                            <th class="text-center">Presente</th>
+                            <th>Observação</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="listaPresencas">
+                    {% for p in presencas %}
+                        <tr data-id="{{ p.aluno.id }}">
+                            <td>{{ p.aluno.nome }}</td>
+
+                            <td class="text-center">
+                                <label class="switch">
+                                    <input type="checkbox"
+                                           class="input-presenca"
+                                           data-aluno="{{ p.aluno.id }}"
+                                           {% if p.presente %}checked{% endif %}
+                                           disabled>
+                                    <span class="slider"></span>
+                                </label>
+                            </td>
+
+                            <td>
+                                <input type="text"
+                                       class="form-control input-obs"
+                                       data-aluno="{{ p.aluno.id }}"
+                                       value="{{ p.observacao }}"
+                                       disabled>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+    const btnEditar = document.getElementById("btnEditar");
+    const btnSalvar = document.getElementById("btnSalvar");
+    const btnCancelar = document.getElementById("btnCancelar");
+
+    const inputs = document.querySelectorAll(".input-presenca, .input-obs");
+
+    function showToast(msg, success = true) {
+        const toast = document.getElementById("toast");
+        toast.innerText = msg;
+        toast.style.background = success ? "#28a745" : "#dc3545";
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 3000);
+    }
+
+    btnEditar.onclick = () => {
+        inputs.forEach(i => i.disabled = false);
+        btnEditar.style.display = "none";
+        btnSalvar.style.display = "inline-block";
+        btnCancelar.style.display = "inline-block";
+    };
+
+    btnCancelar.onclick = () => window.location.reload();
+
+    btnSalvar.onclick = async () => {
+        const lista = [];
+
+        document.querySelectorAll("#listaPresencas tr").forEach(tr => {
+            lista.push({
+                aluno_id: tr.dataset.id,
+                presente: tr.querySelector(".input-presenca").checked,
+                observacao: tr.querySelector(".input-obs").value
+            });
+        });
+
+        const resp = await fetch("{% url 'chamada:atualizar_chamada' chamada_id=chamada.id %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({ lista })
+        });
+
+        const data = await resp.json();
+
+        if (data.status === "sucesso") {
+            showToast("Chamada atualizada com sucesso!", true);
+            setTimeout(() => window.location.reload(), 1200);
+        } else {
+            showToast(data.mensagem || "Erro ao atualizar.", false);
+        }
+    };
+</script>
+
+</body>
+</html>

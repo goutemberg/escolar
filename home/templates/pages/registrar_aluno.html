@@ -71,7 +71,7 @@
   </style>
  </head>
  <body>
-  {% include 'partials/_nav.html' %}
+    {% include 'partials/_nav.html' %}
   <section class="content-wrapper" style="margin-top: 15px;">
    <div class="header-bar">
     Matricular Aluno
@@ -95,6 +95,9 @@
    </div>
    <form id="formCadastro" method="post">
     {% csrf_token %}
+    {% if modo == 'edit' %}
+    <input type="hidden" id="aluno_id" name="aluno_id" value="{{ aluno.id }}">
+    {% endif %}
     <!-- TAB 0 -->
     <div class="tab-content">
      <h3>
@@ -105,17 +108,17 @@
        <label for="nome">
         Nome
        </label>
-       <input id="nome" name="nome" placeholder="Nome completo" type="text"/>
-       <small class="field-error d-none" id="nome_error">
-       </small>
+       <input id="nome" name="nome" placeholder="Nome completo" type="text"
+              value="{{ aluno.nome|default:'' }}"/>
+       <small class="field-error d-none" id="nome_error"></small>
       </div>
       <div class="form-group">
        <label for="data_nascimento">
         Data de nascimento
        </label>
-       <input id="data_nascimento" name="data_nascimento" type="date"/>
-       <small class="field-error d-none" id="data_nascimento_error">
-       </small>
+       <input id="data_nascimento" name="data_nascimento" type="date"
+              value="{{ aluno.data_nascimento|date:'Y-m-d' }}"/>
+       <small class="field-error d-none" id="data_nascimento_error"></small>
       </div>
      </div>
      <div class="form-row">
@@ -123,23 +126,30 @@
        <label for="matricula">
         Matrícula
        </label>
-       <input disabled="" id="matricula_visivel" type="text" value="{{ matricula }}"/>
-       <input id="matricula" name="matricula" type="hidden" value="{{ matricula }}"/>
+       <input disabled id="matricula_visivel" type="text"
+              value="{{ matricula }}"/>
+       <input id="matricula" name="matricula" type="hidden"
+              value="{{ matricula }}"/>
       </div>
       <div class="form-group short-field">
        <label for="cpf">
         CPF
        </label>
-       <input id="cpf" inputmode="numeric" maxlength="14" name="cpf" placeholder="000.000.000-00" type="text"/>
-       <small class="field-error d-none" id="cpf_error">
-        CPF inválido.
-       </small>
+       <input id="cpf"
+       inputmode="numeric"
+       maxlength="14"
+       name="cpf"
+       placeholder="000.000.000-00"
+       type="text"
+       value="{{ aluno.cpf|default:'' }}" />
+      <small class="field-error d-none" id="cpf_error">CPF inválido.</small>
       </div>
       <div class="form-group short-field">
        <label for="rg">
         RG
        </label>
-       <input id="rg" name="rg" placeholder="RG se houver" type="text"/>
+       <input id="rg" name="rg" placeholder="RG se houver" type="text"
+              value="{{ aluno.rg|default:'' }}"/>
       </div>
      </div>
      <div class="form-row">
@@ -148,28 +158,24 @@
         Sexo
        </label>
        <select id="sexo" name="sexo">
-        <option value="">
-         Selecione
-        </option>
-        <option value="Masculino">
-         Masculino
-        </option>
-        <option value="Feminino">
-         Feminino
-        </option>
+        <option value="">Selecione</option>
+        <option value="Masculino" {% if aluno.sexo == 'Masculino' %}selected{% endif %}>Masculino</option>
+        <option value="Feminino" {% if aluno.sexo == 'Feminino' %}selected{% endif %}>Feminino</option>
        </select>
       </div>
       <div class="form-group short-field">
        <label for="nacionalidade">
         Nacionalidade
        </label>
-       <input id="nacionalidade" name="nacionalidade" placeholder="Nacionalidade" type="text"/>
+       <input id="nacionalidade" name="nacionalidade" type="text"
+              value="{{ aluno.nacionalidade|default:'' }}"/>
       </div>
       <div class="form-group short-field">
        <label for="naturalidade">
         Naturalidade
        </label>
-       <input id="naturalidade" name="naturalidade" placeholder="Cidade/Estado" type="text"/>
+       <input id="naturalidade" name="naturalidade" type="text"
+              value="{{ aluno.naturalidade|default:'' }}"/>
       </div>
      </div>
      <div class="form-row">
@@ -177,663 +183,682 @@
        <label for="certidao_numero">
         Certidão de nascimento
        </label>
-       <input id="certidao_numero" name="certidao_numero" placeholder="Número" type="text"/>
+       <input id="certidao_numero" name="certidao_numero" type="text"
+              value="{{ aluno.certidao_numero|default:'' }}"/>
       </div>
       <div class="form-group short-field">
        <label for="certidao_livro">
         Livro
        </label>
-       <input id="certidao_livro" name="certidao_livro" placeholder="Livro" type="text"/>
+       <input id="certidao_livro" name="certidao_livro" type="text"
+              value="{{ aluno.certidao_livro|default:'' }}"/>
       </div>
       <div class="form-group short-field">
        <label for="tipo_sanguineo">
         Tipo de sangue e fator RH
        </label>
        <select id="tipo_sanguineo" name="tipo_sanguineo">
-        <option value="">
-         Selecione
-        </option>
-        <option value="A+">
-         A+
-        </option>
-        <option value="A-">
-         A-
-        </option>
-        <option value="B+">
-         B+
-        </option>
-        <option value="B-">
-         B-
-        </option>
-        <option value="AB+">
-         AB+
-        </option>
-        <option value="AB-">
-         AB-
-        </option>
-        <option value="O+">
-         O+
-        </option>
-        <option value="O-">
-         O-
-        </option>
-       </select>
+  <option value="">Selecione</option>
+  {% for tipo in tipos_sanguineos %}
+    <option value="{{ tipo }}"
+      {% if aluno.tipo_sanguineo == tipo %}selected{% endif %}>
+      {{ tipo }}
+    </option>
+  {% endfor %}
+</select>
       </div>
      </div>
      <!-- Linha com data_ingresso / cor_raca / responsavel_financeiro -->
-     <div class="form-row">
-      <div class="form-group short-field">
-       <label for="data_ingresso">
-        Data de ingresso
-       </label>
-       <input id="data_ingresso" name="data_ingresso" type="date"/>
-       <small class="field-error d-none" id="data_ingresso_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="cor_raca">
-        Cor/Raça
-       </label>
-       <select id="cor_raca" name="cor_raca">
-        <option value="">
-         Selecione
-        </option>
-        <option value="branca">
-         Branca
-        </option>
-        <option value="preta">
-         Preta
-        </option>
-        <option value="parda">
-         Parda
-        </option>
-        <option value="amarela">
-         Amarela
-        </option>
-        <option value="indigena">
-         Indígena
-        </option>
-        <option value="nao_informado">
-         Não informado
-        </option>
-       </select>
-      </div>
-      <div class="form-group short-field">
-       <label for="responsavel_financeiro">
-        Resp. Financeiro
-       </label>
-       <select id="responsavel_financeiro" name="responsavel_financeiro">
-        <option value="">
-         Selecione
-        </option>
-        <option value="pai">
-         Pai
-        </option>
-        <option value="mae">
-         Mãe
-        </option>
-        <option value="outro">
-         Outro
-        </option>
-       </select>
-      </div>
-     </div>
-     <!-- NOVA linha: Série/Ano + Turno + Nível/Modalidade + Turma (do banco) -->
-     <div class="form-row">
-      <div class="form-group short-field">
-       <label for="serie_ano">
-        Série/Ano
-       </label>
-       <input id="serie_ano" name="serie_ano" placeholder="Ex.: 5º Ano" type="text"/>
-      </div>
-      <div class="form-group short-field">
-       <label for="turno">
-        Turno
-       </label>
-       <select id="turno" name="turno">
-        <option value="">
-         Selecione
-        </option>
-        <option value="Matutino">
-         Matutino
-        </option>
-        <option value="Vespertino">
-         Vespertino
-        </option>
-        <option value="Noturno">
-         Noturno
-        </option>
-        <option value="Integral">
-         Integral
-        </option>
-       </select>
-      </div>
-      <div class="form-group short-field">
-       <label for="nivel_modalidade">
-        Nível/Modalidade
-       </label>
-       <select id="nivel_modalidade" name="nivel_modalidade">
-        <option value="">
-         Selecione
-        </option>
-        <option value="Infantil">
-         Infantil
-        </option>
-        <option value="Fundamental I">
-         Fundamental I
-        </option>
-        <option value="Fundamental II">
-         Fundamental II
-        </option>
-       </select>
-      </div>
-      <div class="form-group short-field">
-       <label for="turma_id">
-        Turma
-       </label>
-       <select id="turma_id" name="turma_id">
-        <option value="">
-         Selecione
-        </option>
-        {% if turmas %}
-                              {% for t in turmas %}
-        <option value="{{ t.id }}">
-         {{ t.nome }}
-        </option>
-        {% endfor %}
-                            {% endif %}
-        
-       </select>
-      </div>
-     </div>
-     <!-- Linha com situacao_familiar / forma_acesso / dispensa_ensino_religioso -->
-     <div class="form-row">
-      <div class="form-group short-field">
-       <label for="situacao_familiar">
-        Situação familiar
-       </label>
-       <select id="situacao_familiar" name="situacao_familiar">
-        <option value="">
-         Selecione
-        </option>
-        <option value="casados">
-         Casados
-        </option>
-        <option value="separados">
-         Separados
-        </option>
-        <option value="outros">
-         Outros
-        </option>
-       </select>
-      </div>
-      <div class="form-group short-field">
-       <label for="forma_acesso">
-        III - Forma de acesso
-       </label>
-       <select id="forma_acesso" name="forma_acesso">
-        <option value="">
-         Selecione
-        </option>
-        <option value="matricula">
-         Matrícula
-        </option>
-        <option value="rematricula">
-         Rematrícula
-        </option>
-        <option value="transferencia">
-         Transferência
-        </option>
-       </select>
-      </div>
-      <div class="form-group short-field">
-       <label for="dispensa_ensino_religioso">
-        Dispensa Ensino Religioso
-       </label>
-       <select id="dispensa_ensino_religioso" name="dispensa_ensino_religioso">
-        <option value="">
-         Selecione
-        </option>
-        <option value="false">
-         Não
-        </option>
-        <option value="true">
-         Sim
-        </option>
-       </select>
-      </div>
-     </div>
-     <h3>
-      Endereço
-     </h3>
-     <div class="form-row">
-      <div class="form-group">
-       <label for="rua">
-        Rua
-       </label>
-       <input id="rua" name="rua" placeholder="Logradouro" type="text"/>
-       <small class="field-error d-none" id="rua_error">
-       </small>
-      </div>
-      <div class="form-group">
-       <label for="numero">
-        Número
-       </label>
-       <input id="numero" name="numero" placeholder="Nº" type="text"/>
-       <small class="field-error d-none" id="numero_error">
-       </small>
-      </div>
-      <div class="form-group">
-       <label for="cep">
-        CEP
-       </label>
-       <input id="cep" name="cep" placeholder="00.000-000" type="text"/>
-       <small class="field-error d-none" id="cep_error">
-       </small>
-      </div>
-     </div>
-     <div class="form-row">
-      <div class="form-group">
-       <label for="bairro">
-        Bairro
-       </label>
-       <input id="bairro" name="bairro" type="text"/>
-       <small class="field-error d-none" id="bairro_error">
-       </small>
-      </div>
-      <div class="form-group">
-       <label for="cidade">
-        Cidade
-       </label>
-       <input id="cidade" name="cidade" type="text"/>
-       <small class="field-error d-none" id="cidade_error">
-       </small>
-      </div>
-      <div class="form-group">
-      <label for="estado">Estado</label>
-    <select id="estado" name="estado">
-    <option value="">Selecione...</option>
-    <option value="AC">Acre (AC)</option>
-    <option value="AL">Alagoas (AL)</option>
-    <option value="AP">Amapá (AP)</option>
-    <option value="AM">Amazonas (AM)</option>
-    <option value="BA">Bahia (BA)</option>
-    <option value="CE">Ceará (CE)</option>
-    <option value="DF">Distrito Federal (DF)</option>
-    <option value="ES">Espírito Santo (ES)</option>
-    <option value="GO">Goiás (GO)</option>
-    <option value="MA">Maranhão (MA)</option>
-    <option value="MT">Mato Grosso (MT)</option>
-    <option value="MS">Mato Grosso do Sul (MS)</option>
-    <option value="MG">Minas Gerais (MG)</option>
-    <option value="PA">Pará (PA)</option>
-    <option value="PB">Paraíba (PB)</option>
-    <option value="PR">Paraná (PR)</option>
-    <option value="PE">Pernambuco (PE)</option>
-    <option value="PI">Piauí (PI)</option>
-    <option value="RJ">Rio de Janeiro (RJ)</option>
-    <option value="RN">Rio Grande do Norte (RN)</option>
-    <option value="RS">Rio Grande do Sul (RS)</option>
-    <option value="RO">Rondônia (RO)</option>
-    <option value="RR">Roraima (RR)</option>
-    <option value="SC">Santa Catarina (SC)</option>
-    <option value="SP">São Paulo (SP)</option>
-    <option value="SE">Sergipe (SE)</option>
-    <option value="TO">Tocantins (TO)</option>
+<div class="form-row">
+  <div class="form-group short-field">
+  <label for="data_ingresso">Data de ingresso</label>
+  <input
+    id="data_ingresso"
+    name="data_ingresso"
+    type="date"
+    value="{% if modo == 'edit' and aluno.data_ingresso %}{{ aluno.data_ingresso|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}"
+  />
+  <small class="field-error d-none" id="data_ingresso_error"></small>
+</div>
+  <div class="form-group short-field">
+    <label for="cor_raca">
+      Cor/Raça
+    </label>
+    <select id="cor_raca" name="cor_raca">
+      <option value="">Selecione</option>
+      <option value="branca" {% if aluno.cor_raca == 'branca' %}selected{% endif %}>Branca</option>
+      <option value="preta" {% if aluno.cor_raca == 'preta' %}selected{% endif %}>Preta</option>
+      <option value="parda" {% if aluno.cor_raca == 'parda' %}selected{% endif %}>Parda</option>
+      <option value="amarela" {% if aluno.cor_raca == 'amarela' %}selected{% endif %}>Amarela</option>
+      <option value="indigena" {% if aluno.cor_raca == 'indigena' %}selected{% endif %}>Indígena</option>
+      <option value="nao_informado" {% if aluno.cor_raca == 'nao_informado' %}selected{% endif %}>
+        Não informado
+      </option>
     </select>
-    <small class="field-error d-none" id="estado_error"></small>
-      </div>
-     </div>
-     <div class="form-row">
-      <div class="form-group">
-       <label for="email">
-        Email
-       </label>
-       <input id="email" name="email" type="email"/>
-       <small class="field-error d-none" id="email_error">
-       </small>
-      </div>
-      <div class="form-group">
-       <label for="telefone">
-        Telefone
-       </label>
-       <input id="telefone" name="telefone" type="text"/>
-       <small class="field-error d-none" id="telefone_error">
-       </small>
-      </div>
-     </div>
-    </div>
-    <!-- TAB 1 -->
-    <div class="tab-section" style="display:none">
-     <h3>
-      Dados dos Responsáveis
-     </h3>
-     <!-- Genérico (mantido) -->
-     <div class="form-row">
-      <div class="form-group">
-       <label for="responsavel_nome">
-        Nome do Responsável
-       </label>
-       <input id="responsavel_nome" name="responsavel_nome" type="text"/>
-       <small class="field-error d-none" id="responsavel_nome_error">
-       </small>
-      </div>
-      <div class="form-group">
-       <label for="responsavel_email">
-        Email
-       </label>
-       <input id="responsavel_email" name="responsavel_email" type="email"/>
-       <small class="field-error d-none" id="responsavel_email_error">
-       </small>
-      </div>
-     </div>
-     <div class="form-row">
-      <div class="form-group short-field">
-       <label for="responsavel_telefone">
-        Telefone
-       </label>
-       <input id="responsavel_telefone" name="responsavel_telefone" type="text"/>
-       <small class="field-error d-none" id="responsavel_telefone_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-    <label for="responsavel_telefone2">Telefone 2</label>
-    <input id="responsavel_telefone2" name="responsavel_telefone2" type="text"/>
-    <small class="field-error d-none" id="responsavel_telefone2_error"></small>
-</div>
-      <div class="form-group short-field">
-       <label for="responsavel_cpf">
-        CPF (se houver)
-       </label>
-       <input id="responsavel_cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" type="text"/>
-       <small class="field-error d-none" id="responsavel_cpf_error">
-        CPF inválido.
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="responsavel_parentesco">
-        Parentesco
-       </label>
-       <input id="responsavel_parentesco" placeholder="Tio, Avó, ..." type="text"/>
-       <small class="field-error d-none" id="responsavel_parentesco_error">
-       </small>
-      </div>
-     </div>
-     <!-- Pai / Mãe no mesmo padrão -->
-     <h4 style="font-size:1rem;margin:.5rem 0;">
-      Pai
-     </h4>
-     <div class="form-row">
-      <div class="form-group">
-       <label for="pai_nome">
-        Nome
-       </label>
-       <input id="pai_nome" type="text"/>
-       <small class="field-error d-none" id="pai_nome_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="pai_cpf">
-        CPF
-       </label>
-       <input id="pai_cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" type="text"/>
-       <small class="field-error d-none" id="pai_cpf_error">
-        CPF inválido.
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="pai_identidade">
-        Identidade
-       </label>
-       <input id="pai_identidade" type="text"/>
-       <small class="field-error d-none" id="pai_identidade_error">
-       </small>
-      </div>
-     </div>
-     <div class="form-row">
-      <div class="form-group short-field">
-       <label for="pai_escolaridade">
-        Escolaridade
-       </label>
-       <input id="pai_escolaridade" type="text"/>
-       <small class="field-error d-none" id="pai_escolaridade_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="pai_profissao">
-        Profissão
-       </label>
-       <input id="pai_profissao" type="text"/>
-       <small class="field-error d-none" id="pai_profissao_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="pai_telefone">
-        Telefone
-       </label>
-       <input id="pai_telefone" type="text"/>
-       <small class="field-error d-none" id="pai_telefone_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-    <label for="pai_telefone2">Telefone 2</label>
-    <input id="pai_telefone2" type="text"/>
-    <small class="field-error d-none" id="pai_telefone2_error"></small>
-</div>
-      <div class="form-group short-field">
-       <label for="pai_email">
-        Email
-       </label>
-       <input id="pai_email" type="email"/>
-       <small class="field-error d-none" id="pai_email_error">
-       </small>
-      </div>
-     </div>
-     <h4 style="font-size:1rem;margin:.5rem 0;">
-      Mãe
-     </h4>
-     <div class="form-row">
-      <div class="form-group">
-       <label for="mae_nome">
-        Nome
-       </label>
-       <input id="mae_nome" type="text"/>
-       <small class="field-error d-none" id="mae_nome_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="mae_cpf">
-        CPF
-       </label>
-       <input id="mae_cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" type="text"/>
-       <small class="field-error d-none" id="mae_cpf_error">
-        CPF inválido.
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="mae_identidade">
-        Identidade
-       </label>
-       <input id="mae_identidade" type="text"/>
-       <small class="field-error d-none" id="mae_identidade_error">
-       </small>
-      </div>
-     </div>
-     <div class="form-row">
-      <div class="form-group short-field">
-       <label for="mae_escolaridade">
-        Escolaridade
-       </label>
-       <input id="mae_escolaridade" type="text"/>
-       <small class="field-error d-none" id="mae_escolaridade_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="mae_profissao">
-        Profissão
-       </label>
-       <input id="mae_profissao" type="text"/>
-       <small class="field-error d-none" id="mae_profissao_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="mae_telefone">
-        Telefone
-       </label>
-       <input id="mae_telefone" type="text"/>
-       <small class="field-error d-none" id="mae_telefone_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-    <label for="mae_telefone2">Telefone 2</label>
-    <input id="mae_telefone2" type="text"/>
-    <small class="field-error d-none" id="mae_telefone2_error"></small>
+  </div>
+
+  <div class="form-group short-field">
+    <label for="responsavel_financeiro">
+      Resp. Financeiro
+    </label>
+    <select id="responsavel_financeiro" name="responsavel_financeiro">
+      <option value="">Selecione</option>
+      <option value="pai" {% if aluno.responsavel_financeiro == 'pai' %}selected{% endif %}>Pai</option>
+      <option value="mae" {% if aluno.responsavel_financeiro == 'mae' %}selected{% endif %}>Mãe</option>
+      <option value="outro" {% if aluno.responsavel_financeiro == 'outro' %}selected{% endif %}>Outro</option>
+    </select>
+  </div>
 </div>
 
-      <div class="form-group short-field">
-       <label for="mae_email">
+<!-- NOVA linha: Série/Ano + Turno + Nível/Modalidade + Turma (do banco) -->
+<div class="form-row">
+  <div class="form-group short-field">
+    <label for="serie_ano">
+      Série/Ano
+    </label>
+    <input
+      id="serie_ano"
+      name="serie_ano"
+      placeholder="Ex.: 5º Ano"
+      type="text"
+      value="{{ aluno.serie_ano }}"
+    />
+  </div>
+
+  <div class="form-group short-field">
+    <label for="turno">
+      Turno
+    </label>
+    <select id="turno" name="turno">
+      <option value="">Selecione</option>
+      <option value="Matutino" {% if aluno.turno == 'Matutino' %}selected{% endif %}>Matutino</option>
+      <option value="Vespertino" {% if aluno.turno == 'Vespertino' %}selected{% endif %}>Vespertino</option>
+      <option value="Noturno" {% if aluno.turno == 'Noturno' %}selected{% endif %}>Noturno</option>
+      <option value="Integral" {% if aluno.turno == 'Integral' %}selected{% endif %}>Integral</option>
+    </select>
+  </div>
+
+  <div class="form-group short-field">
+    <label for="nivel_modalidade">
+      Nível/Modalidade
+    </label>
+    <select id="nivel_modalidade" name="nivel_modalidade">
+      <option value="">Selecione</option>
+      <option value="Infantil" {% if aluno.nivel_modalidade == 'Infantil' %}selected{% endif %}>Infantil</option>
+      <option value="Fundamental I" {% if aluno.nivel_modalidade == 'Fundamental I' %}selected{% endif %}>
+        Fundamental I
+      </option>
+      <option value="Fundamental II" {% if aluno.nivel_modalidade == 'Fundamental II' %}selected{% endif %}>
+        Fundamental II
+      </option>
+    </select>
+  </div>
+
+  <div class="form-group short-field">
+    <label for="turma_id">
+      Turma
+    </label>
+    <select id="turma_id" name="turma_id">
+      <option value="">Selecione</option>
+      {% if turmas %}
+        {% for t in turmas %}
+          <option
+            value="{{ t.id }}"
+            {% if aluno.turma and aluno.turma.id == t.id %}selected{% endif %}
+          >
+            {{ t.nome }}
+          </option>
+        {% endfor %}
+      {% endif %}
+    </select>
+  </div>
+</div>
+ <!-- Linha com situacao_familiar / forma_acesso / dispensa_ensino_religioso -->
+<div class="form-row">
+  <div class="form-group short-field">
+    <label for="situacao_familiar">
+      Situação familiar
+    </label>
+    <select id="situacao_familiar" name="situacao_familiar">
+      <option value="">Selecione</option>
+      <option value="casados" {% if aluno.situacao_familiar == 'casados' %}selected{% endif %}>Casados</option>
+      <option value="separados" {% if aluno.situacao_familiar == 'separados' %}selected{% endif %}>Separados</option>
+      <option value="outros" {% if aluno.situacao_familiar == 'outros' %}selected{% endif %}>Outros</option>
+    </select>
+  </div>
+
+  <div class="form-group short-field">
+    <label for="forma_acesso">
+      III - Forma de acesso
+    </label>
+    <select id="forma_acesso" name="forma_acesso">
+      <option value="">Selecione</option>
+      <option value="matricula" {% if aluno.forma_acesso == 'matricula' %}selected{% endif %}>Matrícula</option>
+      <option value="rematricula" {% if aluno.forma_acesso == 'rematricula' %}selected{% endif %}>Rematrícula</option>
+      <option value="transferencia" {% if aluno.forma_acesso == 'transferencia' %}selected{% endif %}>Transferência</option>
+    </select>
+  </div>
+
+  <div class="form-group short-field">
+    <label for="dispensa_ensino_religioso">
+      Dispensa Ensino Religioso
+    </label>
+    <select id="dispensa_ensino_religioso" name="dispensa_ensino_religioso">
+      <option value="">Selecione</option>
+      <option value="false" {% if aluno.dispensa_ensino_religioso == False %}selected{% endif %}>Não</option>
+      <option value="true" {% if aluno.dispensa_ensino_religioso == True %}selected{% endif %}>Sim</option>
+    </select>
+  </div>
+</div>
+
+<h3>
+  Endereço
+</h3>
+
+<div class="form-row">
+  <div class="form-group">
+    <label for="rua">
+      Rua
+    </label>
+    <input
+      id="rua"
+      name="rua"
+      placeholder="Logradouro"
+      type="text"
+      value="{{ aluno.rua }}"
+    />
+    <small class="field-error d-none" id="rua_error"></small>
+  </div>
+
+  <div class="form-group">
+    <label for="numero">
+      Número
+    </label>
+    <input
+      id="numero"
+      name="numero"
+      placeholder="Nº"
+      type="text"
+      value="{{ aluno.numero }}"
+    />
+    <small class="field-error d-none" id="numero_error"></small>
+  </div>
+
+  <div class="form-group">
+    <label for="cep">
+      CEP
+    </label>
+    <input
+      id="cep"
+      name="cep"
+      placeholder="00.000-000"
+      type="text"
+      value="{{ aluno.cep }}"
+    />
+    <small class="field-error d-none" id="cep_error"></small>
+  </div>
+</div>
+
+<div class="form-row">
+  <div class="form-group">
+    <label for="bairro">
+      Bairro
+    </label>
+    <input
+      id="bairro"
+      name="bairro"
+      type="text"
+      value="{{ aluno.bairro }}"
+    />
+    <small class="field-error d-none" id="bairro_error"></small>
+  </div>
+
+  <div class="form-group">
+    <label for="cidade">
+      Cidade
+    </label>
+    <input
+      id="cidade"
+      name="cidade"
+      type="text"
+      value="{{ aluno.cidade }}"
+    />
+    <small class="field-error d-none" id="cidade_error"></small>
+  </div>
+
+  <div class="form-group">
+    <label for="estado">Estado</label>
+    <select id="estado" name="estado">
+      <option value="">Selecione...</option>
+      <option value="AC" {% if aluno.estado == 'AC' %}selected{% endif %}>Acre (AC)</option>
+      <option value="AL" {% if aluno.estado == 'AL' %}selected{% endif %}>Alagoas (AL)</option>
+      <option value="AP" {% if aluno.estado == 'AP' %}selected{% endif %}>Amapá (AP)</option>
+      <option value="AM" {% if aluno.estado == 'AM' %}selected{% endif %}>Amazonas (AM)</option>
+      <option value="BA" {% if aluno.estado == 'BA' %}selected{% endif %}>Bahia (BA)</option>
+      <option value="CE" {% if aluno.estado == 'CE' %}selected{% endif %}>Ceará (CE)</option>
+      <option value="DF" {% if aluno.estado == 'DF' %}selected{% endif %}>Distrito Federal (DF)</option>
+      <option value="ES" {% if aluno.estado == 'ES' %}selected{% endif %}>Espírito Santo (ES)</option>
+      <option value="GO" {% if aluno.estado == 'GO' %}selected{% endif %}>Goiás (GO)</option>
+      <option value="MA" {% if aluno.estado == 'MA' %}selected{% endif %}>Maranhão (MA)</option>
+      <option value="MT" {% if aluno.estado == 'MT' %}selected{% endif %}>Mato Grosso (MT)</option>
+      <option value="MS" {% if aluno.estado == 'MS' %}selected{% endif %}>Mato Grosso do Sul (MS)</option>
+      <option value="MG" {% if aluno.estado == 'MG' %}selected{% endif %}>Minas Gerais (MG)</option>
+      <option value="PA" {% if aluno.estado == 'PA' %}selected{% endif %}>Pará (PA)</option>
+      <option value="PB" {% if aluno.estado == 'PB' %}selected{% endif %}>Paraíba (PB)</option>
+      <option value="PR" {% if aluno.estado == 'PR' %}selected{% endif %}>Paraná (PR)</option>
+      <option value="PE" {% if aluno.estado == 'PE' %}selected{% endif %}>Pernambuco (PE)</option>
+      <option value="PI" {% if aluno.estado == 'PI' %}selected{% endif %}>Piauí (PI)</option>
+      <option value="RJ" {% if aluno.estado == 'RJ' %}selected{% endif %}>Rio de Janeiro (RJ)</option>
+      <option value="RN" {% if aluno.estado == 'RN' %}selected{% endif %}>Rio Grande do Norte (RN)</option>
+      <option value="RS" {% if aluno.estado == 'RS' %}selected{% endif %}>Rio Grande do Sul (RS)</option>
+      <option value="RO" {% if aluno.estado == 'RO' %}selected{% endif %}>Rondônia (RO)</option>
+      <option value="RR" {% if aluno.estado == 'RR' %}selected{% endif %}>Roraima (RR)</option>
+      <option value="SC" {% if aluno.estado == 'SC' %}selected{% endif %}>Santa Catarina (SC)</option>
+      <option value="SP" {% if aluno.estado == 'SP' %}selected{% endif %}>São Paulo (SP)</option>
+      <option value="SE" {% if aluno.estado == 'SE' %}selected{% endif %}>Sergipe (SE)</option>
+      <option value="TO" {% if aluno.estado == 'TO' %}selected{% endif %}>Tocantins (TO)</option>
+    </select>
+    <small class="field-error d-none" id="estado_error"></small>
+  </div>
+</div>
+
+<div class="form-row">
+  <div class="form-group">
+    <label for="email">
+      Email
+    </label>
+    <input
+      id="email"
+      name="email"
+      type="email"
+      value="{{ aluno.email }}"
+    />
+    <small class="field-error d-none" id="email_error"></small>
+  </div>
+
+  <div class="form-group">
+    <label for="telefone">
+      Telefone
+    </label>
+    <input
+      id="telefone"
+      name="telefone"
+      type="text"
+      value="{{ aluno.telefone }}"
+    />
+    <small class="field-error d-none" id="telefone_error"></small>
+  </div>
+</div>
+</div>
+  <!-- TAB 1 -->
+<div class="tab-section" style="display:none">
+  <h3>
+    Dados dos Responsáveis
+  </h3>
+
+  <!-- Genérico (mantido) -->
+  <div class="form-row">
+    <div class="form-group">
+      <label for="responsavel_nome">
+        Nome do Responsável
+      </label>
+      <input id="responsavel_nome" name="responsavel_nome" type="text" value="{{ aluno.responsavel_nome }}"/>
+      <small class="field-error d-none" id="responsavel_nome_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="responsavel_email">
         Email
-       </label>
-       <input id="mae_email" type="email"/>
-       <small class="field-error d-none" id="mae_email_error">
-       </small>
-      </div>
-     </div>
+      </label>
+      <input id="responsavel_email" name="responsavel_email" type="email" value="{{ aluno.responsavel_email }}"/>
+      <small class="field-error d-none" id="responsavel_email_error"></small>
     </div>
-    <!-- TAB 2 -->
-    <div class="tab-section" style="display:none">
-     <h3>
-      Saúde e Necessidades Especiais
-     </h3>
-     <div class="form-row">
-      <!-- Possui alergia? Sim/Não -->
-      <div class="form-group short-field">
-       <label>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group short-field">
+      <label for="responsavel_telefone">
+        Telefone
+      </label>
+      <input id="responsavel_telefone" name="responsavel_telefone" type="text" value="{{ aluno.responsavel_telefone }}"/>
+      <small class="field-error d-none" id="responsavel_telefone_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="responsavel_telefone2">Telefone 2</label>
+      <input id="responsavel_telefone2" name="responsavel_telefone2" type="text" value="{{ aluno.responsavel_telefone2 }}"/>
+      <small class="field-error d-none" id="responsavel_telefone2_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="responsavel_cpf">
+        CPF (se houver)
+      </label>
+      <input id="responsavel_cpf" name="responsavel_cpf" inputmode="numeric" maxlength="14"
+             placeholder="000.000.000-00" type="text" value="{{ aluno.responsavel_cpf }}"/>
+      <small class="field-error d-none" id="responsavel_cpf_error">CPF inválido.</small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="responsavel_parentesco">
+        Parentesco
+      </label>
+      <input id="responsavel_parentesco" name="responsavel_parentesco" type="text"
+             placeholder="Tio, Avó, ..." value="{{ aluno.responsavel_parentesco }}"/>
+      <small class="field-error d-none" id="responsavel_parentesco_error"></small>
+    </div>
+  </div>
+
+  <!-- Pai / Mãe no mesmo padrão -->
+  <h4 style="font-size:1rem;margin:.5rem 0;">
+    Pai
+  </h4>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label for="pai_nome">
+        Nome
+      </label>
+      <input id="pai_nome" name="pai_nome" type="text" value="{{ aluno.pai_nome }}"/>
+      <small class="field-error d-none" id="pai_nome_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="pai_cpf">
+        CPF
+      </label>
+      <input id="pai_cpf" name="pai_cpf" inputmode="numeric" maxlength="14"
+             placeholder="000.000.000-00" type="text" value="{{ aluno.pai_cpf }}"/>
+      <small class="field-error d-none" id="pai_cpf_error">CPF inválido.</small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="pai_identidade">
+        Identidade
+      </label>
+      <input id="pai_identidade" name="pai_identidade" type="text" value="{{ aluno.pai_identidade }}"/>
+      <small class="field-error d-none" id="pai_identidade_error"></small>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group short-field">
+      <label for="pai_escolaridade">
+        Escolaridade
+      </label>
+      <input id="pai_escolaridade" name="pai_escolaridade" type="text" value="{{ aluno.pai_escolaridade }}"/>
+      <small class="field-error d-none" id="pai_escolaridade_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="pai_profissao">
+        Profissão
+      </label>
+      <input id="pai_profissao" name="pai_profissao" type="text" value="{{ aluno.pai_profissao }}"/>
+      <small class="field-error d-none" id="pai_profissao_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="pai_telefone">
+        Telefone
+      </label>
+      <input id="pai_telefone" name="pai_telefone" type="text" value="{{ aluno.pai_telefone }}"/>
+      <small class="field-error d-none" id="pai_telefone_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="pai_telefone2">Telefone 2</label>
+      <input id="pai_telefone2" name="pai_telefone2" type="text" value="{{ aluno.pai_telefone2 }}"/>
+      <small class="field-error d-none" id="pai_telefone2_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="pai_email">
+        Email
+      </label>
+      <input id="pai_email" name="pai_email" type="email" value="{{ aluno.pai_email }}"/>
+      <small class="field-error d-none" id="pai_email_error"></small>
+    </div>
+  </div>
+
+  <h4 style="font-size:1rem;margin:.5rem 0;">
+    Mãe
+  </h4>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label for="mae_nome">
+        Nome
+      </label>
+      <input id="mae_nome" name="mae_nome" type="text" value="{{ aluno.mae_nome }}"/>
+      <small class="field-error d-none" id="mae_nome_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="mae_cpf">
+        CPF
+      </label>
+      <input id="mae_cpf" name="mae_cpf" inputmode="numeric" maxlength="14"
+             placeholder="000.000.000-00" type="text" value="{{ aluno.mae_cpf }}"/>
+      <small class="field-error d-none" id="mae_cpf_error">CPF inválido.</small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="mae_identidade">
+        Identidade
+      </label>
+      <input id="mae_identidade" name="mae_identidade" type="text" value="{{ aluno.mae_identidade }}"/>
+      <small class="field-error d-none" id="mae_identidade_error"></small>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group short-field">
+      <label for="mae_escolaridade">
+        Escolaridade
+      </label>
+      <input id="mae_escolaridade" name="mae_escolaridade" type="text" value="{{ aluno.mae_escolaridade }}"/>
+      <small class="field-error d-none" id="mae_escolaridade_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="mae_profissao">
+        Profissão
+      </label>
+      <input id="mae_profissao" name="mae_profissao" type="text" value="{{ aluno.mae_profissao }}"/>
+      <small class="field-error d-none" id="mae_profissao_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="mae_telefone">
+        Telefone
+      </label>
+      <input id="mae_telefone" name="mae_telefone" type="text" value="{{ aluno.mae_telefone }}"/>
+      <small class="field-error d-none" id="mae_telefone_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="mae_telefone2">Telefone 2</label>
+      <input id="mae_telefone2" name="mae_telefone2" type="text" value="{{ aluno.mae_telefone2 }}"/>
+      <small class="field-error d-none" id="mae_telefone2_error"></small>
+    </div>
+
+    <div class="form-group short-field">
+      <label for="mae_email">
+        Email
+      </label>
+      <input id="mae_email" name="mae_email" type="email" value="{{ aluno.mae_email }}"/>
+      <small class="field-error d-none" id="mae_email_error"></small>
+    </div>
+  </div>
+</div>
+  <!-- TAB 2 -->
+<div class="tab-section" style="display:none">
+  <h3>
+    Saúde e Necessidades Especiais
+  </h3>
+
+  <div class="form-row">
+    <!-- Possui alergia? Sim/Não -->
+    <div class="form-group short-field">
+      <label>
         Possui alergia?
-       </label>
-       <div class="radio-group">
+      </label>
+      <div class="radio-group">
         <label class="radio-inline">
-         <input id="alergia_sim" name="possui_alergia" type="radio" value="sim"/>
-         Sim
+          <input id="alergia_sim"
+                 name="possui_alergia"
+                 type="radio"
+                 value="sim"
+                 {% if saude and saude.possui_alergia %}checked{% endif %}/>
+          Sim
         </label>
         <label class="radio-inline">
-         <input checked="" id="alergia_nao" name="possui_alergia" type="radio" value="nao"/>
-         Não
+          <input id="alergia_nao"
+                 name="possui_alergia"
+                 type="radio"
+                 value="nao"
+                 {% if not saude or not saude.possui_alergia %}checked{% endif %}/>
+          Não
         </label>
-       </div>
-       <small class="field-error d-none" id="possui_alergia_error">
-       </small>
       </div>
-      <!-- Descrição (habilita só se Sim) -->
-      <div class="form-group">
-       <label for="descricao_alergia">
+      <small class="field-error d-none" id="possui_alergia_error"></small>
+    </div>
+
+    <!-- Descrição (habilita só se Sim) -->
+    <div class="form-group">
+      <label for="descricao_alergia">
         Descrição da(s) alergia(s)
-       </label>
-       <input class="is-disabled-dark" disabled="" id="descricao_alergia" name="descricao_alergia" placeholder="Descreva a(s) alergia(s)" type="text"/>
-       <small class="field-error d-none" id="descricao_alergia_error">
-       </small>
-      </div>
-      <!-- Restrições alimentares (texto livre) -->
-      <div class="form-group">
-       <label for="restricoes">
+      </label>
+      <input
+        id="descricao_alergia"
+        name="descricao_alergia"
+        type="text"
+        placeholder="Descreva a(s) alergia(s)"
+        class="{% if not saude or not saude.possui_alergia %}is-disabled-dark{% endif %}"
+        {% if not saude or not saude.possui_alergia %}disabled{% endif %}
+        value="{{ saude.descricao_alergia|default_if_none:'' }}"/>
+      <small class="field-error d-none" id="descricao_alergia_error"></small>
+    </div>
+
+    <!-- Restrições alimentares (texto livre) -->
+    <div class="form-group">
+      <label for="restricoes">
         Restrições alimentares
-       </label>
-       <input id="restricoes" name="restricoes" placeholder="Ex.: intolerância à lactose" type="text"/>
-       <small class="field-error d-none" id="restricoes_error">
-       </small>
-      </div>
-     </div>
-     <div class="form-row">
-      <!-- Necessidades especiais (simples) -->
-      <div class="form-group">
-       <label for="necessidades">
+      </label>
+      <input
+        id="restricoes"
+        name="restricoes"
+        type="text"
+        placeholder="Ex.: intolerância à lactose"
+        value="{{ saude.restricoes|default_if_none:'' }}"/>
+      <small class="field-error d-none" id="restricoes_error"></small>
+    </div>
+  </div>
+
+  <div class="form-row">
+    <!-- Necessidades especiais (simples) -->
+    <div class="form-group">
+      <label for="necessidades">
         Necessidades especiais
-       </label>
-       <input id="necessidades" name="necessidades" placeholder="Descreva, se houver" type="text"/>
-       <small class="field-error d-none" id="necessidades_error">
-       </small>
-      </div>
-      <!-- Usa medicação? (opcional) -->
-      <div class="form-group short-field">
-       <label for="usa_medicacao">
+      </label>
+      <input
+        id="necessidades"
+        name="necessidades"
+        type="text"
+        placeholder="Descreva, se houver"
+        value="{{ saude.necessidades|default_if_none:'' }}"/>
+      <small class="field-error d-none" id="necessidades_error"></small>
+    </div>
+
+    <!-- Usa medicação? (opcional) -->
+    <div class="form-group short-field">
+      <label for="usa_medicacao">
         Usa medicação?
-       </label>
-       <select id="usa_medicacao" name="usa_medicacao">
-        <option value="">
-         Selecione
+      </label>
+      <select id="usa_medicacao" name="usa_medicacao">
+        <option value="">Selecione</option>
+        <option value="sim" {% if saude and saude.usa_medicacao %}selected{% endif %}>
+          Sim
         </option>
-        <option value="sim">
-         Sim
+        <option value="nao" {% if saude and not saude.usa_medicacao %}selected{% endif %}>
+          Não
         </option>
-        <option value="nao">
-         Não
-        </option>
-       </select>
-       <small class="field-error d-none" id="usa_medicacao_error">
-       </small>
-      </div>
-      <div class="form-group">
-       <label for="quais_medicacoes">
+      </select>
+      <small class="field-error d-none" id="usa_medicacao_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="quais_medicacoes">
         Quais medicações?
-       </label>
-       <input id="quais_medicacoes" name="quais_medicacoes" placeholder="Liste as medicações, se houver" type="text"/>
-       <small class="field-error d-none" id="quais_medicacoes_error">
-       </small>
-      </div>
-     </div>
+      </label>
+      <input
+        id="quais_medicacoes"
+        name="quais_medicacoes"
+        type="text"
+        placeholder="Liste as medicações, se houver"
+        value="{{ saude.quais_medicacoes|default_if_none:'' }}"/>
+      <small class="field-error d-none" id="quais_medicacoes_error"></small>
     </div>
-    <!-- TAB 3 -->
-    <div class="tab-section" style="display:none">
-     <h3>
-      Transporte Escolar
-     </h3>
-     <div class="form-row">
-      <div class="form-group short-field">
-       <label for="utiliza_transporte">
+  </div>
+</div>  
+   <!-- TAB 3 -->
+<div class="tab-section" style="display:none">
+  <h3>
+    Transporte Escolar
+  </h3>
+
+  <div class="form-row">
+    <div class="form-group short-field">
+      <label for="utiliza_transporte">
         Utiliza transporte escolar?
-       </label>
-       <select id="utiliza_transporte" name="utiliza_transporte">
-        <option value="">
-         Selecione
+      </label>
+      <select id="utiliza_transporte" name="utiliza_transporte">
+        <option value="">Selecione</option>
+        <option value="sim"
+          {% if transporte and transporte.utiliza_transporte %}selected{% endif %}>
+          Sim
         </option>
-        <option value="sim">
-         Sim
+        <option value="nao"
+          {% if transporte and not transporte.utiliza_transporte %}selected{% endif %}>
+          Não
         </option>
-        <option value="nao">
-         Não
-        </option>
-       </select>
-       <small class="field-error d-none" id="utiliza_transporte_error">
-       </small>
-      </div>
-      <div class="form-group short-field">
-       <label for="usa_transporte_publico">
-        Usa transporte público?
-       </label>
-       <select id="usa_transporte_publico" name="usa_transporte_publico">
-        <option value="">
-         Selecione
-        </option>
-        <option value="sim">
-         Sim
-        </option>
-        <option value="nao">
-         Não
-        </option>
-       </select>
-       <small class="field-error d-none" id="usa_transporte_publico_error">
-       </small>
-      </div>
-      <div class="form-group">
-       <label for="ponto_onibus">
-        Trajeto/Ponto de ônibus
-       </label>
-       <input id="ponto_onibus" name="ponto_onibus" placeholder="Ex.: Linha Centro • Ponto da Praça" type="text"/>
-       <small class="field-error d-none" id="ponto_onibus_error">
-       </small>
-      </div>
-     </div>
+      </select>
+      <small class="field-error d-none" id="utiliza_transporte_error"></small>
     </div>
+
+    <div class="form-group short-field">
+      <label for="usa_transporte_publico">
+        Usa transporte público?
+      </label>
+      <select id="usa_transporte_publico" name="usa_transporte_publico">
+        <option value="">Selecione</option>
+        <option value="sim"
+          {% if transporte and transporte.usa_transporte_publico %}selected{% endif %}>
+          Sim
+        </option>
+        <option value="nao"
+          {% if transporte and not transporte.usa_transporte_publico %}selected{% endif %}>
+          Não
+        </option>
+      </select>
+      <small class="field-error d-none" id="usa_transporte_publico_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="ponto_onibus">
+        Trajeto/Ponto de ônibus
+      </label>
+      <input
+        id="ponto_onibus"
+        name="ponto_onibus"
+        type="text"
+        placeholder="Ex.: Linha Centro • Ponto da Praça"
+        value="{{ transporte.ponto_onibus|default_if_none:'' }}"/>
+      <small class="field-error d-none" id="ponto_onibus_error"></small>
+    </div>
+  </div>
+</div>
     <!-- TAB 4 -->
     <div class="tab-section" style="display:none">
      <h3>
@@ -898,6 +923,8 @@
      <button class="btn btn-light" onclick="cancelForm()" type="button">
       Cancelar
      </button>
+     <button class="btn btn-secondary" id="editButton" type="button">
+      Editar</button>
      <button class="btn btn-primary" id="submitButton" type="button">
       Salvar
      </button>
@@ -907,256 +934,168 @@
   <footer>
    {% include 'partials/_footer.html' %}
   </footer>
+   </form>
   <script>
-   // ===== Tabs =====
-        function showTab(index) {
-            const tabs = [
-                document.querySelector('.tab-content'),
-                ...document.querySelectorAll('.tab-section')
-            ];
-            const btns = document.querySelectorAll('.tab-buttons [data-tab]');
+/* =========================
+   TABS
+========================= */
+function showTab(index) {
+  const tabs = [
+    document.querySelector('.tab-content'),
+    ...document.querySelectorAll('.tab-section')
+  ];
+  const btns = document.querySelectorAll('.tab-buttons [data-tab]');
 
-            tabs.forEach((tab, i) => {
-                if (!tab) return;
-                tab.style.display = (i === index) ? 'block' : 'none';
-            });
-            btns.forEach((b, i)=> b.classList.toggle('active', i===index));
+  tabs.forEach((tab, i) => {
+    if (!tab) return;
+    tab.style.display = (i === index) ? 'block' : 'none';
+  });
+  btns.forEach((b, i) => b.classList.toggle('active', i === index));
 
-            const activeBtn = document.querySelector(`.tab-buttons [data-tab="${index}"]`);
-            if (activeBtn) activeBtn.focus({preventScroll:true});
-        }
-        showTab(0);
+  const activeBtn = document.querySelector(`.tab-buttons [data-tab="${index}"]`);
+  if (activeBtn) activeBtn.focus({ preventScroll: true });
+}
+showTab(0);
 
-        function goBack() { window.history.back(); }
-        function cancelForm() { window.location.href = document.referrer || '/'; }
+function goBack() { window.history.back(); }
+function cancelForm() { window.location.href = document.referrer || '/'; }
 
-        function getCsrfToken() {
-            const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
-            return input ? input.value : '';
-        }
+function getCsrfToken() {
+  const input = document.querySelector('input[name="csrfmiddlewaretoken"]');
+  return input ? input.value : '';
+}
 
-        // ===== helpers de erro inline =====
-        function showFieldError(id, msg){
-          const el = document.getElementById(id + '_error');
-          if (el){ el.textContent = msg; el.classList.remove('d-none'); }
-        }
-        function clearFieldError(id){
-          const el = document.getElementById(id + '_error');
-          if (el){ el.textContent = ''; el.classList.add('d-none'); }
-        }
+/* =========================
+   ERROS INLINE
+========================= */
+function showFieldError(id, msg) {
+  const el = document.getElementById(id + '_error');
+  if (el) {
+    el.textContent = msg;
+    el.classList.remove('d-none');
+  }
+}
+function clearFieldError(id) {
+  const el = document.getElementById(id + '_error');
+  if (el) {
+    el.textContent = '';
+    el.classList.add('d-none');
+  }
+}
 
-        // ===== Máscara e validação de CPF =====
-        function onlyDigits(v){ return (v||'').replace(/\D/g,''); }
-        function maskCPF(v){
-          v = onlyDigits(v).slice(0,11);
-          if (v.length > 9) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, '$1.$2.$3-$4');
-          if (v.length > 6) return v.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
-          if (v.length > 3) return v.replace(/(\d{3})(\d{0,3})/, '$1.$2');
-          return v;
-        }
-        function cpfValido(cpf){
-          cpf = onlyDigits(cpf);
-          if (cpf.length !== 11) return false;
-          if (/^(\d)\1{10}$/.test(cpf)) return false;
-          let soma=0; for (let i=0;i<9;i++) soma += parseInt(cpf[i])*(10-i);
-          let d1 = (soma*10)%11; if (d1===10) d1=0; if (d1!==parseInt(cpf[9])) return false;
-          soma=0; for (let i=0;i<10;i++) soma += parseInt(cpf[i])*(11-i);
-          let d2 = (soma*10)%11; if (d2===10) d2=0; return d2===parseInt(cpf[10]);
-        }
-        function wireCPF(input, errorId){
-  if(!input) return;
-  
-  input.addEventListener('input', ()=>{
+/* =========================
+   CPF
+========================= */
+function onlyDigits(v) { return (v || '').replace(/\D/g, ''); }
+
+function maskCPF(v) {
+  v = onlyDigits(v).slice(0, 11);
+  if (v.length > 9) return v.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, '$1.$2.$3-$4');
+  if (v.length > 6) return v.replace(/(\d{3})(\d{3})(\d{0,3})/, '$1.$2.$3');
+  if (v.length > 3) return v.replace(/(\d{3})(\d{0,3})/, '$1.$2');
+  return v;
+}
+
+function cpfValido(cpf) {
+  cpf = onlyDigits(cpf);
+  if (cpf.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(cpf)) return false;
+  let soma = 0;
+  for (let i = 0; i < 9; i++) soma += parseInt(cpf[i]) * (10 - i);
+  let d1 = (soma * 10) % 11;
+  if (d1 === 10) d1 = 0;
+  if (d1 !== parseInt(cpf[9])) return false;
+  soma = 0;
+  for (let i = 0; i < 10; i++) soma += parseInt(cpf[i]) * (11 - i);
+  let d2 = (soma * 10) % 11;
+  if (d2 === 10) d2 = 0;
+  return d2 === parseInt(cpf[10]);
+}
+
+function wireCPF(input, errorId) {
+  if (!input) return;
+
+  input.addEventListener('input', () => {
     input.value = maskCPF(input.value);
     input.classList.remove('cpf-invalido');
-    if (errorId) clearFieldError(errorId);
-
-    // SE CPF FOR LIMPO → remove validação pendente
+    clearFieldError(errorId);
     if (onlyDigits(input.value).length === 0) {
-        input.setCustomValidity('');
+      input.setCustomValidity('');
     }
   });
 
-  input.addEventListener('blur', ()=>{
+  input.addEventListener('blur', () => {
     const v = input.value.trim();
     if (!v) {
-        // CPF vazio é permitido → limpa tudo
-        input.setCustomValidity('');
-        if (errorId) clearFieldError(errorId);
-        return;
+      input.setCustomValidity('');
+      clearFieldError(errorId);
+      return;
     }
-
     const ok = cpfValido(v);
     input.classList.toggle('cpf-invalido', !ok);
     input.setCustomValidity(ok ? '' : 'CPF inválido');
-    if (!ok && errorId) showFieldError(errorId, 'CPF inválido.');
-    if (ok && errorId) clearFieldError(errorId);
+    if (!ok) showFieldError(errorId, 'CPF inválido.');
   });
 }
 
-        // ===== Validações de data =====
-        function parseISODate(value){
-          if (!value) return null;
-          const d = new Date(value + 'T00:00:00');
-          return isNaN(d.getTime()) ? null : d;
-        }
-        function isFuture(d){
-          const today = new Date();
-          today.setHours(0,0,0,0);
-          return d.getTime() > today.getTime();
-        }
-        function validateDataNascimento(){
-          const el = document.getElementById('data_nascimento');
-          const v = el.value;
-          clearFieldError('data_nascimento');
-          if (!v) return true;
-          const d = parseISODate(v);
-          if (!d){
-            showFieldError('data_nascimento','Data de nascimento inválida.');
-            return false;
-          }
-          const min = new Date('1900-01-01T00:00:00');
-          if (d < min){
-            showFieldError('data_nascimento','Data de nascimento não pode ser anterior a 01/01/1900.');
-            return false;
-          }
-          if (isFuture(d)){
-            showFieldError('data_nascimento','Data de nascimento não pode ser no futuro.');
-            return false;
-          }
-          return true;
-        }
-        function validateDataIngresso(){
-          const el = document.getElementById('data_ingresso');
-          const v = el.value;
-          clearFieldError('data_ingresso');
-          if (!v) return true; // opcional
-          const d = parseISODate(v);
-          if (!d){
-            showFieldError('data_ingresso','Data de ingresso inválida.');
-            return false;
-          }
-          if (isFuture(d)){
-            showFieldError('data_ingresso','Data de ingresso não pode ser no futuro.');
-            return false;
-          }
-          const nasc = parseISODate(document.getElementById('data_nascimento').value);
-          if (nasc && d < nasc){
-            showFieldError('data_ingresso','Data de ingresso não pode ser anterior à data de nascimento.');
-            return false;
-          }
-          return true;
-        }
+/* =========================
+   DATAS
+========================= */
+function parseISODate(value) {
+  if (!value) return null;
+  const d = new Date(value + 'T00:00:00');
+  return isNaN(d.getTime()) ? null : d;
+}
+function isFuture(d) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return d.getTime() > today.getTime();
+}
+function validateDataNascimento() {
+  const el = document.getElementById('data_nascimento');
+  if (!el.value) return true;
+  const d = parseISODate(el.value);
+  if (!d || isFuture(d) || d < new Date('1900-01-01')) {
+    showFieldError('data_nascimento', 'Data de nascimento inválida.');
+    return false;
+  }
+  return true;
+}
+function validateDataIngresso() {
+  const el = document.getElementById('data_ingresso');
+  if (!el.value) return true;
+  const d = parseISODate(el.value);
+  const nasc = parseISODate(document.getElementById('data_nascimento').value);
+  if (!d || isFuture(d) || (nasc && d < nasc)) {
+    showFieldError('data_ingresso', 'Data de ingresso inválida.');
+    return false;
+  }
+  return true;
+}
 
-        // ===== Alergia: habilita/desabilita descrição + cor escura quando desabilitado =====
-        function setAlergiaState(has){
-          const desc = document.getElementById('descricao_alergia');
-          if (!desc) return;
-          desc.disabled = !has;
-          desc.classList.toggle('is-disabled-dark', !has);
-          if (!has) {
-            // Se desejar limpar quando marcar "Não"
-            // desc.value = '';
-          }
-        }
+/* =========================
+   DOM READY
+========================= */
+document.addEventListener('DOMContentLoaded', function () {
 
-        document.addEventListener('DOMContentLoaded', function () {
-            // CPF + mensagens inline
-            wireCPF(document.getElementById('cpf'), 'cpf');
-            wireCPF(document.getElementById('responsavel_cpf'), 'responsavel_cpf');
-            wireCPF(document.getElementById('pai_cpf'), 'pai_cpf');
-            wireCPF(document.getElementById('mae_cpf'), 'mae_cpf');
+  wireCPF(document.getElementById('cpf'), 'cpf');
+  wireCPF(document.getElementById('responsavel_cpf'), 'responsavel_cpf');
+  wireCPF(document.getElementById('pai_cpf'), 'pai_cpf');
+  wireCPF(document.getElementById('mae_cpf'), 'mae_cpf');
 
-              // Datas no blur
-        const dn = document.getElementById('data_nascimento');
-        const di = document.getElementById('data_ingresso');
-        const campoDataIngresso = document.getElementById('data_ingresso');
-        if (campoDataIngresso && !campoDataIngresso.value) {
-        campoDataIngresso.value = new Date().toISOString().split('T')[0];
-        }
+  const btn = document.getElementById('submitButton');
+  const isEdit = !!document.querySelector('input[name="aluno_id"]');
 
-        if (dn) dn.addEventListener('blur', validateDataNascimento);
-        if (di) di.addEventListener('blur', validateDataIngresso);
+  btn.addEventListener('click', function (event) {
+    event.preventDefault();
 
-            // Radios de alergia
-            const rSim = document.getElementById('alergia_sim');
-            const rNao = document.getElementById('alergia_nao');
-            if (rSim) rSim.addEventListener('change', ()=> setAlergiaState(true));
-            if (rNao) rNao.addEventListener('change', ()=> setAlergiaState(false));
-            // estado inicial
-            setAlergiaState(rSim?.checked === true);
+    if (!validateDataNascimento() || !validateDataIngresso()) return;
+                  const possuiAlergia = document.getElementById('alergia_sim')?.checked === true;
+                  const dados = {
 
-            const btn = document.getElementById('submitButton');
-            btn.addEventListener('click', function (event) {
-                event.preventDefault();
-
-                // Limpa erros antigos
-                ['cpf','responsavel_cpf','pai_cpf','mae_cpf','data_nascimento','data_ingresso','nome','rua','numero','cep','bairro','cidade','estado','email','telefone'].forEach(clearFieldError);
-
-                const erros = [];
-
-                // Valida CPFs
-                const cpfInputs = [
-                  {id:'cpf', label:'CPF do aluno'},
-                  {id:'responsavel_cpf', label:'CPF do responsável'},
-                  {id:'pai_cpf', label:'CPF do pai'},
-                  {id:'mae_cpf', label:'CPF da mãe'}
-                ];
-                for (const item of cpfInputs){
-                  const el = document.getElementById(item.id);
-                  if (!el) continue;
-                  const v = el.value.trim();
-                  if (v && !cpfValido(v)){
-                    el.classList.add('cpf-invalido');
-                    el.reportValidity();
-                    showFieldError(item.id, `${item.label} inválido.`);
-                    erros.push(`${item.label} inválido.`);
-                  }
-                }
-
-                // Datas
-                if (!validateDataNascimento()) erros.push('Corrija a Data de Nascimento.');
-                if (!validateDataIngresso()) erros.push('Corrija a Data de Ingresso.');
-
-                // Campos obrigatórios principais
-                function required(id, label){
-                  const el = document.getElementById(id);
-                  const val = (el && el.value || '').trim();
-                  if (!val){
-                    showFieldError(id, `O campo "${label}" é obrigatório.`);
-                    erros.push(`Campo obrigatório: ${label}.`);
-                    return false;
-                  }
-                  return true;
-                }
-                required('nome','Nome');
-                required('data_nascimento','Data de nascimento');
-                //required('cpf','CPF');
-                //required('email','Email');
-                //required('telefone','Telefone');
-                required('rua','Rua');
-                required('numero','Número');
-                required('bairro','Bairro');
-                required('cidade','Cidade');
-                required('estado','Estado');
-
-                if (erros.length){
-                  alert('⚠️ Corrija os seguintes itens antes de salvar:\n\n• ' + erros.join('\n• '));
-                  const firstErr = document.querySelector('.field-error:not(.d-none)') ||
-                                   document.querySelector('.cpf-invalido');
-                  if (firstErr){
-                    const target = firstErr.id?.endsWith('_error')
-                      ? document.getElementById(firstErr.id.replace('_error',''))
-                      : firstErr;
-                    if (target && typeof target.focus === 'function') target.focus();
-                  }
-                  return;
-                }
-
-                // Lê radios de alergia
-                const possuiAlergia = document.getElementById('alergia_sim')?.checked === true;
-
-                const dados = {
+                    aluno_id: document.querySelector('input[name="aluno_id"]')
+                    ? document.querySelector('input[name="aluno_id"]').value
+                    : null,
                     // ===== Básico
                     matricula: (document.getElementById('matricula').value || '').trim(),
                     nome: (document.getElementById('nome').value || '').trim(),
@@ -1243,90 +1182,77 @@
                 };
 
                 console.log("📦 Enviando:", dados);
+                const isEdit = !!document.querySelector('input[name="aluno_id"]');
 
-                fetch('/salvar_aluno/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': getCsrfToken()
-                    },
-                    body: JSON.stringify(dados)
-                })
-                .then(async (response) => {
-    const data = await response.json().catch(() => ({}));
+    fetch('/salvar_aluno/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken()
+      },
+      body: JSON.stringify(dados)
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === 'sucesso') {
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success';
+        alert.style.marginTop = '12px';
 
-    if (!response.ok) {
-
-        // === TRATAMENTO DE ERRO PROFISSIONAL COM FOCO NO CAMPO ===
-        const campo = data.campo;       // o backend envia => "estado", "cidade", "bairro" etc
-        const mensagem = data.mensagem; // mensagem amigável enviada pela view
-
-        if (campo) {
-            const input = document.getElementById(campo);
-            const small = document.getElementById(`${campo}_error`);
-
-            if (input) {
-
-    // Se for um campo de CPF, remove estilo antigo
-    if (campo.includes("cpf")) {
-        input.classList.remove("cpf-invalido");
-    }
-
-    input.classList.add("input-error");
-
-    if (small) {
-        small.textContent = mensagem;
-        small.classList.remove("d-none");
-    }
-
-    input.scrollIntoView({ behavior: "smooth", block: "center" });
-
-    input.addEventListener(
-        "input",
-        () => {
-            input.classList.remove("input-error");
-            if (small) small.classList.add("d-none");
-        },
-        { once: true }
-      );
-      }
+        if (isEdit) {
+          alert.innerHTML = '✅ Aluno atualizado com sucesso.';
+          bloquear();
+        } else {
+          alert.innerHTML = `
+            ✅ Aluno cadastrado com sucesso!
+            <a class="btn btn-sm btn-primary ml-2"
+              href="${"{% url 'aluno_requerimento' 0 %}".replace('/0/', `/${data.aluno_id}/`)}"
+              target="_blank">Imprimir cadastro (PDF)</a>`;
+          btn.disabled = true;
         }
-        const msg = mensagem || "Ocorreu um erro inesperado.";
-        alert("❌ Erro ao salvar:\n\n" + msg);
-        throw new Error(msg);
-          }
-            return data;
-              })
 
-                .then((data) => {
-                    if (data.status === 'sucesso') {
-                        const alunoId = data.aluno_id;
-                        const container = document.createElement('div');
-                        container.className = 'alert alert-success';
-                        container.style.marginTop = '12px';
-                        container.innerHTML = `
-                           ✅ Aluno cadastrado com sucesso!
-                        <a class="btn btn-sm btn-primary ml-2"
-                        href="${"{% url 'aluno_requerimento' 0 %}".replace('/0/', `/${alunoId}/`)}"
-                        target="_blank" rel="noopener">
-                        Imprimir cadastro (PDF)
-                        </a>
-                        `;
-                        const form = document.getElementById('formCadastro');
-                        form.parentNode.insertBefore(container, form.nextSibling);
-                        document.getElementById('submitButton').disabled = true;
-                    } else {
-                        const msg = data.mensagem || "Não foi possível cadastrar.";
-                        alert("❌ Erro:\n\n" + msg);
-                        console.error("Erro no backend:", data);
-                    }
-                })
-                .catch((error) => {
-                    console.error("🚨 Erro na requisição:", error);
-                });
-            });
-        });
-  </script>
+        document.getElementById('formCadastro').after(alert);
+      }
+    });
+  });
+});
+
+/* =========================
+   MODO CREATE / EDIT
+========================= */
+(function () {
+  const modo = "{{ modo|default:'create' }}";
+  const campos = document.querySelectorAll('#formCadastro input, #formCadastro select, #formCadastro textarea');
+  const btnEditar = document.getElementById('editButton');
+  const btnSalvar = document.getElementById('submitButton');
+
+  window.bloquear = function () {
+    campos.forEach(el => {
+      if (['matricula','matricula_visivel'].includes(el.id)) return;
+      if (modo === 'edit' && el.id === 'cpf') return;
+      el.disabled = true;
+    });
+    btnSalvar.disabled = true;
+  };
+
+  function liberar() {
+    campos.forEach(el => {
+      if (['matricula','matricula_visivel'].includes(el.id)) return;
+      if (modo === 'edit' && el.id === 'cpf') return;
+      el.disabled = false;
+    });
+    btnSalvar.disabled = false;
+  }
+
+  if (modo === 'edit') {
+    bloquear();
+    btnEditar.style.display = 'inline-block';
+    btnEditar.addEventListener('click', liberar);
+  } else {
+    btnEditar.style.display = 'none';
+  }
+})();
+
+</script>
  </body>
 </html>
