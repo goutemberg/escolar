@@ -20,33 +20,37 @@ from home.decorators import role_required
 # ======================================================
 @login_required
 def listar_turmas(request):
+    escola = request.user.escola
 
     turmas_qs = (
         Turma.objects
-        .filter(escola=request.user.escola)
+        .filter(escola=escola)
         .prefetch_related("alunos")
         .order_by("nome")
     )
 
+    # pré-carrega todos os vínculos de uma vez
+    vinculos = (
+        TurmaDisciplina.objects
+        .filter(turma__in=turmas_qs)
+        .select_related("professor", "turma")
+    )
+
+    mapa_professores = {}
+    for v in vinculos:
+        mapa_professores.setdefault(v.turma_id, set()).add(v.professor.nome)
+
     turmas = []
-
     for turma in turmas_qs:
-        professores = (
-            TurmaDisciplina.objects
-            .filter(turma=turma)
-            .select_related("professor")
-            .values_list("professor__nome", flat=True)
-            .distinct()
-        )
-
         turmas.append({
-            "obj": turma,
-            "professores": list(professores),
+            "turma": turma,
+            "professores": sorted(mapa_professores.get(turma.id, []))
         })
 
     return render(request, "pages/turmas/listar_turmas.html", {
         "turmas": turmas
     })
+
 
 
 # ======================================================
@@ -271,3 +275,191 @@ def cadastro_turma(request):
 
     return render(request, 'pages/registrar_turma.html', context)
 
+
+# ======================================================
+    # Remover aluno da turma
+# ======================================================
+
+
+@login_required
+@role_required(['diretor', 'coordenador'])
+@transaction.atomic
+def remover_aluno_turma(request, turma_id):
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "mensagem": "Método inválido."},
+            status=405
+        )
+
+    escola = request.user.escola
+
+    try:
+        data = json.loads(request.body)
+        aluno_id = data.get("aluno_id")
+
+        if not aluno_id:
+            return JsonResponse(
+                {"success": False, "mensagem": "Aluno não informado."},
+                status=400
+            )
+
+        turma = get_object_or_404(
+            Turma,
+            id=turma_id,
+            escola=escola
+        )
+
+        aluno = get_object_or_404(
+            Aluno,
+            id=aluno_id,
+            escola=escola
+        )
+
+        # remove vínculo
+        turma.alunos.remove(aluno)
+
+        return JsonResponse({"success": True})
+
+    except Exception as e:
+        transaction.set_rollback(True)
+        return JsonResponse(
+            {"success": False, "mensagem": str(e)},
+            status=500
+        )
+
+# ======================================================
+    # Remover Professor da turma
+# ======================================================
+
+@login_required
+@role_required(['diretor', 'coordenador'])
+@transaction.atomic
+def remover_professor_turma(request, turma_id):
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "mensagem": "Método inválido."},
+            status=405
+        )
+
+    escola = request.user.escola
+
+    try:
+        data = json.loads(request.body)
+        professor_id = data.get("professor_id")
+
+        if not professor_id:
+            return JsonResponse(
+                {"success": False, "mensagem": "Professor não informado."},
+                status=400
+            )
+
+        turma = get_object_or_404(
+            Turma,
+            id=turma_id,
+            escola=escola
+        )
+
+        # remove TODOS os vínculos do professor com a turma
+        TurmaDisciplina.objects.filter(
+            turma=turma,
+            professor_id=professor_id,
+            escola=escola
+        ).delete()
+
+        return JsonResponse({"success": True})
+
+    except Exception as e:
+        transaction.set_rollback(True)
+        return JsonResponse(
+            {"success": False, "mensagem": str(e)},
+            status=500
+        )
+
+
+# ======================================================
+    # Remover Professor da turma
+# ======================================================
+@login_required
+@role_required(['diretor', 'coordenador'])
+@transaction.atomic
+def atualizar_turma(request, turma_id):
+    if request.method != "POST":
+        return JsonResponse(
+            {"success": False, "mensagem": "Método inválido."},
+            status=405
+        )
+
+    escola = request.user.escola
+
+    try:
+        data = json.loads(request.body)
+
+        nome = data.get("nome")
+        turno = data.get("turno")
+        sala = data.get("sala")
+        descricao = data.get("descricao", "")
+        alunos_ids = data.get("alunos_ids", [])
+        professores = data.get("professores", [])
+
+        # ano precisa ser inteiro
+        try:
+            ano = int(data.get("ano"))
+        except (TypeError, ValueError):
+            return JsonResponse(
+                {"success": False, "mensagem": "Ano inválido."},
+                status=400
+            )
+
+        if not all([nome, turno, ano, sala]):
+            return JsonResponse(
+                {"success": False, "mensagem": "Dados básicos da turma ausentes."},
+                status=400
+            )
+
+        turma = get_object_or_404(
+            Turma,
+            id=turma_id,
+            escola=escola
+        )
+
+        # 1️⃣ Atualiza dados básicos
+        turma.nome = nome
+        turma.turno = turno
+        turma.ano = ano
+        turma.sala = sala
+        turma.descricao = descricao
+        turma.save()
+
+        # 2️⃣ Sincroniza alunos (estado final)
+        alunos = Aluno.objects.filter(
+            id__in=alunos_ids,
+            escola=escola,
+            ativo=True
+        )
+        turma.alunos.set(alunos)
+
+        # 3️⃣ Sincroniza professores + disciplinas (estado final)
+        TurmaDisciplina.objects.filter(
+            turma=turma,
+            escola=escola
+        ).delete()
+
+        for item in professores:
+            TurmaDisciplina.objects.create(
+                turma=turma,
+                professor_id=item.get("professor_id"),
+                disciplina_id=item.get("disciplina_id"),
+                escola=escola
+            )
+
+        return JsonResponse({
+            "success": True,
+            "mensagem": "Turma atualizada com sucesso."
+        })
+
+    except Exception as e:
+        transaction.set_rollback(True)
+        return JsonResponse(
+            {"success": False, "mensagem": str(e)},
+            status=500
+        )
