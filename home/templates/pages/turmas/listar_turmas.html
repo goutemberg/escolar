@@ -10,7 +10,7 @@
             background: #ffffff;
             border-radius: 6px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-            overflow: hidden; /* 🔑 elimina espaços indesejados */
+            overflow: hidden;
         }
 
         /* HEADER PADRÃO */
@@ -27,11 +27,11 @@
 
         /* CONTEÚDO IMEDIATO */
         .box-body {
-            padding: 12px 20px 20px 20px; /* 🔑 aproxima a tabela */
+            padding: 12px 20px 20px 20px;
         }
 
         .table {
-            margin-top: 0; /* 🔑 cola no header */
+            margin-top: 0;
         }
 
         .table thead th {
@@ -51,7 +51,6 @@
             font-weight: 500;
         }
 
-        /* BOTÃO DE AÇÃO */
         .btn-acao {
             padding: 4px 10px;
             font-size: 13px;
@@ -75,16 +74,13 @@
 <section class="form-container">
     <div class="container">
 
-        <!-- 🔑 BLOCO ÚNICO -->
         <section class="box-padrao">
 
-            <!-- HEADER -->
             <div class="box-header">
                 <i class="bi bi-people-fill"></i>
                 Turmas Cadastradas
             </div>
 
-            <!-- CONTEÚDO -->
             <div class="box-body">
 
                 <table class="table table-bordered table-hover align-middle">
@@ -98,16 +94,16 @@
                     </thead>
 
                     <tbody>
-                    {% for t in turmas %}
+                    {% for item in turmas %}
                         <tr>
                             <td>
-                                <strong>{{ t.nome }}</strong>
+                                <strong>{{ item.obj.nome }}</strong>
                             </td>
 
                             <td>
-                                {% for p in t.professores.all|dictsort:"nome" %}
+                                {% for nome in item.professores %}
                                     <span class="badge badge-professor">
-                                        {{ p.nome }}
+                                        {{ nome }}
                                     </span>
                                 {% empty %}
                                     <span class="text-muted">Nenhum professor</span>
@@ -116,12 +112,12 @@
 
                             <td class="text-center">
                                 <span class="badge bg-secondary">
-                                    {{ t.alunos.count }}
+                                    {{ item.obj.alunos.count }}
                                 </span>
                             </td>
 
                             <td class="text-center">
-                                <a href="{% url 'turmas:detalhe' turma_id=t.id %}"
+                                <a href="{% url 'turmas:detalhe' turma_id=item.obj.id %}"
                                    class="btn btn-outline-primary btn-sm btn-acao"
                                    title="Ver detalhes da turma">
                                     <i class="bi bi-eye"></i>
