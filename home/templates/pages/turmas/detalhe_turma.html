@@ -5,7 +5,6 @@
     {% include 'partials/_head.html' %}
 
     <style>
-        /* BLOCO PADRÃO */
         .box-padrao {
             background: #ffffff;
             border-radius: 6px;
@@ -13,7 +12,6 @@
             overflow: hidden;
         }
 
-        /* HEADER */
         .box-header {
             background-color: #6c757d;
             color: #ffffff;
@@ -22,10 +20,9 @@
             font-size: 18px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
         }
 
-        /* CONTEÚDO */
         .box-body {
             padding: 16px 20px;
         }
@@ -37,36 +34,54 @@
             color: #495057;
         }
 
-        .badge-professor {
-            background-color: #0d6efd;
-            margin-right: 4px;
-            margin-bottom: 4px;
-            font-weight: 500;
-        }
-
-        .table thead th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-        }
-
-        .table-sm td,
-        .table-sm th {
-            padding: 6px 10px;
-        }
-
-        .empty-state {
-            padding: 20px 0;
-            color: #6c757d;
-            font-size: 14px;
-        }
-
         .box-sub {
             border: 1px solid #e9ecef;
             border-radius: 4px;
             padding: 12px 14px;
             margin-bottom: 16px;
             background-color: #fafafa;
+        }
+
+        .badge-professor {
+            background-color: #fab982;
+            color: #2f2f2f;
+            margin-right: 6px;
+            margin-bottom: 6px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-remove {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        .btn-remove:hover {
+            color: #a65b00;
+        }
+
+        .btn-remove-row {
+            background: transparent;
+            border: none;
+            color: #dc3545;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .btn-remove-row:hover {
+            color: #a71d2a;
+        }
+
+        .empty-state {
+            padding: 20px 0;
+            color: #6c757d;
+            font-size: 14px;
         }
     </style>
 </head>
@@ -78,27 +93,30 @@
 <section class="form-container">
     <div class="container">
 
-        <!-- 🔑 BLOCO ÚNICO -->
         <section class="box-padrao">
 
-            <!-- HEADER -->
             <div class="box-header">
-                <i class="bi bi-clipboard"></i>
-                Detalhes da Turma – {{ turma.nome }}
+                <div>
+                    <i class="bi bi-clipboard"></i>
+                    Detalhes da Turma – {{ turma.nome }}
+                </div>
             </div>
 
-            <!-- CONTEÚDO -->
             <div class="box-body">
 
                 <!-- PROFESSORES -->
                 <div class="box-sub">
-                    <div class="section-title">
-                        Professores da Turma
-                    </div>
+                    <div class="section-title">Professores da Turma</div>
 
                     {% for p in professores %}
                         <span class="badge badge-professor">
                             {{ p.nome }}
+                            <button
+                                class="btn-remove"
+                                title="Remover professor"
+                                onclick="removerProfessor({{ turma.id }}, {{ p.id }})">
+                                ×
+                            </button>
                         </span>
                     {% empty %}
                         <div class="text-muted">Nenhum professor vinculado.</div>
@@ -107,9 +125,7 @@
 
                 <!-- DISCIPLINAS -->
                 <div class="box-sub">
-                    <div class="section-title">
-                        Disciplinas e Professores
-                    </div>
+                    <div class="section-title">Disciplinas e Professores</div>
 
                     <table class="table table-sm table-bordered align-middle mb-0">
                         <thead>
@@ -118,7 +134,6 @@
                                 <th>Professor(a)</th>
                             </tr>
                         </thead>
-
                         <tbody>
                         {% for td in disciplinas %}
                             <tr>
@@ -138,25 +153,31 @@
 
                 <!-- ALUNOS -->
                 <div class="box-sub">
-                    <div class="section-title">
-                        Alunos da Turma
-                    </div>
+                    <div class="section-title">Alunos da Turma</div>
 
                     <table class="table table-sm table-striped align-middle mb-0">
                         <thead>
                             <tr>
                                 <th>Nome</th>
+                                <th style="width: 40px;"></th>
                             </tr>
                         </thead>
-
                         <tbody>
                         {% for a in alunos %}
                             <tr>
                                 <td>{{ a.nome }}</td>
+                                <td class="text-center">
+                                    <button
+                                        class="btn-remove-row"
+                                        title="Remover aluno"
+                                        onclick="removerAluno({{ turma.id }}, {{ a.id }})">
+                                        ×
+                                    </button>
+                                </td>
                             </tr>
                         {% empty %}
                             <tr>
-                                <td class="text-center empty-state">
+                                <td colspan="2" class="text-center empty-state">
                                     Nenhum aluno cadastrado.
                                 </td>
                             </tr>
@@ -172,6 +193,47 @@
 </section>
 
 {% include 'partials/_footer.html' %}
+
+<script>
+function removerAluno(turmaId, alunoId) {
+    if (!confirm("Remover este aluno da turma?")) return;
+
+    fetch(`/turmas/${turmaId}/remover-aluno/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ aluno_id: alunoId })
+    }).then(() => location.reload());
+}
+
+function removerProfessor(turmaId, professorId) {
+    if (!confirm("Remover este professor da turma?")) return;
+
+    fetch(`/turmas/${turmaId}/remover-professor/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ professor_id: professorId })
+    }).then(() => location.reload());
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie) {
+        document.cookie.split(';').forEach(c => {
+            c = c.trim();
+            if (c.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(c.slice(name.length + 1));
+            }
+        });
+    }
+    return cookieValue;
+}
+</script>
 
 </body>
 </html>
