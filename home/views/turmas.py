@@ -1,13 +1,18 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.db import transaction
 import json
 
-from home.models import Turma, TurmaDisciplina, Disciplina, Aluno
+from home.models import (
+    Turma,
+    TurmaDisciplina,
+    Disciplina,
+    Aluno,
+    NomeTurma
+)
 
-from django.http import JsonResponse
-from home.models import NomeTurma
 from home.decorators import role_required
-from django.db import transaction
 
 
 # ======================================================
@@ -16,11 +21,28 @@ from django.db import transaction
 @login_required
 def listar_turmas(request):
 
-    turmas = (
-        Turma.objects.filter(escola=request.user.escola)
-        .prefetch_related("professores", "alunos")
+    turmas_qs = (
+        Turma.objects
+        .filter(escola=request.user.escola)
+        .prefetch_related("alunos")
         .order_by("nome")
     )
+
+    turmas = []
+
+    for turma in turmas_qs:
+        professores = (
+            TurmaDisciplina.objects
+            .filter(turma=turma)
+            .select_related("professor")
+            .values_list("professor__nome", flat=True)
+            .distinct()
+        )
+
+        turmas.append({
+            "obj": turma,
+            "professores": list(professores),
+        })
 
     return render(request, "pages/turmas/listar_turmas.html", {
         "turmas": turmas
@@ -32,54 +54,99 @@ def listar_turmas(request):
 # ======================================================
 @login_required
 def detalhe_turma(request, turma_id):
+    escola = request.user.escola
 
     turma = get_object_or_404(
         Turma,
         id=turma_id,
-        escola=request.user.escola
+        escola=escola
     )
 
+    # Alunos ativos
     alunos = turma.alunos.filter(ativo=True).order_by("nome")
-    professores = turma.professores.order_by("nome")
+
+    # Vínculos pedagógicos (professor + disciplina)
     disciplinas = (
-        TurmaDisciplina.objects.filter(turma=turma)
+        TurmaDisciplina.objects
+        .filter(turma=turma)
         .select_related("disciplina", "professor")
         .order_by("disciplina__nome")
     )
 
+    # Professores extraídos dos vínculos (sem duplicar)
+    professores = {
+        td.professor for td in disciplinas if td.professor
+    }
+
     return render(request, "pages/turmas/detalhe_turma.html", {
-        "turma": turma,
-        "alunos": alunos,
-        "professores": professores,
-        "disciplinas": disciplinas
+         "turma": turma,
+         "alunos": alunos,
+         "disciplinas": disciplinas,
+         "professores": professores
     })
 
+
+# ======================================================
+# PÁGINA DE CADASTRO DE NOME DE TURMA
+# ======================================================
+@login_required
 def pagina_nome_turma(request):
     return render(request, "pages/nome_turma.html")
 
+
+# ======================================================
+# CADASTRAR NOME DE TURMA (AJAX)
+# ======================================================
+@login_required
 def cadastrar_nome_turma(request):
     data = json.loads(request.body)
     nome = data.get("nome")
 
+    if not nome:
+        return JsonResponse({"success": False, "error": "Nome não informado."})
+
     if NomeTurma.objects.filter(nome=nome, escola=request.user.escola).exists():
         return JsonResponse({"success": False, "error": "Nome já cadastrado."})
 
-    NomeTurma.objects.create(nome=nome, escola=request.user.escola)
+    NomeTurma.objects.create(
+        nome=nome,
+        escola=request.user.escola
+    )
+
     return JsonResponse({"success": True})
 
+
+# ======================================================
+# LISTAR NOMES DE TURMA (AJAX)
+# ======================================================
+@login_required
 def listar_nomes_turma(request):
-    nomes = NomeTurma.objects.filter(escola=request.user.escola).values("id", "nome")
+    nomes = (
+        NomeTurma.objects
+        .filter(escola=request.user.escola)
+        .values("id", "nome")
+        .order_by("nome")
+    )
+
     return JsonResponse({"nomes": list(nomes)})
 
+
+# ======================================================
+# EDITAR NOME DE TURMA (AJAX)
+# ======================================================
+@login_required
 def editar_nome_turma(request):
     data = json.loads(request.body)
 
     try:
         id = int(data.get("id"))
-    except:
+    except (TypeError, ValueError):
         return JsonResponse({"success": False, "error": "ID inválido."})
 
     nome = data.get("nome")
+
+    if not nome:
+        return JsonResponse({"success": False, "error": "Nome não informado."})
 
     obj = NomeTurma.objects.filter(
         id=id,
@@ -95,11 +162,22 @@ def editar_nome_turma(request):
     return JsonResponse({"success": True})
 
 
+# ======================================================
+# EXCLUIR NOME DE TURMA (AJAX)
+# ======================================================
+@login_required
 def excluir_nome_turma(request):
     data = json.loads(request.body)
     id = data.get("id")
 
-    NomeTurma.objects.filter(id=id, escola=request.user.escola).delete()
+    if not id:
+        return JsonResponse({"success": False, "error": "ID não informado."})
+
+    NomeTurma.objects.filter(
+        id=id,
+        escola=request.user.escola
+    ).delete()
+
     return JsonResponse({"success": True})
 
 
@@ -117,27 +195,30 @@ def cadastro_turma(request):
 
             nome = data.get('nome')
             turno = data.get('turno')
-            ano = data.get('ano')
             sala = data.get('sala')
             descricao = data.get('descricao', '')
-            professor_id = data.get('professor_id')
-            disciplina_id = data.get('disciplina_id')
             alunos_ids = data.get('alunos_ids', [])
+            professores = data.get('professores', [])
 
-            # -----------------------
-            # Validação básica
-            # -----------------------
-            if not all([nome, turno, ano, sala, professor_id, disciplina_id]) or not alunos_ids:
+            # ano precisa ser inteiro
+            try:
+                ano = int(data.get('ano'))
+            except (TypeError, ValueError):
                 return JsonResponse({
                     'success': False,
-                    'mensagem': 'Preencha todos os campos obrigatórios.'
+                    'mensagem': 'Ano inválido.'
+                }, status=400)
+
+            # ✅ validação mínima (turma independe de professor)
+            if not all([nome, turno, ano, sala]):
+                return JsonResponse({
+                    'success': False,
+                    'mensagem': 'Preencha os dados básicos da turma.'
                 }, status=400)
 
             with transaction.atomic():
 
-                # -----------------------
                 # 1️⃣ Criar Turma
-                # -----------------------
                 turma = Turma.objects.create(
                     nome=nome,
                     turno=turno,
@@ -147,28 +228,28 @@ def cadastro_turma(request):
                     escola=escola
                 )
 
-                # -----------------------
-                # 2️⃣ Associar Alunos
-                # -----------------------
-                alunos = Aluno.objects.filter(
-                    id__in=alunos_ids,
-                    escola=escola,
-                    ativo=True
-                )
-                turma.alunos.add(*alunos)
+                # 2️⃣ Associar Alunos (opcional)
+                if alunos_ids:
+                    alunos = Aluno.objects.filter(
+                        id__in=alunos_ids,
+                        escola=escola,
+                        ativo=True
+                    )
+                    turma.alunos.add(*alunos)
 
-                # -----------------------
-                # 3️⃣ Associar Professor + Disciplina
-                # -----------------------
-                TurmaDisciplina.objects.create(
-                    turma=turma,
-                    professor_id=professor_id,
-                    disciplina_id=disciplina_id
-                )
+                # 3️⃣ Associar Professores + Disciplinas (opcional, múltiplos)
+                for item in professores:
+                    TurmaDisciplina.objects.create(
+                        turma=turma,
+                        professor_id=item.get('professor_id'),
+                        disciplina_id=item.get('disciplina_id'),
+                        escola=escola
+                    )
 
             return JsonResponse({
                 'success': True,
-                'mensagem': 'Turma criada com sucesso.'
+                'mensagem': 'Turma criada com sucesso.',
+                'turma_id': turma.id
             })
 
         except Exception as e:
@@ -189,3 +270,4 @@ def cadastro_turma(request):
     }
 
     return render(request, 'pages/registrar_turma.html', context)
+

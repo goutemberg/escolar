@@ -249,90 +249,138 @@ def validar_cnpj(cnpj):
 @csrf_exempt
 @transaction.atomic
 def cadastrar_professor_banco(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
+    if request.method != 'POST':
+        return JsonResponse(
+            {'success': False, 'error': 'Método não permitido'},
+            status=405
+        )
 
-            cpf = data.get('doctorCpf', '').strip().replace('.', '').replace('-', '')
-            nome = data.get('doctorName', '').strip()
-            nascimento = parse_date(data.get('birthdate'))
-            email = data.get('email', '').strip()
-            telefone = data.get('phone', '').strip()
-            cep = data.get('cep', '').strip()
-            endereco = data.get('address', '').strip()
-            numero = data.get('number', '').strip()
-            complemento = data.get('complement', '').strip()
-            bairro = data.get('bairro', '').strip()
-            cidade = data.get('city', '').strip()
-            estado = data.get('state', '').strip()
-            cargo = data.get('cargo', '').strip()
-            formacao = data.get('formacao', '').strip()
-            experiencia = data.get('experiencia', '').strip()
-            ativo = data.get('ativo', 'True') == 'True'
-            senha = data.get('senha')
+    try:
+        data = json.loads(request.body)
 
-            escola_usuario = getattr(request.user, 'escola', None)
-            if not escola_usuario:
-                return JsonResponse({'success': False, 'error': 'Usuário não está vinculado a nenhuma escola.'}, status=403)
+        # =========================
+        # Normalização / leitura
+        # =========================
+        cpf = data.get('doctorCpf', '')
+        cpf = ''.join(filter(str.isdigit, cpf))  # blindagem definitiva
 
-            if not senha:
-                return JsonResponse({'success': False, 'error': 'Senha temporária ausente.'}, status=400)
+        nome = data.get('doctorName', '').strip()
+        nascimento = parse_date(data.get('birthdate'))
+        email = data.get('email', '').strip()
+        telefone = data.get('phone', '').strip()
+        cep = data.get('cep', '').strip()
+        endereco = data.get('address', '').strip()
+        numero = data.get('number', '').strip()
+        complemento = data.get('complement', '').strip()
+        bairro = data.get('bairro', '').strip()
+        cidade = data.get('city', '').strip()
+        estado = data.get('state', '').strip()
+        cargo = data.get('cargo', '').strip()
+        formacao = data.get('formacao', '').strip()
+        experiencia = data.get('experiencia', '').strip()
+        ativo = str(data.get('ativo', 'True')).lower() == 'true'
+        senha = data.get('senha')
 
-            if User.objects.filter(cpf=cpf, escola=escola_usuario).exists():
-                return JsonResponse({'success': False, 'error': 'Usuário já cadastrado.'}, status=400)
-
-            # Trata nome para o User
-            nome_completo = nome.strip()
-            partes = nome_completo.split()
-            first = partes[0]
-            last = ' '.join(partes[1:]) if len(partes) > 1 else ''
-
-            # Cria o usuário
-            usuario = User(
-                username=cpf,
-                cpf=cpf,
-                email=email,
-                first_name=first,
-                last_name=last,
-                role=cargo,
-                is_active=True,
-                escola=escola_usuario,
-                senha_temporaria=True
-            )
-            usuario.set_password(senha)
-            usuario.save()
-
-            docente = Docente.objects.create(
-                user=usuario,
-                nome=nome,
-                cpf=cpf,
-                nascimento=nascimento,
-                email=email,
-                telefone=telefone,
-                cep=cep,
-                endereco=endereco,
-                numero=numero,
-                complemento=complemento,
-                bairro=bairro,
-                cidade=cidade,
-                estado=estado,
-                cargo=cargo,
-                formacao=formacao,
-                experiencia=experiencia,
-                ativo=ativo,
-                escola=escola_usuario
+        escola = getattr(request.user, 'escola', None)
+        if not escola:
+            return JsonResponse(
+                {'success': False, 'error': 'Usuário não está vinculado a nenhuma escola.'},
+                status=403
             )
 
-            # ❌ Nenhum vínculo com disciplinas neste momento
+        if not cpf or not nome:
+            return JsonResponse(
+                {'success': False, 'error': 'CPF e nome são obrigatórios.'},
+                status=400
+            )
 
-            return JsonResponse({'success': True, 'senha': senha})
+        if not senha:
+            return JsonResponse(
+                {'success': False, 'error': 'Senha temporária ausente.'},
+                status=400
+            )
 
-        except Exception as e:
-            transaction.set_rollback(True)
-            return JsonResponse({'success': False, 'error': f'Erro interno: {str(e)}'}, status=500)
+        # =========================
+        # 🔒 VALIDAÇÕES CRÍTICAS
+        # =========================
 
-    return JsonResponse({'success': False, 'error': 'Método não permitido'}, status=405)
+        # 1️⃣ Usuário já existe?
+        if User.objects.filter(cpf=cpf, escola=escola).exists():
+            return JsonResponse(
+                {'success': False, 'error': 'Já existe um usuário com este CPF.'},
+                status=400
+            )
 
+        # 2️⃣ Docente já existe? (ESSA ERA A FALHA)
+        if Docente.objects.filter(cpf=cpf, escola=escola).exists():
+            return JsonResponse(
+                {'success': False, 'error': 'Professor já cadastrado com este CPF.'},
+                status=400
+            )
+
+        # =========================
+        # Criação do usuário
+        # =========================
+        partes = nome.split()
+        first = partes[0]
+        last = ' '.join(partes[1:]) if len(partes) > 1 else ''
+
+        usuario = User(
+            username=cpf,
+            cpf=cpf,
+            email=email,
+            first_name=first,
+            last_name=last,
+            role=cargo,
+            is_active=True,
+            escola=escola,
+            senha_temporaria=True
+        )
+        usuario.set_password(senha)
+        usuario.save()
+
+        # =========================
+        # Criação do docente
+        # =========================
+        Docente.objects.create(
+            user=usuario,
+            nome=nome,
+            cpf=cpf,
+            nascimento=nascimento,
+            email=email,
+            telefone=telefone,
+            cep=cep,
+            endereco=endereco,
+            numero=numero,
+            complemento=complemento,
+            bairro=bairro,
+            cidade=cidade,
+            estado=estado,
+            cargo=cargo,
+            formacao=formacao,
+            experiencia=experiencia,
+            ativo=ativo,
+            escola=escola
+        )
+
+        return JsonResponse({
+            'success': True,
+            'senha': senha
+        })
+
+    except IntegrityError as e:
+        transaction.set_rollback(True)
+        return JsonResponse(
+            {'success': False, 'error': 'Erro de integridade ao salvar professor.'},
+            status=400
+        )
+
+    except Exception as e:
+        transaction.set_rollback(True)
+        return JsonResponse(
+            {'success': False, 'error': f'Erro interno: {str(e)}'},
+            status=500
+        )
 
 @login_required
 @role_required(['diretor', 'coordenador'])
@@ -1209,16 +1257,21 @@ def criar_turma(request):
         turno = data.get("turno")
         ano = data.get("ano")
         sala = data.get("sala")
-        descricao = data.get("descricao")
+        descricao = data.get("descricao", "")
         professor_id = data.get("professor_id")
         disciplina_id = data.get("disciplina_id")
         alunos_ids = data.get("alunos_ids", [])
 
-        if not all([nome, turno, ano, sala, professor_id, disciplina_id]) or len(alunos_ids) == 0:
-            return JsonResponse({"success": False, "mensagem": "Dados incompletos."})
+        # 🔒 validação mínima
+        if not all([nome, turno, ano, sala]):
+            return JsonResponse({
+                "success": False,
+                "mensagem": "Nome, turno, ano e sala são obrigatórios."
+            })
 
         escola = request.user.escola
 
+        # 1️⃣ cria a turma SEM dependência
         turma = Turma.objects.create(
             nome=nome,
             turno=turno,
@@ -1228,20 +1281,31 @@ def criar_turma(request):
             escola=escola
         )
 
-        TurmaDisciplina.objects.create(
-            turma=turma,
-            professor_id=professor_id,
-            disciplina_id=disciplina_id
-        )
+        # 2️⃣ cria vínculo pedagógico SOMENTE se vier completo
+        if professor_id and disciplina_id:
+            TurmaDisciplina.objects.create(
+                turma=turma,
+                professor_id=professor_id,
+                disciplina_id=disciplina_id,
+                escola=escola
+            )
 
+        # 3️⃣ adiciona alunos (se vierem)
         for aluno_id in alunos_ids:
             aluno = Aluno.objects.get(id=aluno_id)
             aluno.turmas.add(turma)
 
-        return JsonResponse({"success": True, "mensagem": "Turma criada com sucesso!"})
+        return JsonResponse({
+            "success": True,
+            "mensagem": "Turma criada com sucesso!",
+            "turma_id": turma.id
+        })
 
     except Exception as e:
-        return JsonResponse({"success": False, "mensagem": str(e)})
+        return JsonResponse({
+            "success": False,
+            "mensagem": f"Erro ao criar turma: {str(e)}"
+        })
 
 
 @login_required
@@ -1795,57 +1859,76 @@ def editar_escola(request):
     return JsonResponse({'success': False, 'error': 'Método não permitido'}, status=405)
 
 @csrf_exempt
+@login_required
 @transaction.atomic
 def salvar_turma(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
+    if request.method != 'POST':
+        return JsonResponse(
+            {'success': False, 'error': 'Método inválido'},
+            status=405
+        )
 
-            nome = data.get('nome', '').strip()
-            turno = data.get('turno', '').strip()
-            ano = data.get('ano', '').strip()
-            sala = data.get('sala', '').strip()
-            descricao = data.get('descricao', '').strip()
-            professor_id = data.get('professor_id')
-            alunos_ids = data.get('alunos_ids', [])
+    try:
+        data = json.loads(request.body)
 
-            if not (nome and turno and ano and sala and professor_id):
-                return JsonResponse({'success': False, 'error': 'Campos obrigatórios ausentes.'}, status=400)
+        nome = data.get('nome', '').strip()
+        turno = data.get('turno', '').strip()
+        ano = data.get('ano', '').strip()
+        sala = data.get('sala', '').strip()
+        descricao = data.get('descricao', '').strip()
 
-            escola = request.user.escola
+        professor_id = data.get('professor_id')
+        disciplina_id = data.get('disciplina_id')
+        alunos_ids = data.get('alunos_ids', [])
 
-            turma = Turma.objects.create(
-                nome=nome,
-                turno=turno,
-                ano=ano,
-                sala=sala,
-                descricao=descricao,
+        # 🔒 validação mínima (somente estrutura da turma)
+        if not (nome and turno and ano and sala):
+            return JsonResponse({
+                'success': False,
+                'error': 'Nome, turno, ano e sala são obrigatórios.'
+            }, status=400)
+
+        escola = request.user.escola
+
+        # 1️⃣ cria a turma (independente)
+        turma = Turma.objects.create(
+            nome=nome,
+            turno=turno,
+            ano=ano,
+            sala=sala,
+            descricao=descricao,
+            escola=escola
+        )
+
+        # 2️⃣ vincula alunos (opcional)
+        if alunos_ids:
+            alunos = Aluno.objects.filter(
+                id__in=alunos_ids,
+                escola=escola
+            )
+            turma.alunos.add(*alunos)
+
+        # 3️⃣ vínculo pedagógico (opcional e explícito)
+        if professor_id and disciplina_id:
+            TurmaDisciplina.objects.create(
+                turma=turma,
+                professor_id=professor_id,
+                disciplina_id=disciplina_id,
                 escola=escola
             )
 
-            # Vincula alunos à turma
-            if alunos_ids:
-                alunos = Aluno.objects.filter(id__in=alunos_ids, escola=escola)
-                turma.alunos.set(alunos)
+        return JsonResponse({
+            'success': True,
+            'turma_id': turma.id
+        })
 
-            # Vincula disciplinas do professor à turma
-            professor = Docente.objects.get(id=professor_id, escola=escola)
-            disciplinas = professor.disciplinas.all()
+    except Exception as e:
+        transaction.set_rollback(True)
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
-            for disciplina in disciplinas:
-                TurmaDisciplina.objects.create(
-                    turma=turma,
-                    professor=professor,
-                    disciplina=disciplina
-                )
-
-            return JsonResponse({'success': True, 'turma_id': turma.id})
-
-        except Exception as e:
-            transaction.set_rollback(True)
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-    return JsonResponse({'success': False, 'error': 'Método inválido'}, status=405)
 
 @csrf_exempt
 def listar_disciplinas(request):
@@ -2262,47 +2345,6 @@ def comprovante_matricula_pdf(request, pk):
     aluno = get_object_or_404(Aluno, pk=pk, escola=request.user.escola)
     return render(request, "pages/comprovante_matricula.html", {"aluno": aluno})
 
-
-# def ficha_cadastral_pdf(request, pk):
-#     aluno = get_object_or_404(Aluno, pk=pk, escola=request.user.escola)
-
-#     # Pai
-#     dados_pai = Responsavel.objects.filter(
-#         aluno=aluno,
-#         tipo__iexact="pai"
-#     ).first()
-
-#     # Mãe
-#     dados_mae = Responsavel.objects.filter(
-#         aluno=aluno,
-#         tipo__iexact="mae"
-#     ).first()
-
-#     # Responsável (tudo que NÃO é pai e NÃO é mãe)
-#     dados_resp = Responsavel.objects.filter(
-#         aluno=aluno
-#     ).exclude(
-#         tipo__in=["pai", "mae"]
-#     ).first()
-
-#     saude = getattr(aluno, "saude", None)
-#     transporte = getattr(aluno, "transporte", None)
-#     autoriz = getattr(aluno, "autorizacoes", None)
-
-#     hoje_extenso = datetime.now().strftime("%d de %B de %Y")
-
-#     context = {
-#         "aluno": aluno,
-#         "dados_pai": dados_pai,
-#         "dados_mae": dados_mae,
-#         "dados_resp": dados_resp,
-#         "saude": saude,
-#         "transporte": transporte,
-#         "autoriz": autoriz,
-#         "hoje_extenso": hoje_extenso,
-#     }
-
-#     return render(request, "pages/aluno_ficha_impressao.html", context)
 
 def ficha_cadastral_pdf(request, pk):
     aluno = get_object_or_404(Aluno, pk=pk, escola=request.user.escola)

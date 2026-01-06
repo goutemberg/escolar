@@ -1,4 +1,4 @@
-\{% load static %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 
@@ -23,7 +23,6 @@
             max-width: 180px;
         }
 
-        /* Sugestões autocomplete */
         #sugestoes {
             position: absolute;
             z-index: 1000;
@@ -41,7 +40,6 @@
             display: none;
         }
 
-        /* Área visual de tags */
         .tag-item {
             display: inline-flex;
             align-items: center;
@@ -61,7 +59,6 @@
             font-weight: bold;
         }
 
-        /* Borda laranja nos selects e inputs */
         select.form-control,
         input.form-control,
         textarea.form-control {
@@ -75,7 +72,6 @@
             box-shadow: 0 0 0 2px rgba(250, 185, 130, 0.4) !important;
         }
 
-        /* ESTILO DE ERRO */
         .campo-erro {
             border-color: red !important;
             box-shadow: 0 0 0 2px rgba(255, 0, 0, 0.3) !important;
@@ -87,7 +83,6 @@
             margin-top: 4px;
         }
 
-        /* Shake animation */
         @keyframes shake {
             0% { transform: translateX(0); }
             20% { transform: translateX(-6px); }
@@ -96,6 +91,7 @@
             80% { transform: translateX(6px); }
             100% { transform: translateX(0); }
         }
+
         .shake {
             animation: shake 0.3s;
         }
@@ -116,14 +112,14 @@
         <section class="content-wrapper" style="margin-top: 15px;">
             <form id="turmaForm" method="post">
                 {% csrf_token %}
+
                 <div class="form-row">
-                    <!-- SELECT DE NOME DA TURMA -->
                     <div class="form-group">
                         <label for="nomeTurmaSelect">Nome da Turma *</label>
                         <select id="nomeTurmaSelect" name="nome" class="form-control" required>
                             <option value="">Selecione</option>
                             {% for item in nomes_turma %}
-                            <option value="{{ item.nome }}">{{ item.nome }}</option>
+                                <option value="{{ item.nome }}">{{ item.nome }}</option>
                             {% endfor %}
                         </select>
                         <div class="mensagem-erro" id="erroNome"></div>
@@ -156,12 +152,11 @@
                 <div class="form-row">
                     <div class="form-group" style="width: 100%">
                         <label for="descricaoTurma">Descrição (opcional)</label>
-                        <textarea id="descricaoTurma" name="descricao" rows="3" style="width: 100%;" class="form-control"></textarea>
+                        <textarea id="descricaoTurma" name="descricao" rows="3" class="form-control"></textarea>
                     </div>
                 </div>
 
                 <div class="form-row">
-
                     <div class="form-group short-field">
                         <label for="tipoPessoa">Tipo</label>
                         <select id="tipoPessoa" onchange="atualizarCampoDisciplina()" class="form-control">
@@ -181,7 +176,7 @@
                         <select id="disciplinaSelecionada" name="disciplina_id" class="form-control">
                             <option value="">Selecione a disciplina</option>
                             {% for disciplina in disciplinas %}
-                            <option value="{{ disciplina.id }}">{{ disciplina.nome }}</option>
+                                <option value="{{ disciplina.id }}">{{ disciplina.nome }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -192,11 +187,9 @@
                     </div>
                 </div>
 
-                <!-- TAGS -->
                 <div class="form-row">
                     <div class="form-group" style="width: 100%">
                         <label>Turma Montada</label>
-
                         <div id="turmaMontadaTags"
                              style="width: 100%; background-color: #f9f9f9; height: 180px; padding: 10px;
                              border: 1px solid #fab982; border-radius: 4px; overflow-y: auto;">
@@ -234,9 +227,6 @@
 
     document.addEventListener('DOMContentLoaded', atualizarCampoDisciplina);
 
-    // ================================
-    //     VALIDAÇÃO CUSTOMIZADA
-    // ================================
     document.getElementById("turmaForm").addEventListener("submit", function (e) {
         let erro = false;
 
@@ -257,7 +247,6 @@
                 erro = true;
                 item.campo.classList.add("campo-erro", "shake");
                 document.getElementById(item.erroDiv).innerText = item.msg;
-
                 setTimeout(() => item.campo.classList.remove("shake"), 300);
             } else {
                 item.campo.classList.remove("campo-erro");

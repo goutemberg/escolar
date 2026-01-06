@@ -305,9 +305,19 @@ class Turma(models.Model):
     ano = models.IntegerField()
     sala = models.CharField(max_length=20)
     descricao = models.TextField(blank=True)
-    alunos = models.ManyToManyField(Aluno, blank=True, related_name='turmas')
-    professores = models.ManyToManyField('Docente', blank=True, related_name='turmas')
-    escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True, blank=True)
+
+    alunos = models.ManyToManyField(
+        Aluno,
+        blank=True,
+        related_name='turmas'
+    )
+
+    escola = models.ForeignKey(
+        Escola,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
         return f"{self.nome} - {self.turno}"
@@ -322,13 +332,22 @@ class Turma(models.Model):
 class TurmaDisciplina(models.Model):
     turma = models.ForeignKey(Turma, on_delete=models.CASCADE)
     disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE)
-    professor = models.ForeignKey(Docente, on_delete=models.CASCADE)
+    professor = models.ForeignKey(
+        Docente,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
     escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True)
 
+    class Meta:
+        unique_together = ('turma', 'disciplina', 'professor')
+
     def save(self, *args, **kwargs):
-        if not self.escola:
+        if not self.escola and self.professor:
             self.escola = self.professor.escola
         super().save(*args, **kwargs)
+
 
 # ================================================
 #  CHAMADA + PRESENÇA
