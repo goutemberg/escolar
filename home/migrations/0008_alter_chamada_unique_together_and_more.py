@@ -16,10 +16,10 @@ class Migration(migrations.Migration):
             name='chamada',
             unique_together=set(),
         ),
-        migrations.AlterUniqueTogether(
-            name='nota',
-            unique_together=set(),
-        ),
+        # migrations.AlterUniqueTogether(
+        #     name='nota',
+        #     unique_together=set(),
+        # ),
         migrations.RemoveField(
             model_name='turma',
             name='professores',
@@ -29,17 +29,17 @@ class Migration(migrations.Migration):
             name='feita_por',
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL),
         ),
-        migrations.AddField(
-            model_name='nota',
-            name='bimestre',
-            field=models.PositiveSmallIntegerField(blank=True, choices=[(1, '1º'), (2, '2º'), (3, '3º'), (4, '4º')], null=True),
-        ),
-        migrations.AddField(
-            model_name='nota',
-            name='valor',
-            field=models.DecimalField(decimal_places=2, default=0, max_digits=5),
-            preserve_default=False,
-        ),
+        # migrations.AddField(
+        #     model_name='nota',
+        #     name='bimestre',
+        #     field=models.PositiveSmallIntegerField(blank=True, choices=[(1, '1º'), (2, '2º'), (3, '3º'), (4, '4º')], null=True),
+        # ),
+        # migrations.AddField(
+        #     model_name='nota',
+        #     name='valor',
+        #     field=models.DecimalField(decimal_places=2, default=0, max_digits=5),
+        #     preserve_default=False,
+        # ),
         migrations.AlterField(
             model_name='docente',
             name='escola',
@@ -50,11 +50,11 @@ class Migration(migrations.Migration):
             name='user',
             field=models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='docente', to=settings.AUTH_USER_MODEL),
         ),
-        migrations.AlterField(
-            model_name='nota',
-            name='escola',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='home.escola'),
-        ),
+        # migrations.AlterField(
+        #     model_name='nota',
+        #     name='escola',
+        #     field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='home.escola'),
+        # ),
         migrations.AlterField(
             model_name='turmadisciplina',
             name='professor',
@@ -64,40 +64,40 @@ class Migration(migrations.Migration):
             model_name='chamada',
             constraint=models.UniqueConstraint(fields=('data', 'turma', 'disciplina'), name='unique_chamada_por_dia'),
         ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='atualizado_em',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='media_anual',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='media_final',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='nota1',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='nota2',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='nota3',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='nota4',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='professor',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='recuperacao',
-        ),
+        # migrations.RemoveField(
+        #     model_name='nota',
+        #     name='atualizado_em',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='nota',
+        #     name='media_anual',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='nota',
+        #     name='media_final',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='nota',
+        #     name='nota1',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='nota',
+        #     name='nota2',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='nota',
+        #     name='nota3',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='nota',
+        #     name='nota4',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='nota',
+        #     name='professor',
+        # ),
+        # migrations.RemoveField(
+        #     model_name='nota',
+        #     name='recuperacao',
+        # ),
     ]
