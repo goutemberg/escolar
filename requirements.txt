@@ -9,3 +9,4 @@ gunicorn
 Babel==2.14.0
 weasyprint==67.0
 Faker==25.0.0
+django-extensions
