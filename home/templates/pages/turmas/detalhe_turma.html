@@ -56,7 +56,7 @@
         .btn-remove {
             background: transparent;
             border: none;
-            color: #fff;
+            color: #2f2f2f;
             font-weight: bold;
             cursor: pointer;
             padding: 0 4px;
@@ -95,11 +95,19 @@
 
         <section class="box-padrao">
 
+            <!-- HEADER -->
             <div class="box-header">
                 <div>
                     <i class="bi bi-clipboard"></i>
                     Detalhes da Turma – {{ turma.nome }}
                 </div>
+
+                <!-- 🔑 BOTÃO DE EDIÇÃO -->
+                <a href="{% url 'turmas:cadastrar' %}?turma_id={{ turma.id }}"
+                   class="btn btn-warning btn-sm">
+                    <i class="bi bi-pencil-square"></i>
+                    Editar Turma
+                </a>
             </div>
 
             <div class="box-body">
