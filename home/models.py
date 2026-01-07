@@ -383,36 +383,50 @@ class Presenca(models.Model):
 # ================================================
 #  NOTA — Model totalmente independente
 # ================================================
+# class Nota(models.Model):
+#     aluno = models.ForeignKey(Aluno, on_delete=models.CASCADE)
+#     disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE)
+#     turma = models.ForeignKey(Turma, on_delete=models.CASCADE)
+#     professor = models.ForeignKey(Docente, on_delete=models.SET_NULL, null=True, blank=True)
+
+#     nota1 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+#     nota2 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+#     nota3 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+#     nota4 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+
+#     media_anual = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+#     recuperacao = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+#     media_final = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+
+#     escola = models.ForeignKey(Escola, on_delete=models.CASCADE)
+
+#     # 👇 campo legado
+#     bimestre = models.PositiveSmallIntegerField(
+#         null=True,
+#         blank=True,
+#         help_text="Campo legado para compatibilidade de migrations antigas"
+#     )
+
+#     atualizado_em = models.DateTimeField(auto_now=True)
+
+#     class Meta:
+#         unique_together = ('aluno', 'disciplina', 'turma', 'escola')
+
 class Nota(models.Model):
     aluno = models.ForeignKey(Aluno, on_delete=models.CASCADE)
     disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE)
     turma = models.ForeignKey(Turma, on_delete=models.CASCADE)
-    professor = models.ForeignKey(Docente, on_delete=models.SET_NULL, null=True, blank=True)
-
-    nota1 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-    nota2 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-    nota3 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-    nota4 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-
-    media_anual = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-    recuperacao = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-    media_final = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-
     escola = models.ForeignKey(Escola, on_delete=models.CASCADE)
 
-    # 👇 campo legado
     bimestre = models.PositiveSmallIntegerField(
+        choices=[(1,'1º'),(2,'2º'),(3,'3º'),(4,'4º')],
         null=True,
-        blank=True,
-        help_text="Campo legado para compatibilidade de migrations antigas"
+        blank=True
     )
 
-    atualizado_em = models.DateTimeField(auto_now=True)
+    valor = models.DecimalField(max_digits=5, decimal_places=2)
 
-    class Meta:
-        unique_together = ('aluno', 'disciplina', 'turma', 'escola')
-
-    
+   
 class NomeTurma(models.Model):
     nome = models.CharField(max_length=100)
     escola = models.ForeignKey(Escola, on_delete=models.CASCADE)
