@@ -5,7 +5,6 @@
     {% include 'partials/_head.html' %}
 
     <style>
-        /* BLOCO ÚNICO (HEADER + CONTEÚDO) */
         .box-padrao {
             background: #ffffff;
             border-radius: 6px;
@@ -13,7 +12,6 @@
             overflow: hidden;
         }
 
-        /* HEADER PADRÃO */
         .box-header {
             background-color: #6c757d;
             color: #ffffff;
@@ -25,13 +23,8 @@
             gap: 8px;
         }
 
-        /* CONTEÚDO IMEDIATO */
         .box-body {
             padding: 12px 20px 20px 20px;
-        }
-
-        .table {
-            margin-top: 0;
         }
 
         .table thead th {
@@ -40,14 +33,11 @@
             color: #495057;
         }
 
-        .table-hover tbody tr:hover {
-            background-color: #f1f3f5;
-        }
-
         .badge-professor {
-            background-color: #0d6efd;
-            margin-right: 4px;
-            margin-bottom: 4px;
+            background-color: #fab982;
+            color: #2f2f2f;
+            margin-right: 6px;
+            margin-bottom: 6px;
             font-weight: 500;
         }
 
@@ -89,7 +79,7 @@
                             <th>Nome da Turma</th>
                             <th>Professor(es)</th>
                             <th class="text-center">Alunos</th>
-                            <th class="text-center" style="width: 150px;">Ações</th>
+                            <th class="text-center" style="width: 140px;">Ações</th>
                         </tr>
                     </thead>
 
@@ -101,13 +91,15 @@
                             </td>
 
                             <td>
-                                {% for nome in item.professores %}
-                                    <span class="badge badge-professor">
-                                        {{ nome }}
-                                    </span>
-                                {% empty %}
+                                {% if item.professores %}
+                                    {% for nome in item.professores %}
+                                        <span class="badge badge-professor">
+                                            {{ nome }}
+                                        </span>
+                                    {% endfor %}
+                                {% else %}
                                     <span class="text-muted">Nenhum professor</span>
-                                {% endfor %}
+                                {% endif %}
                             </td>
 
                             <td class="text-center">
@@ -118,8 +110,7 @@
 
                             <td class="text-center">
                                 <a href="{% url 'turmas:detalhe' turma_id=item.obj.id %}"
-                                   class="btn btn-outline-primary btn-sm btn-acao"
-                                   title="Ver detalhes da turma">
+                                   class="btn btn-outline-primary btn-sm btn-acao">
                                     <i class="bi bi-eye"></i>
                                     Detalhes
                                 </a>

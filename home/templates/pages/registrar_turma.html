@@ -106,12 +106,19 @@
     <div class="container">
 
         <div class="header-bar">
-            Criar Turma
+            {% if turma %}
+                Editar Turma
+            {% else %}
+                Criar Turma
+            {% endif %}
         </div>
 
         <section class="content-wrapper" style="margin-top: 15px;">
             <form id="turmaForm" method="post">
                 {% csrf_token %}
+
+                <!-- 🔑 ID DA TURMA (EDIÇÃO) -->
+                <input type="hidden" id="turmaId" value="{{ turma.id|default:'' }}">
 
                 <div class="form-row">
                     <div class="form-group">
@@ -201,8 +208,10 @@
                 </div>
 
                 <div class="form-footer">
-                    <button type="submit" class="btn btn-primary">Salvar Turma</button>
-                    <button type="reset" class="btn btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        {% if turma %}Atualizar Turma{% else %}Salvar Turma{% endif %}
+                    </button>
+                    <button type="button" id="btnCancelar" class="btn btn-secondary"> Cancelar </button>
                 </div>
 
             </form>
@@ -225,39 +234,16 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', atualizarCampoDisciplina);
+    document.addEventListener('DOMContentLoaded', function () {
+        atualizarCampoDisciplina();
 
-    document.getElementById("turmaForm").addEventListener("submit", function (e) {
-        let erro = false;
-
-        const nome = document.getElementById("nomeTurmaSelect");
-        const turno = document.getElementById("turnoTurma");
-        const ano = document.getElementById("anoTurma");
-        const sala = document.getElementById("salaTurma");
-
-        const campos = [
-            { campo: nome, erroDiv: "erroNome", msg: "Selecione um nome." },
-            { campo: turno, erroDiv: "erroTurno", msg: "Selecione um turno." },
-            { campo: ano, erroDiv: "erroAno", msg: "Informe o ano." },
-            { campo: sala, erroDiv: "erroSala", msg: "Informe a sala." }
-        ];
-
-        campos.forEach(item => {
-            if (!item.campo.value.trim()) {
-                erro = true;
-                item.campo.classList.add("campo-erro", "shake");
-                document.getElementById(item.erroDiv).innerText = item.msg;
-                setTimeout(() => item.campo.classList.remove("shake"), 300);
-            } else {
-                item.campo.classList.remove("campo-erro");
-                document.getElementById(item.erroDiv).innerText = "";
-            }
-        });
-
-        if (erro) {
-            e.preventDefault();
-            nome.scrollIntoView({ behavior: "smooth", block: "center" });
-        }
+        {% if turma %}
+            document.getElementById("nomeTurmaSelect").value = "{{ turma.nome }}";
+            document.getElementById("turnoTurma").value = "{{ turma.turno }}";
+            document.getElementById("anoTurma").value = "{{ turma.ano }}";
+            document.getElementById("salaTurma").value = "{{ turma.sala }}";
+            document.getElementById("descricaoTurma").value = "{{ turma.descricao|default:'' }}";
+        {% endif %}
     });
 </script>
 

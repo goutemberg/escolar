@@ -3,7 +3,6 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db import transaction
 import json
-
 from home.models import (
     Turma,
     TurmaDisciplina,
@@ -18,39 +17,38 @@ from home.decorators import role_required
 # ======================================================
 # LISTAGEM DE TURMAS
 # ======================================================
+
 @login_required
 def listar_turmas(request):
-    escola = request.user.escola
 
     turmas_qs = (
         Turma.objects
-        .filter(escola=escola)
+        .filter(escola=request.user.escola)
         .prefetch_related("alunos")
         .order_by("nome")
     )
 
-    # pré-carrega todos os vínculos de uma vez
-    vinculos = (
-        TurmaDisciplina.objects
-        .filter(turma__in=turmas_qs)
-        .select_related("professor", "turma")
-    )
-
-    mapa_professores = {}
-    for v in vinculos:
-        mapa_professores.setdefault(v.turma_id, set()).add(v.professor.nome)
-
     turmas = []
+
     for turma in turmas_qs:
+        professores = (
+            TurmaDisciplina.objects
+            .filter(turma=turma)
+            .select_related("professor")
+            .values_list("professor__nome", flat=True)
+            .distinct()
+        )
+
         turmas.append({
-            "turma": turma,
-            "professores": sorted(mapa_professores.get(turma.id, []))
+            "obj": turma,
+            "professores": list(professores),
         })
 
-    return render(request, "pages/turmas/listar_turmas.html", {
-        "turmas": turmas
-    })
-
+    return render(
+        request,
+        "pages/turmas/listar_turmas.html",
+        {"turmas": turmas}
+    )
 
 
 # ======================================================
@@ -191,11 +189,13 @@ def cadastro_turma(request):
     escola = request.user.escola
 
     # ======================================================
-    # POST → SALVAR TURMA (API JSON)
+    # POST → CRIAR ou EDITAR TURMA (API JSON)
     # ======================================================
     if request.method == "POST":
         try:
             data = json.loads(request.body)
+
+            turma_id = data.get("turma_id")  # 🔑 se existir → edição
 
             nome = data.get('nome')
             turno = data.get('turno')
@@ -213,7 +213,7 @@ def cadastro_turma(request):
                     'mensagem': 'Ano inválido.'
                 }, status=400)
 
-            # ✅ validação mínima (turma independe de professor)
+            # validação mínima
             if not all([nome, turno, ano, sala]):
                 return JsonResponse({
                     'success': False,
@@ -222,17 +222,46 @@ def cadastro_turma(request):
 
             with transaction.atomic():
 
-                # 1️⃣ Criar Turma
-                turma = Turma.objects.create(
-                    nome=nome,
-                    turno=turno,
-                    ano=ano,
-                    sala=sala,
-                    descricao=descricao,
-                    escola=escola
-                )
+                # ==================================================
+                # CREATE
+                # ==================================================
+                if not turma_id:
+                    turma = Turma.objects.create(
+                        nome=nome,
+                        turno=turno,
+                        ano=ano,
+                        sala=sala,
+                        descricao=descricao,
+                        escola=escola
+                    )
 
-                # 2️⃣ Associar Alunos (opcional)
+                # ==================================================
+                # UPDATE
+                # ==================================================
+                else:
+                    turma = get_object_or_404(
+                        Turma,
+                        id=turma_id,
+                        escola=escola
+                    )
+
+                    turma.nome = nome
+                    turma.turno = turno
+                    turma.ano = ano
+                    turma.sala = sala
+                    turma.descricao = descricao
+                    turma.save()
+
+                    # limpa vínculos antigos
+                    turma.alunos.clear()
+                    TurmaDisciplina.objects.filter(
+                        turma=turma,
+                        escola=escola
+                    ).delete()
+
+                # ==================================================
+                # ALUNOS (opcional)
+                # ==================================================
                 if alunos_ids:
                     alunos = Aluno.objects.filter(
                         id__in=alunos_ids,
@@ -241,7 +270,9 @@ def cadastro_turma(request):
                     )
                     turma.alunos.add(*alunos)
 
-                # 3️⃣ Associar Professores + Disciplinas (opcional, múltiplos)
+                # ==================================================
+                # PROFESSORES + DISCIPLINAS (opcional / múltiplos)
+                # ==================================================
                 for item in professores:
                     TurmaDisciplina.objects.create(
                         turma=turma,
@@ -252,7 +283,7 @@ def cadastro_turma(request):
 
             return JsonResponse({
                 'success': True,
-                'mensagem': 'Turma criada com sucesso.',
+                'mensagem': 'Turma salva com sucesso.',
                 'turma_id': turma.id
             })
 
@@ -263,7 +294,7 @@ def cadastro_turma(request):
             }, status=500)
 
     # ======================================================
-    # GET → RENDERIZAR PÁGINA
+    # GET → RENDERIZAR TELA (CREATE)
     # ======================================================
     disciplinas = Disciplina.objects.filter(escola=escola).order_by('nome')
     nomes_turma = NomeTurma.objects.filter(escola=escola).order_by('nome')
@@ -463,3 +494,48 @@ def atualizar_turma(request, turma_id):
             {"success": False, "mensagem": str(e)},
             status=500
         )
+
+@login_required
+def api_detalhe_turma(request, turma_id):
+    escola = request.user.escola
+
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=escola
+    )
+
+    alunos = list(
+        turma.alunos.filter(ativo=True).values("id", "nome")
+    )
+
+    professores = list(
+        TurmaDisciplina.objects
+        .filter(turma=turma, escola=escola)
+        .select_related("professor", "disciplina")
+        .values(
+            "professor_id",
+            "professor__nome",
+            "disciplina_id",
+            "disciplina__nome"
+        )
+    )
+
+    return JsonResponse({
+        "id": turma.id,
+        "nome": turma.nome,
+        "turno": turma.turno,
+        "ano": turma.ano,
+        "sala": turma.sala,
+        "descricao": turma.descricao,
+        "alunos": alunos,
+        "professores": [
+            {
+                "professor_id": p["professor_id"],
+                "nome": p["professor__nome"],
+                "disciplina_id": p["disciplina_id"],
+                "disciplina_nome": p["disciplina__nome"]
+            }
+            for p in professores
+        ]
+    })
