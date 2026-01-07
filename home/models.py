@@ -389,31 +389,29 @@ class Nota(models.Model):
     turma = models.ForeignKey(Turma, on_delete=models.CASCADE)
     professor = models.ForeignKey(Docente, on_delete=models.SET_NULL, null=True, blank=True)
 
-    # Bimestres
     nota1 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     nota2 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     nota3 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
     nota4 = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
 
-    # Média anual
     media_anual = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-
-    # Recuperação
     recuperacao = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
-
-    # Média final
     media_final = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
 
-    # Multi-escola
     escola = models.ForeignKey(Escola, on_delete=models.CASCADE)
+
+    # 👇 campo legado
+    bimestre = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Campo legado para compatibilidade de migrations antigas"
+    )
 
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('aluno', 'disciplina', 'turma', 'escola')
 
-    def __str__(self):
-        return f"Notas de {self.aluno.nome} - {self.disciplina.nome}"
     
 class NomeTurma(models.Model):
     nome = models.CharField(max_length=100)
