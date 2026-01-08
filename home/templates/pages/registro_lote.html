@@ -1,0 +1,173 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  {% include 'partials/_head.html' %}
+</head>
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<section class="content-wrapper" style="margin-top: 15px;">
+  <div class="header-bar">
+    Matrícula em Lote (Irmãos)
+  </div>
+
+  <div class="tab-buttons">
+    <button data-tab="0" onclick="showTab(0)" type="button">Alunos</button>
+    <button data-tab="1" onclick="showTab(1)" type="button">Dados dos Responsáveis</button>
+    <button data-tab="2" onclick="showTab(2)" type="button">Saúde</button>
+    <button data-tab="3" onclick="showTab(3)" type="button">Transporte</button>
+    <button data-tab="4" onclick="showTab(4)" type="button">Autorizações</button>
+  </div>
+
+  <form id="formCadastroLote">
+    {% csrf_token %}
+
+    <!-- TAB 0 -->
+    <div class="tab-section" data-tab="0">
+      <h3>Alunos</h3>
+
+      <div id="alunos-container">
+        <div class="aluno-bloco" data-index="0">
+          <h4>Aluno 1</h4>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nome</label>
+              <input name="alunos[0][nome]" type="text">
+            </div>
+
+            <div class="form-group short-field">
+              <label>Data de nascimento</label>
+              <input name="alunos[0][data_nascimento]" type="date">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group short-field">
+              <label>CPF</label>
+              <input name="alunos[0][cpf]" type="text">
+            </div>
+
+            <div class="form-group short-field">
+              <label>RG</label>
+              <input name="alunos[0][rg]" type="text">
+            </div>
+
+            <div class="form-group short-field">
+              <label>Sexo</label>
+              <select name="alunos[0][sexo]">
+                <option value="">Selecione</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Feminino">Feminino</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group short-field">
+              <label>Série/Ano</label>
+              <input name="alunos[0][serie_ano]" type="text">
+            </div>
+
+            <div class="form-group short-field">
+              <label>Turno</label>
+              <select name="alunos[0][turno]">
+                <option value="">Selecione</option>
+                <option value="Matutino">Matutino</option>
+                <option value="Vespertino">Vespertino</option>
+                <option value="Integral">Integral</option>
+              </select>
+            </div>
+
+            <div class="form-group short-field">
+              <label>Turma</label>
+              <select name="alunos[0][turma_id]">
+                <option value="">Selecione</option>
+                {% for t in turmas %}
+                  <option value="{{ t.id }}">{{ t.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <hr>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-secondary" id="addAlunoBtn">
+        + Adicionar outro aluno
+      </button>
+    </div>
+
+    <!-- TAB 1 -->
+    <div class="tab-section" data-tab="1" style="display:none">
+      {% include 'partials/alunos/_responsaveis.html' %}
+    </div>
+
+    <!-- TAB 2 -->
+    <div class="tab-section" data-tab="2" style="display:none">
+      <h3>Saúde</h3>
+      <div class="aluno-saude" data-index="0">
+        <h4>Aluno 1</h4>
+        {% include 'partials/alunos/_saude.html' %}
+      </div>
+    </div>
+
+    <!-- TAB 3 -->
+    <div class="tab-section" data-tab="3" style="display:none">
+      <h3>Transporte</h3>
+      <div class="aluno-transporte" data-index="0">
+        <h4>Aluno 1</h4>
+        {% include 'partials/alunos/_transporte.html' %}
+      </div>
+    </div>
+
+    <!-- TAB 4 -->
+    <div class="tab-section" data-tab="4" style="display:none">
+      <h3>Autorizações</h3>
+      <div class="aluno-autorizacoes" data-index="0">
+        <h4>Aluno 1</h4>
+        {% include 'partials/alunos/_autorizacoes.html' %}
+      </div>
+    </div>
+
+    <div class="form-footer" style="display:flex; gap:8px;">
+      <button class="btn btn-secondary" type="button" onclick="goBack()">Voltar</button>
+      <button class="btn btn-light" type="button" onclick="cancelForm()">Cancelar</button>
+      <button class="btn btn-primary" id="submitButton" type="button">
+        Salvar Matrículas
+      </button>
+    </div>
+
+  </form>
+</section>
+
+<footer>
+  {% include 'partials/_footer.html' %}
+  <script src="{% static 'home/js/registro_lote.js' %}"></script>
+</footer>
+
+<script>
+function showTab(index) {
+  const tabs = document.querySelectorAll('.tab-section');
+  const btns = document.querySelectorAll('.tab-buttons [data-tab]');
+
+  tabs.forEach(tab => {
+    tab.style.display = tab.dataset.tab == index ? 'block' : 'none';
+  });
+
+  btns.forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab == index);
+  });
+}
+
+showTab(0);
+
+function goBack(){ window.history.back(); }
+function cancelForm(){ window.location.href = document.referrer || '/'; }
+</script>
+
+</body>
+</html>

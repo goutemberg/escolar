@@ -114,6 +114,7 @@ urlpatterns = [
 
     path("chamada/", include(("home.routes.chamada", "chamada"), namespace="chamada")),
     path("turmas/", include(("home.routes.turmas", "turmas"), namespace="turmas")),
+    path("", include(("home.routes.matricula_em_lote", "matricula_lote"), namespace="matricula_lote")),
 
     
 
