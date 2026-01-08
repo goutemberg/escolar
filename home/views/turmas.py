@@ -252,8 +252,15 @@ def cadastro_turma(request):
                     turma.descricao = descricao
                     turma.save()
 
-                    # limpa vínculos antigos
+                    # limpa vínculos antigos de alunos
                     turma.alunos.clear()
+
+                    # 🔑 PATCH: limpa turma_principal antiga
+                    Aluno.objects.filter(
+                        turma_principal=turma
+                    ).update(turma_principal=None)
+
+                    # 🔑 PATCH: limpa professores + disciplinas antigos
                     TurmaDisciplina.objects.filter(
                         turma=turma,
                         escola=escola
@@ -269,6 +276,10 @@ def cadastro_turma(request):
                         ativo=True
                     )
                     turma.alunos.add(*alunos)
+
+                    for aluno in alunos:
+                        aluno.turma_principal = turma
+                        aluno.save(update_fields=["turma_principal"])
 
                 # ==================================================
                 # PROFESSORES + DISCIPLINAS (opcional / múltiplos)
@@ -348,6 +359,10 @@ def remover_aluno_turma(request, turma_id):
 
         # remove vínculo
         turma.alunos.remove(aluno)
+
+        if aluno.turma_principal_id == turma.id:
+            aluno.turma_principal = None
+            aluno.save(update_fields=["turma_principal"])
 
         return JsonResponse({"success": True})
 
@@ -469,11 +484,14 @@ def atualizar_turma(request, turma_id):
         )
         turma.alunos.set(alunos)
 
-        # 3️⃣ Sincroniza professores + disciplinas (estado final)
-        TurmaDisciplina.objects.filter(
-            turma=turma,
-            escola=escola
-        ).delete()
+# 🔑 PATCH: sincroniza turma principal
+        Aluno.objects.filter(
+            turma_principal=turma
+        ).exclude(id__in=alunos).update(turma_principal=None)
+
+        for aluno in alunos:
+            aluno.turma_principal = turma
+            aluno.save(update_fields=["turma_principal"])
 
         for item in professores:
             TurmaDisciplina.objects.create(
