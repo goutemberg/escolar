@@ -433,6 +433,79 @@ class NomeTurma(models.Model):
 
     def __str__(self):
         return self.nome
+    
 
+#===================================================================
+# Registro Pedagogico
+#===================================================================
 
+class RegistroPedagogico(models.Model):
+    TRIMESTRES = (
+        (1, "I Trimestre"),
+        (2, "II Trimestre"),
+        (3, "III Trimestre"),
+        (4, "IV Trimestre"),
+    )
 
+    aluno = models.ForeignKey(
+        "Aluno",
+        on_delete=models.CASCADE,
+        related_name="registros_pedagogicos",
+        verbose_name="Aluno",
+    )
+
+    turma = models.ForeignKey(
+        "Turma",
+        on_delete=models.CASCADE,
+        related_name="registros_pedagogicos",
+        verbose_name="Turma",
+    )
+
+    ano_letivo = models.PositiveIntegerField(
+        verbose_name="Ano Letivo"
+    )
+
+    trimestre = models.PositiveSmallIntegerField(
+        choices=TRIMESTRES,
+        verbose_name="Trimestre",
+    )
+
+    observacoes = models.TextField(
+        blank=True,
+        verbose_name="Observações Pedagógicas",
+        help_text="Registro descritivo do desenvolvimento do aluno no trimestre",
+    )
+
+    escola = models.ForeignKey(
+        "Escola",
+        on_delete=models.CASCADE,
+        related_name="registros_pedagogicos",
+        verbose_name="Escola",
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Criado em",
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Atualizado em",
+    )
+
+    class Meta:
+        verbose_name = "Registro Pedagógico"
+        verbose_name_plural = "Registros Pedagógicos"
+        ordering = ["aluno", "ano_letivo", "trimestre"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["aluno", "turma", "ano_letivo", "trimestre"],
+                name="unique_registro_pedagogico_trimestre",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.aluno} - {self.get_trimestre_display()} "
+            f"({self.ano_letivo})"
+        )

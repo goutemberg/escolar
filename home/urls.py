@@ -115,8 +115,7 @@ urlpatterns = [
     path("chamada/", include(("home.routes.chamada", "chamada"), namespace="chamada")),
     path("turmas/", include(("home.routes.turmas", "turmas"), namespace="turmas")),
     path("", include(("home.routes.matricula_em_lote", "matricula_lote"), namespace="matricula_lote")),
-
-    
-
+    path("", include(("home.routes.registro_pedagogico", "registro_pedagogico"), namespace="registro_pedagogico")),
+    path("", include(("home.routes.api_alunos_por_turma", "api_alunos_por_turma"), namespace="api_alunos_por_turma")),
 
 ]

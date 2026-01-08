@@ -133,19 +133,7 @@
             <a class="dropdown-item" href="{% url 'registrar_notas' %}">
               <i class="fas fa-pen-alt mr-1"></i> Lançar Notas
             </a>
-            {% endif %}
 
-            {% if user|has_role:'diretor,coordenador' %}
-            <a class="dropdown-item nav-disabled" href="{% url 'listar_turmas_boletim' %}">
-              <i class="fas fa-file-alt mr-1"></i> Ver Boletim
-            </a>
-
-            <a class="dropdown-item" href="{% url 'pagina_cadastrar_disciplina' %}">
-              <i class="fas fa-clipboard-list mr-1"></i> Cadastrar Disciplinas
-            </a>
-            {% endif %}
-
-            {% if user|has_role:'professor,diretor,coordenador' %}
             <a class="dropdown-item" href="{% url 'chamada:registrar_chamada' %}">
               <i class="fas fa-check-square mr-1"></i> Registrar Chamada
             </a>
@@ -154,10 +142,17 @@
               <i class="fas fa-list mr-1"></i> Histórico de Chamadas
             </a>
 
+            <!-- DIÁRIO DE CLASSE (outra lógica, mantido separado) -->
             <a class="dropdown-item nav-disabled" href="{% url 'diario_classe' %}">
               <i class="fas fa-book mr-1"></i> Diário de Classe
             </a>
+
+            <!-- REGISTRO PEDAGÓGICO -->
+            <a class="dropdown-item" href="{% url 'registro_pedagogico:registro_pedagogico' %}">
+              <i class="fas fa-book-open mr-1"></i> Registro Pedagógico
+            </a>
             {% endif %}
+
           </div>
         </li>
         {% endif %}
@@ -195,16 +190,6 @@
 
             <a class="dropdown-item" href="{% url 'turmas:listar' %}">
               <i class="fas fa-list mr-1"></i> Listar Turmas
-            </a>
-
-            <div class="dropdown-divider"></div>
-
-            <a class="dropdown-item nav-disabled" href="#">
-              <i class="fas fa-briefcase mr-1"></i> Funcionários
-            </a>
-
-            <a class="dropdown-item nav-disabled" href="#">
-              <i class="fas fa-print mr-1"></i> Impressão de Relatórios
             </a>
 
           </div>

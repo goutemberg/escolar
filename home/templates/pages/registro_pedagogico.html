@@ -1,0 +1,116 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    {% include 'partials/_head.html' %}
+</head>
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<section class="content-wrapper" style="margin-top: 15px;">
+
+    <div class="header-bar">
+        Registro Pedagógico
+    </div>
+
+    <!-- Filtros -->
+    <div class="card p-3 mb-3">
+
+        <div class="row">
+            <div class="col-md-4">
+                <label for="turma">Turma</label>
+                <select id="turma" class="form-control">
+                    <option value="">Selecione a turma</option>
+                    {% for turma in turmas %}
+                        <option value="{{ turma.id }}">{{ turma.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label for="aluno">Aluno</label>
+                <select id="aluno" class="form-control">
+                    <option value="">Selecione o aluno</option>
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label for="ano_letivo">Ano Letivo</label>
+                <input
+                    type="number"
+                    id="ano_letivo"
+                    class="form-control"
+                    value="{{ ano_atual }}"
+                />
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Observações Trimestrais -->
+    <div class="card p-3">
+
+        <h5 class="mb-3">Observações por Trimestre</h5>
+
+        <div class="mb-3">
+            <label>I Trimestre</label>
+            <textarea
+                id="trimestre_1"
+                class="form-control"
+                rows="4"
+                placeholder="Observações do I Trimestre"
+            ></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label>II Trimestre</label>
+            <textarea
+                id="trimestre_2"
+                class="form-control"
+                rows="4"
+                placeholder="Observações do II Trimestre"
+            ></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label>III Trimestre</label>
+            <textarea
+                id="trimestre_3"
+                class="form-control"
+                rows="4"
+                placeholder="Observações do III Trimestre"
+            ></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label>IV Trimestre</label>
+            <textarea
+                id="trimestre_4"
+                class="form-control"
+                rows="4"
+                placeholder="Observações do IV Trimestre"
+            ></textarea>
+        </div>
+
+        <div class="text-end">
+            <button
+                id="btnSalvar"
+                class="btn btn-primary"
+                onclick="salvarRegistroPedagogico()"
+            >
+                Salvar Registro
+            </button>
+        </div>
+
+    </div>
+
+</section>
+
+{% include 'partials/_footer.html' %}
+
+<!-- JS -->
+<script src="{% static 'home/js/registro_pedagogico.js' %}"></script>
+
+</body>
+</html>
