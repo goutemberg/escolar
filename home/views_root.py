@@ -503,7 +503,9 @@ def salvar_aluno(request):
             # =========================
             # Datas
             # =========================
-            dn = datetime.strptime(data.get('data_nascimento'), "%Y-%m-%d").date()
+            dn = datetime.strptime(
+                data.get('data_nascimento'), "%Y-%m-%d"
+            ).date()
 
             data_ingresso = None
             if data.get('data_ingresso'):
@@ -515,13 +517,15 @@ def salvar_aluno(request):
             # ======================= EDIÇÃO ===========================
             # ==========================================================
             if aluno_id:
-                aluno = Aluno.objects.select_for_update().get(
-                    id=aluno_id,
-                    escola=request.user.escola
+                aluno = (
+                    Aluno.objects
+                    .select_for_update()
+                    .get(id=aluno_id, escola=request.user.escola)
                 )
 
                 aluno.nome = data.get('nome', '')
                 aluno.data_nascimento = dn
+                aluno.cpf = data.get('cpf', '')
                 aluno.rg = data.get('rg', '')
                 aluno.sexo = data.get('sexo', '')
                 aluno.nacionalidade = data.get('nacionalidade', '')
@@ -542,7 +546,9 @@ def salvar_aluno(request):
                 aluno.responsavel_financeiro = data.get('responsavel_financeiro') or None
                 aluno.situacao_familiar = data.get('situacao_familiar') or None
                 aluno.forma_acesso = data.get('forma_acesso') or None
-                aluno.dispensa_ensino_religioso = to_bool(data.get('dispensa_ensino_religioso'))
+                aluno.dispensa_ensino_religioso = to_bool(
+                    data.get('dispensa_ensino_religioso')
+                )
                 aluno.bolsa_familia = to_bool(data.get('bolsa_familia'))
                 aluno.serie_ano = data.get('serie_ano', '')
                 aluno.turno_aluno = data.get('turno') or data.get('turno_aluno', '')
@@ -553,20 +559,26 @@ def salvar_aluno(request):
             # ======================= CADASTRO =========================
             # ==========================================================
             else:
-                # Geração segura da matrícula
+                # 🔐 Geração SEGURA da matrícula (concorrência-safe)
                 ano = datetime.now().year
+
                 ultimo = (
                     Aluno.objects
-                    .filter(matricula__startswith=f"ALU{ano}")
+                    .select_for_update()  # 🔥 trava concorrência
+                    .filter(
+                        escola=request.user.escola,
+                        matricula__startswith=f"ALU{ano}"
+                    )
                     .annotate(
                         numero_final=Cast(
                             Substr('matricula', 8, 4),
                             IntegerField()
-        )
-    )
-    .order_by('-numero_final')
-    .first()
-)
+                        )
+                    )
+                    .order_by('-numero_final')
+                    .first()
+                )
+
                 prox = (ultimo.numero_final if ultimo else 0) + 1
                 matricula = f"ALU{ano}{prox:04d}"
 
@@ -598,7 +610,9 @@ def salvar_aluno(request):
                     responsavel_financeiro=data.get('responsavel_financeiro') or None,
                     situacao_familiar=data.get('situacao_familiar') or None,
                     forma_acesso=data.get('forma_acesso') or None,
-                    dispensa_ensino_religioso=to_bool(data.get('dispensa_ensino_religioso')),
+                    dispensa_ensino_religioso=to_bool(
+                        data.get('dispensa_ensino_religioso')
+                    ),
                     situacao_matricula=data.get('situacao_matricula') or None,
                     bolsa_familia=to_bool(data.get('bolsa_familia')),
                     serie_ano=data.get('serie_ano', ''),
@@ -614,6 +628,7 @@ def salvar_aluno(request):
                     id=turma_id,
                     escola=request.user.escola
                 ).first()
+
                 if turma:
                     aluno.turma_principal = turma
                     aluno.save(update_fields=['turma_principal'])
@@ -623,6 +638,7 @@ def salvar_aluno(request):
                         aluno.turno_aluno = turma.turno
                     if not aluno.serie_ano and turma.nome:
                         aluno.serie_ano = turma.nome
+
                     aluno.save(update_fields=['turno_aluno', 'serie_ano'])
 
             # ==========================================================
@@ -670,7 +686,9 @@ def salvar_aluno(request):
             Saude.objects.update_or_create(
                 aluno=aluno,
                 defaults={
-                    'possui_necessidade_especial': to_bool(data.get('possui_necessidade_especial')),
+                    'possui_necessidade_especial': to_bool(
+                        data.get('possui_necessidade_especial')
+                    ),
                     'descricao_necessidade': data.get('descricao_necessidade', ''),
                     'usa_medicacao': to_bool(data.get('usa_medicacao')),
                     'quais_medicacoes': data.get('quais_medicacoes', ''),
@@ -686,7 +704,8 @@ def salvar_aluno(request):
                 aluno=aluno,
                 defaults={
                     'usa_transporte_escolar': to_bool(
-                        data.get('utiliza_transporte') or data.get('usa_transporte_escolar')
+                        data.get('utiliza_transporte')
+                        or data.get('usa_transporte_escolar')
                     ),
                     'trajeto': data.get('trajeto', ''),
                 }
@@ -698,10 +717,18 @@ def salvar_aluno(request):
             Autorizacoes.objects.update_or_create(
                 aluno=aluno,
                 defaults={
-                    'autorizacao_saida_sozinho': to_bool(data.get('autorizacao_saida_sozinho')),
-                    'autorizacao_fotos_eventos': to_bool(data.get('autorizacao_fotos_eventos')),
-                    'pessoa_autorizada_buscar': data.get('pessoa_autorizada_buscar', ''),
-                    'usa_transporte_publico': to_bool(data.get('usa_transporte_publico')),
+                    'autorizacao_saida_sozinho': to_bool(
+                        data.get('autorizacao_saida_sozinho')
+                    ),
+                    'autorizacao_fotos_eventos': to_bool(
+                        data.get('autorizacao_fotos_eventos')
+                    ),
+                    'pessoa_autorizada_buscar': data.get(
+                        'pessoa_autorizada_buscar', ''
+                    ),
+                    'usa_transporte_publico': to_bool(
+                        data.get('usa_transporte_publico')
+                    ),
                 }
             )
 

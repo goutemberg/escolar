@@ -49,28 +49,52 @@ def get_professor_or_gestor(user):
 # ======================================================
 @login_required
 def tela_chamada(request):
+    user = request.user
 
-    acesso = get_professor_or_gestor(request.user)
-    if acesso == "bloqueado":
-        return render(request, "errors/403.html", status=403)
+    # -------------------------------------------------
+    # Papéis permitidos
+    # -------------------------------------------------
+    roles_permitidos = ["professor", "coordenador", "diretor"]
 
-    prof_obj = Docente.objects.filter(user=request.user).first()
+    if user.role not in roles_permitidos:
+        return HttpResponseForbidden("Acesso negado.")
 
-    # 👇 SEM DOCENTE = SEM CHAMADA
-    if not prof_obj:
-        return render(request, "errors/403.html", status=403)
+    hoje = datetime.now().date().strftime("%Y-%m-%d")
 
-    # 🔑 FONTE ÚNICA
-    turmas_disciplinas = (
-        TurmaDisciplina.objects
-        .filter(
-            professor=prof_obj,
-            escola=request.user.escola
+    # -------------------------------------------------
+    # PROFESSOR
+    # -------------------------------------------------
+    if user.role == "professor":
+        prof_obj = Docente.objects.filter(
+            user=user,
+            escola=user.escola
+        ).first()
+
+        if not prof_obj:
+            return HttpResponseForbidden("Professor sem vínculo docente.")
+
+        turmas_disciplinas = (
+            TurmaDisciplina.objects
+            .filter(
+                professor=prof_obj,
+                escola=user.escola
+            )
+            .select_related("turma", "disciplina")
         )
-        .select_related("turma", "disciplina")
-    )
 
-    # 🔹 Extrair listas sem duplicação
+    # -------------------------------------------------
+    # COORDENADOR / DIRETOR
+    # -------------------------------------------------
+    else:
+        turmas_disciplinas = (
+            TurmaDisciplina.objects
+            .filter(escola=user.escola)
+            .select_related("turma", "disciplina")
+        )
+
+    # -------------------------------------------------
+    # Extrair listas sem duplicação
+    # -------------------------------------------------
     turmas = sorted(
         {td.turma for td in turmas_disciplinas},
         key=lambda t: t.nome
@@ -81,13 +105,15 @@ def tela_chamada(request):
         key=lambda d: d.nome
     )
 
-    hoje = datetime.now().date().strftime("%Y-%m-%d")
-
-    return render(request, "pages/chamada/realizar_chamadas.html", {
-        "turmas": turmas,
-        "disciplinas": disciplinas,
-        "data_hoje": hoje,
-    })
+    return render(
+        request,
+        "pages/chamada/realizar_chamadas.html",
+        {
+            "turmas": turmas,
+            "disciplinas": disciplinas,
+            "data_hoje": hoje,
+        }
+    )
 
 # ======================================================
 # 2) API – CARREGAR ALUNOS DA TURMA

@@ -245,6 +245,17 @@ function turmaLabel(a) {
     if (!a.turma) return "";
     return a.turma.nome || a.turma.sigla || "";
 }
+function getResponsavelPreferencial(responsaveis = []) {
+    if (!Array.isArray(responsaveis) || responsaveis.length === 0) return null;
+
+    const mae = responsaveis.find(r => normaliza(r.tipo) === "mae");
+    const pai = responsaveis.find(r => normaliza(r.tipo) === "pai");
+
+    if (mae) return mae;
+    if (pai) return pai;
+
+    return responsaveis[0];
+}
 
 function highlight(text, term) {
     if (!term) return text;
@@ -362,6 +373,12 @@ function atualizarCards(listaTotal) {
     document.getElementById("cardNivers").textContent = aniversario;
 }
 
+function removerAluno(id) {
+    if (!confirm("Remover aluno da lista?")) return;
+    alunos.splice(alunos.findIndex(a => a.id === id), 1);
+    renderizarTabela(currentPage);
+}
+
 function renderizarTabela(pagina = 1) {
     let lista = aplicarBusca();
     lista = filtrarSimples(lista);
@@ -380,7 +397,10 @@ function renderizarTabela(pagina = 1) {
     tbody.innerHTML = "";
 
     lista.slice(ini, fim).forEach(a => {
-        const resp = a.responsaveis?.[0]?.nome || "";
+        const respObj = getResponsavelPreferencial(a.responsaveis);
+        const resp = respObj?.nome || "";
+        const respTelefone = respObj?.telefone || "";
+
 
         tbody.insertAdjacentHTML("beforeend", `
             <tr>
@@ -388,21 +408,24 @@ function renderizarTabela(pagina = 1) {
                 <td>${turmaLabel(a)}</td>
                 <td>${a.nome}</td>
                 <td>${resp}</td>
-                <td>${a.responsaveis?.[0]?.telefone || ""}</td>
+                <td>${respTelefone}</td>
                 <td>${a.possui_necessidade_especial ? "🧩" : "–"}</td>
                 <td>
                     ${a.ativo
                         ? "<span class='badge badge-success'>Ativo</span>"
                         : "<span class='badge badge-secondary'>Inativo</span>"
                     }
-                </td>
                 <td style="white-space:nowrap;">
-                <a href="/alunos/${a.id}/editar/" class="btn btn-info btn-sm mr-1">Editar</a>
-                <a href="/alunos/${a.id}/pdf/" target="_blank" class="btn btn-secondary btn-sm">
-    Imprimir
-  </a>
+    <a href="/alunos/${a.id}/editar/" class="btn btn-info btn-sm mr-1">Editar</a>
+    <a href="/alunos/${a.id}/pdf/" target="_blank" class="btn btn-secondary btn-sm mr-1">
+        Imprimir
+    </a>
+      <!-- FUTURO: Inativar aluno
+    <button class="btn btn-warning btn-sm" onclick="inativarAluno(${a.id})">
+        Inativar
+    </button>
+    -->
 </td>
-            </tr>
         `);
     });
 

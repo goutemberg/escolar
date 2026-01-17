@@ -24,40 +24,69 @@
   <form id="formCadastroLote">
     {% csrf_token %}
 
-    <!-- TAB 0 -->
+    <!-- ================= TAB 0 ================= -->
     <div class="tab-section" data-tab="0">
       <h3>Alunos</h3>
 
       <div id="alunos-container">
-        <div class="aluno-bloco" data-index="0">
-          <h4>Aluno 1</h4>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label>Nome</label>
-              <input name="alunos[0][nome]" type="text">
+        <!-- ===== ALUNO 1 ===== -->
+        <div class="aluno-bloco" data-index="0">
+          <h4>
+          <span class="titulo-aluno">Aluno 1</span>
+        </h4>
+          <!-- Matrícula / Nome / Data -->
+          <div class="form-row row">
+            <div class="form-group col-md-2">
+              <label>Matrícula</label>
+              <input
+                type="text"
+                name="alunos[0][matricula]"
+                class="form-control"
+                placeholder="Gerada"
+                readonly>
             </div>
 
-            <div class="form-group short-field">
-              <label>Data de nascimento</label>
-              <input name="alunos[0][data_nascimento]" type="date">
+            <div class="form-group col-md-8">
+              <label>Nome</label>
+              <input
+                type="text"
+                name="alunos[0][nome]"
+                class="form-control">
+            </div>
+
+            <div class="form-group col-md-2">
+              <label>Data nasc.</label>
+              <input
+                type="date"
+                name="alunos[0][data_nascimento]"
+                class="form-control">
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-group short-field">
+          <!-- CPF / RG / Sexo (CORRIGIDO) -->
+          <div class="form-row row">
+            <div class="form-group col-md-4">
               <label>CPF</label>
-              <input name="alunos[0][cpf]" type="text">
+              <input
+                type="text"
+                name="alunos[0][cpf]"
+                class="form-control">
             </div>
 
-            <div class="form-group short-field">
+            <div class="form-group col-md-4">
               <label>RG</label>
-              <input name="alunos[0][rg]" type="text">
+              <input
+                type="text"
+                name="alunos[0][rg]"
+                class="form-control">
             </div>
 
-            <div class="form-group short-field">
+            <div class="form-group col-md-4">
               <label>Sexo</label>
-              <select name="alunos[0][sexo]">
+              <select
+                name="alunos[0][sexo]"
+                class="form-control">
                 <option value="">Selecione</option>
                 <option value="Masculino">Masculino</option>
                 <option value="Feminino">Feminino</option>
@@ -65,15 +94,21 @@
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-group short-field">
+          <!-- Série / Turno / Turma -->
+          <div class="form-row row">
+            <div class="form-group col-md-4">
               <label>Série/Ano</label>
-              <input name="alunos[0][serie_ano]" type="text">
+              <input
+                type="text"
+                name="alunos[0][serie_ano]"
+                class="form-control">
             </div>
 
-            <div class="form-group short-field">
+            <div class="form-group col-md-4">
               <label>Turno</label>
-              <select name="alunos[0][turno]">
+              <select
+                name="alunos[0][turno_aluno]"
+                class="form-control">
                 <option value="">Selecione</option>
                 <option value="Matutino">Matutino</option>
                 <option value="Vespertino">Vespertino</option>
@@ -81,9 +116,11 @@
               </select>
             </div>
 
-            <div class="form-group short-field">
+            <div class="form-group col-md-4">
               <label>Turma</label>
-              <select name="alunos[0][turma_id]">
+              <select
+                name="alunos[0][turma_principal_id]"
+                class="form-control">
                 <option value="">Selecione</option>
                 {% for t in turmas %}
                   <option value="{{ t.id }}">{{ t.nome }}</option>
@@ -96,17 +133,19 @@
         </div>
       </div>
 
-      <button type="button" class="btn btn-secondary" id="addAlunoBtn">
+      <button
+        type="button"
+        class="btn btn-secondary"
+        id="addAlunoBtn">
         + Adicionar outro aluno
       </button>
     </div>
 
-    <!-- TAB 1 -->
+    <!-- ================= OUTRAS TABS ================= -->
     <div class="tab-section" data-tab="1" style="display:none">
       {% include 'partials/alunos/_responsaveis.html' %}
     </div>
 
-    <!-- TAB 2 -->
     <div class="tab-section" data-tab="2" style="display:none">
       <h3>Saúde</h3>
       <div class="aluno-saude" data-index="0">
@@ -115,7 +154,6 @@
       </div>
     </div>
 
-    <!-- TAB 3 -->
     <div class="tab-section" data-tab="3" style="display:none">
       <h3>Transporte</h3>
       <div class="aluno-transporte" data-index="0">
@@ -124,7 +162,6 @@
       </div>
     </div>
 
-    <!-- TAB 4 -->
     <div class="tab-section" data-tab="4" style="display:none">
       <h3>Autorizações</h3>
       <div class="aluno-autorizacoes" data-index="0">
@@ -133,6 +170,7 @@
       </div>
     </div>
 
+    <!-- FOOTER -->
     <div class="form-footer" style="display:flex; gap:8px;">
       <button class="btn btn-secondary" type="button" onclick="goBack()">Voltar</button>
       <button class="btn btn-light" type="button" onclick="cancelForm()">Cancelar</button>

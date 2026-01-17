@@ -1,0 +1,103 @@
+<h3>Saúde e Necessidades Especiais</h3>
+
+<div class="form-row">
+  <!-- Possui alergia? Sim/Não -->
+  <div class="form-group short-field">
+    <label>Possui alergia?</label>
+
+    <div class="radio-group">
+      <label class="radio-inline">
+        <input
+          id="alergia_sim"
+          name="possui_alergia"
+          type="radio"
+          value="sim"
+        />
+        Sim
+      </label>
+
+      <label class="radio-inline">
+        <input
+          id="alergia_nao"
+          name="possui_alergia"
+          type="radio"
+          value="nao"
+        />
+        Não
+      </label>
+    </div>
+
+    <small class="field-error d-none" id="possui_alergia_error"></small>
+  </div>
+
+  <!-- Descrição da alergia -->
+  <div class="form-group">
+    <label for="descricao_alergia">
+      Descrição da(s) alergia(s)
+    </label>
+    <input
+      id="descricao_alergia"
+      name="descricao_alergia"
+      type="text"
+      placeholder="Descreva a(s) alergia(s)"
+    />
+    <small class="field-error d-none" id="descricao_alergia_error"></small>
+  </div>
+
+  <!-- Restrições alimentares -->
+  <div class="form-group">
+    <label for="restricoes">
+      Restrições alimentares
+    </label>
+    <input
+      id="restricoes"
+      name="restricoes"
+      type="text"
+      placeholder="Ex.: intolerância à lactose"
+    />
+    <small class="field-error d-none" id="restricoes_error"></small>
+  </div>
+</div>
+
+<div class="form-row">
+  <!-- Necessidades especiais -->
+  <div class="form-group">
+    <label for="necessidades">
+      Necessidades especiais
+    </label>
+    <input
+      id="necessidades"
+      name="necessidades"
+      type="text"
+      placeholder="Descreva, se houver"
+    />
+    <small class="field-error d-none" id="necessidades_error"></small>
+  </div>
+
+  <!-- Usa medicação -->
+  <div class="form-group short-field">
+    <label for="usa_medicacao">
+      Usa medicação?
+    </label>
+    <select id="usa_medicacao" name="usa_medicacao">
+      <option value="">Selecione</option>
+      <option value="sim">Sim</option>
+      <option value="nao">Não</option>
+    </select>
+    <small class="field-error d-none" id="usa_medicacao_error"></small>
+  </div>
+
+  <!-- Quais medicações -->
+  <div class="form-group">
+    <label for="quais_medicacoes">
+      Quais medicações?
+    </label>
+    <input
+      id="quais_medicacoes"
+      name="quais_medicacoes"
+      type="text"
+      placeholder="Liste as medicações, se houver"
+    />
+    <small class="field-error d-none" id="quais_medicacoes_error"></small>
+  </div>
+</div>

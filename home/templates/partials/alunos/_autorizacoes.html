@@ -1,0 +1,40 @@
+<h3>Autorizações</h3>
+
+<div class="form-row">
+  <div class="form-group short-field">
+    <label for="pode_sair_sozinho">
+      Pode sair sozinho?
+    </label>
+    <select id="pode_sair_sozinho" name="pode_sair_sozinho">
+      <option value="">Selecione</option>
+      <option value="sim">Sim</option>
+      <option value="nao">Não</option>
+    </select>
+    <small class="field-error d-none" id="pode_sair_sozinho_error"></small>
+  </div>
+
+  <div class="form-group">
+    <label for="autorizados_buscar">
+      Pessoas autorizadas a buscar
+    </label>
+    <input
+      id="autorizados_buscar"
+      name="autorizados_buscar"
+      placeholder="Nome(s) e relação"
+      type="text"
+    />
+    <small class="field-error d-none" id="autorizados_buscar_error"></small>
+  </div>
+
+  <div class="form-group short-field">
+    <label for="bolsa_familia">
+      Recebe Bolsa Família?
+    </label>
+    <select id="bolsa_familia" name="bolsa_familia">
+      <option value="">Selecione</option>
+      <option value="true">Sim</option>
+      <option value="false">Não</option>
+    </select>
+    <small class="field-error d-none" id="bolsa_familia_error"></small>
+  </div>
+</div>
