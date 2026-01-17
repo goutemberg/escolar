@@ -1037,6 +1037,34 @@ function wireCPF(input, errorId) {
     if (!ok) showFieldError(errorId, 'CPF inválido.');
   });
 }
+/* =========================
+   Telefone mascara
+========================= */
+function maskTelefone(v) {
+  v = (v || '').replace(/\D/g, '').slice(0, 11);
+
+  if (v.length > 10) {
+    return v.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+  }
+  if (v.length > 6) {
+    return v.replace(/^(\d{2})(\d{4})(\d+)/, '($1) $2-$3');
+  }
+  if (v.length > 2) {
+    return v.replace(/^(\d{2})(\d+)/, '($1) $2');
+  }
+  if (v.length > 0) {
+    return v.replace(/^(\d+)/, '($1');
+  }
+  return '';
+}
+
+function wireTelefone(input) {
+  if (!input) return;
+
+  input.addEventListener('input', () => {
+    input.value = maskTelefone(input.value);
+  });
+}
 
 /* =========================
    DATAS
@@ -1082,6 +1110,18 @@ document.addEventListener('DOMContentLoaded', function () {
   wireCPF(document.getElementById('responsavel_cpf'), 'responsavel_cpf');
   wireCPF(document.getElementById('pai_cpf'), 'pai_cpf');
   wireCPF(document.getElementById('mae_cpf'), 'mae_cpf');
+  // Telefones
+  wireTelefone(document.getElementById('telefone'));
+
+  wireTelefone(document.getElementById('responsavel_telefone'));
+  wireTelefone(document.getElementById('responsavel_telefone2'));
+
+  wireTelefone(document.getElementById('pai_telefone'));
+  wireTelefone(document.getElementById('pai_telefone2'));
+
+  wireTelefone(document.getElementById('mae_telefone'));
+  wireTelefone(document.getElementById('mae_telefone2'));
+
 
   const btn = document.getElementById('submitButton');
   const isEdit = !!document.querySelector('input[name="aluno_id"]');
