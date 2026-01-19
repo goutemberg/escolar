@@ -261,13 +261,16 @@ def cadastrar_professor_banco(request):
         # =========================
         # Normalização / leitura
         # =========================
+        professor_id = data.get('id')  # 👈 DEFINE CREATE vs EDIT
+
         cpf = data.get('doctorCpf', '')
-        cpf = ''.join(filter(str.isdigit, cpf))  # blindagem definitiva
+        cpf = ''.join(filter(str.isdigit, cpf))
 
         nome = data.get('doctorName', '').strip()
         nascimento = parse_date(data.get('birthdate'))
         email = data.get('email', '').strip()
         telefone = data.get('phone', '').strip()
+        telefone_secundario = data.get('phone2', '').strip()
         cep = data.get('cep', '').strip()
         endereco = data.get('address', '').strip()
         numero = data.get('number', '').strip()
@@ -276,15 +279,17 @@ def cadastrar_professor_banco(request):
         cidade = data.get('city', '').strip()
         estado = data.get('state', '').strip()
         cargo = data.get('cargo', '').strip()
+        grau_instrucao = data.get('grau_instrucao', '').strip()
         formacao = data.get('formacao', '').strip()
         experiencia = data.get('experiencia', '').strip()
+        sexo = data.get('sexo', '').strip()
         ativo = str(data.get('ativo', 'True')).lower() == 'true'
         senha = data.get('senha')
 
         escola = getattr(request.user, 'escola', None)
         if not escola:
             return JsonResponse(
-                {'success': False, 'error': 'Usuário não está vinculado a nenhuma escola.'},
+                {'success': False, 'error': 'Usuário não vinculado a escola.'},
                 status=403
             )
 
@@ -294,15 +299,49 @@ def cadastrar_professor_banco(request):
                 status=400
             )
 
+        # ==================================================
+        # ===================== EDIÇÃO =====================
+        # ==================================================
+        if professor_id:
+            professor = get_object_or_404(
+                Docente,
+                id=professor_id,
+                escola=escola
+            )
+
+            professor.nome = nome
+            professor.email = email
+            professor.telefone = telefone
+            professor.telefone_secundario = telefone_secundario
+            professor.nascimento = nascimento
+            professor.cargo = cargo
+            professor.grau_instrucao = grau_instrucao
+            professor.formacao = formacao
+            professor.experiencia = experiencia
+            professor.sexo = sexo
+            professor.ativo = ativo
+
+            professor.cep = cep
+            professor.endereco = endereco
+            professor.numero = numero
+            professor.complemento = complemento
+            professor.bairro = bairro
+            professor.cidade = cidade
+            professor.estado = estado
+
+            professor.save()
+
+            return JsonResponse({'success': True})
+
+        # ==================================================
+        # ===================== CREATE =====================
+        # ==================================================
+
         if not senha:
             return JsonResponse(
                 {'success': False, 'error': 'Senha temporária ausente.'},
                 status=400
             )
-
-        # =========================
-        # 🔒 VALIDAÇÕES CRÍTICAS
-        # =========================
 
         # 1️⃣ Usuário já existe?
         if User.objects.filter(cpf=cpf, escola=escola).exists():
@@ -311,7 +350,7 @@ def cadastrar_professor_banco(request):
                 status=400
             )
 
-        # 2️⃣ Docente já existe? (ESSA ERA A FALHA)
+        # 2️⃣ Docente já existe?
         if Docente.objects.filter(cpf=cpf, escola=escola).exists():
             return JsonResponse(
                 {'success': False, 'error': 'Professor já cadastrado com este CPF.'},
@@ -349,6 +388,7 @@ def cadastrar_professor_banco(request):
             nascimento=nascimento,
             email=email,
             telefone=telefone,
+            telefone_secundario=telefone_secundario,
             cep=cep,
             endereco=endereco,
             numero=numero,
@@ -357,8 +397,10 @@ def cadastrar_professor_banco(request):
             cidade=cidade,
             estado=estado,
             cargo=cargo,
+            grau_instrucao=grau_instrucao,
             formacao=formacao,
             experiencia=experiencia,
+            sexo=sexo,
             ativo=ativo,
             escola=escola
         )
@@ -368,7 +410,7 @@ def cadastrar_professor_banco(request):
             'senha': senha
         })
 
-    except IntegrityError as e:
+    except IntegrityError:
         transaction.set_rollback(True)
         return JsonResponse(
             {'success': False, 'error': 'Erro de integridade ao salvar professor.'},
@@ -382,26 +424,101 @@ def cadastrar_professor_banco(request):
             status=500
         )
 
+
 @login_required
 @role_required(['diretor', 'coordenador'])
 def listar_professores(request):
     professores = (
         Docente.objects
         .select_related('user')
-        .prefetch_related('disciplinas')
         .filter(escola=request.user.escola)
         .order_by('nome')
     )
 
-    for professor in professores:
-        professor.disciplinas_ids = list(professor.disciplinas.values_list('id', flat=True))
-
-    todas_disciplinas = Disciplina.objects.filter(escola=request.user.escola).order_by('nome')
+    professores_json = []
+    for p in professores:
+        professores_json.append({
+            "id": p.id,
+            "nome": p.nome,
+            "cpf": p.cpf,
+            "cargo": p.cargo,
+            "telefone": p.telefone,
+            "telefone_secundario": p.telefone_secundario,
+            "email": p.email,
+            "sexo": p.sexo,
+            "ativo": p.ativo,
+        })
 
     return render(request, 'pages/listar_professores.html', {
-        'professores': professores,
-        'todas_disciplinas': todas_disciplinas,  # <- agora está no contexto
+        "professores_json": json.dumps(professores_json, ensure_ascii=False),
     })
+
+# =========================
+# Ativar Inativar Professor
+# =========================
+
+@login_required
+@role_required(['diretor', 'coordenador'])
+def toggle_status_professor(request, id):
+    if request.method != "POST":
+        return JsonResponse({"success": False}, status=405)
+
+    professor = get_object_or_404(
+        Docente,
+        id=id,
+        escola=request.user.escola
+    )
+
+    professor.ativo = not professor.ativo
+    professor.save(update_fields=["ativo"])
+
+    return JsonResponse({
+        "success": True,
+        "ativo": professor.ativo
+    })
+
+@login_required
+@role_required(['diretor', 'coordenador'])
+def form_professor(request, professor_id=None):
+    return render(request, 'pages/registrar_professor.html', {
+        'professor_id': professor_id
+    })
+
+
+# =========================
+# Editar professor 
+# =========================
+@login_required
+@role_required(['diretor', 'coordenador'])
+def api_professor_detalhe(request, professor_id):
+    p = get_object_or_404(
+        Docente,
+        id=professor_id,
+        escola=request.user.escola
+    )
+
+    return JsonResponse({
+        "id": p.id,
+        "nome": p.nome,
+        "cpf": p.cpf,
+        "nascimento": p.nascimento,
+        "email": p.email,
+        "telefone": p.telefone,
+        "telefone_secundario": getattr(p, 'telefone_secundario', ''),
+        "cep": p.cep,
+        "endereco": p.endereco,
+        "numero": p.numero,
+        "complemento": p.complemento,
+        "bairro": p.bairro,
+        "cidade": p.cidade,
+        "estado": p.estado,
+        "cargo": p.cargo,
+        "grau_instrucao": p.grau_instrucao,
+        "formacao": p.formacao,
+        "experiencia": p.experiencia,
+        "sexo": p.sexo,
+    })
+
 
 @csrf_exempt
 @login_required
