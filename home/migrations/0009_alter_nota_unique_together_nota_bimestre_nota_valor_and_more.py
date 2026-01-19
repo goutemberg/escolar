@@ -25,7 +25,12 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('ano_letivo', models.PositiveIntegerField(verbose_name='Ano Letivo')),
                 ('trimestre', models.PositiveSmallIntegerField(
-                    choices=[(1, 'I Trimestre'), (2, 'II Trimestre'), (3, 'III Trimestre'), (4, 'IV Trimestre')],
+                    choices=[
+                        (1, 'I Trimestre'),
+                        (2, 'II Trimestre'),
+                        (3, 'III Trimestre'),
+                        (4, 'IV Trimestre'),
+                    ],
                     verbose_name='Trimestre'
                 )),
                 ('observacoes', models.TextField(
@@ -59,42 +64,6 @@ class Migration(migrations.Migration):
                 'verbose_name_plural': 'Registros Pedagógicos',
                 'ordering': ['aluno', 'ano_letivo', 'trimestre'],
             },
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='atualizado_em',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='media_anual',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='media_final',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='nota1',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='nota2',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='nota3',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='nota4',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='professor',
-        ),
-        migrations.RemoveField(
-            model_name='nota',
-            name='recuperacao',
         ),
         migrations.AddConstraint(
             model_name='registropedagogico',
