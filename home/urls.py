@@ -22,6 +22,10 @@ urlpatterns = [
     path('listar_professores/', views_root.listar_professores, name='listar_professores'),
     path('editar_professor/<int:prof_id>/', views_root.editar_professor, name='editar_professor'),
     path('alternar_status_professor/<int:prof_id>/', views_root.alternar_status_professor, name='alternar_status_professor'),
+    path("professores/<int:id>/toggle-status/", views_root.toggle_status_professor, name="toggle_status_professor"),
+    path('professores/<int:professor_id>/editar/', views_root.form_professor, name='editar_professor'),
+    path('api/professores/<int:professor_id>/', views_root.api_professor_detalhe),
+
 
     # --------------------------------
     # Aluno

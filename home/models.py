@@ -105,23 +105,27 @@ class Docente(models.Model):
     nascimento = models.DateField(default='1900-01-01')
     email = models.EmailField(default='')
     telefone = models.CharField(max_length=20, default='')
-    cep = models.CharField(max_length=9, default='000000000')
+    telefone_secundario = models.CharField(max_length=20, blank=True, default='')
+
+    cep = models.CharField(max_length=9, default='00000-000')
     endereco = models.CharField(max_length=100, default='')
     numero = models.CharField(max_length=10, default='')
-    complemento = models.CharField(max_length=100, default='', blank=True)
-    bairro = models.CharField(max_length=50, default='Bairro')
-    cidade = models.CharField(max_length=50, default='Cidade')
+    complemento = models.CharField(max_length=100, blank=True, default='')
+    bairro = models.CharField(max_length=50, default='')
+    cidade = models.CharField(max_length=50, default='')
     estado = models.CharField(max_length=2, default='PE')
-    cargo = models.CharField(max_length=50, default='Professor')
 
-    disciplinas = models.ManyToManyField(Disciplina, blank=True)
+    cargo = models.CharField(max_length=50, default='Professor')
+    grau_instrucao = models.CharField(max_length=30, default='')
 
     formacao = models.CharField(max_length=100, default='')
     experiencia = models.TextField(default='')
-    sexo = models.CharField(max_length=50, default='Masculino')
-    ativo = models.CharField(max_length=9, default='Sim')
 
-    # 🔴 AQUI ESTÁ A CORREÇÃO
+    sexo = models.CharField(max_length=20, default='Masculino')
+
+    # 🔑 AGORA SIM
+    ativo = models.BooleanField(default=True)
+
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -136,7 +140,6 @@ class Docente(models.Model):
 
     def __str__(self):
         return self.nome
-
 
 
 # ================================================
