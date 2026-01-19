@@ -11,34 +11,48 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='nota',
-            name='bimestre',
-            field=models.PositiveSmallIntegerField(blank=True, choices=[(1, '1º'), (2, '2º'), (3, '3º'), (4, '4º')], null=True),
-        ),
-        migrations.AddField(
-            model_name='nota',
-            name='valor',
-            field=models.DecimalField(decimal_places=2, default=0, max_digits=5),
-            preserve_default=False,
-        ),
         migrations.AlterField(
             model_name='nota',
             name='escola',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='home.escola'),
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                to='home.escola'
+            ),
         ),
         migrations.CreateModel(
             name='RegistroPedagogico',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('ano_letivo', models.PositiveIntegerField(verbose_name='Ano Letivo')),
-                ('trimestre', models.PositiveSmallIntegerField(choices=[(1, 'I Trimestre'), (2, 'II Trimestre'), (3, 'III Trimestre'), (4, 'IV Trimestre')], verbose_name='Trimestre')),
-                ('observacoes', models.TextField(blank=True, help_text='Registro descritivo do desenvolvimento do aluno no trimestre', verbose_name='Observações Pedagógicas')),
+                ('trimestre', models.PositiveSmallIntegerField(
+                    choices=[(1, 'I Trimestre'), (2, 'II Trimestre'), (3, 'III Trimestre'), (4, 'IV Trimestre')],
+                    verbose_name='Trimestre'
+                )),
+                ('observacoes', models.TextField(
+                    blank=True,
+                    help_text='Registro descritivo do desenvolvimento do aluno no trimestre',
+                    verbose_name='Observações Pedagógicas'
+                )),
                 ('criado_em', models.DateTimeField(auto_now_add=True, verbose_name='Criado em')),
                 ('atualizado_em', models.DateTimeField(auto_now=True, verbose_name='Atualizado em')),
-                ('aluno', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='registros_pedagogicos', to='home.aluno', verbose_name='Aluno')),
-                ('escola', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='registros_pedagogicos', to='home.escola', verbose_name='Escola')),
-                ('turma', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='registros_pedagogicos', to='home.turma', verbose_name='Turma')),
+                ('aluno', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='registros_pedagogicos',
+                    to='home.aluno',
+                    verbose_name='Aluno'
+                )),
+                ('escola', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='registros_pedagogicos',
+                    to='home.escola',
+                    verbose_name='Escola'
+                )),
+                ('turma', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='registros_pedagogicos',
+                    to='home.turma',
+                    verbose_name='Turma'
+                )),
             ],
             options={
                 'verbose_name': 'Registro Pedagógico',
@@ -84,6 +98,9 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='registropedagogico',
-            constraint=models.UniqueConstraint(fields=('aluno', 'turma', 'ano_letivo', 'trimestre'), name='unique_registro_pedagogico_trimestre'),
+            constraint=models.UniqueConstraint(
+                fields=('aluno', 'turma', 'ano_letivo', 'trimestre'),
+                name='unique_registro_pedagogico_trimestre'
+            ),
         ),
     ]
