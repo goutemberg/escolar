@@ -1,63 +1,301 @@
-<h3>Dados dos Responsáveis</h3>
 
-<div class="form-row">
-  <div class="form-group">
-    <label>Nome do Responsável</label>
-    <input name="responsavel_nome" type="text">
+
+<style>
+/* =====================================================
+   MATRÍCULA EM LOTE – DADOS DOS RESPONSÁVEIS
+   ===================================================== */
+
+/* Área geral da aba */
+.form-section {
+  margin-top: 10px;
+  margin-bottom: 30px;
+}
+
+/* Grid base */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px 16px;
+  margin-bottom: 10px;
+}
+
+/* Variações */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 16px;
+  margin-bottom: 10px;
+}
+
+.form-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px 16px;
+  margin-bottom: 10px;
+}
+
+/* Campos */
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Inputs padronizados */
+.form-group input {
+  height: 38px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ff8a00;
+  outline: none;
+}
+
+/* Focus consistente com o sistema */
+.form-group input:focus {
+  border-color: #ff8a00;
+  box-shadow: 0 0 0 2px rgba(255,138,0,.15);
+}
+
+/* Títulos */
+.form-section h3 {
+  margin: 10px 0 14px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Subtítulos Pai / Mãe */
+.section-subtitle {
+  margin: 22px 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Labels */
+.form-group label {
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #555;
+}
+
+/* Erros inline */
+.field-error {
+  font-size: 11px;
+  margin-top: 3px;
+  color: #dc3545;
+}
+
+/* Responsividade básica */
+@media (max-width: 1100px) {
+  .form-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 850px) {
+  .form-grid,
+  .form-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .form-grid,
+  .form-grid-2,
+  .form-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+<!-- TAB 1 -->
+<div class="form-section">
+
+  <h3>Dados dos Responsáveis</h3>
+
+  <!-- ================= RESPONSÁVEL PRINCIPAL ================= -->
+
+  <div class="form-grid-2">
+    <div class="form-group">
+      <label for="responsavel_nome">Nome do Responsável</label>
+      <input id="responsavel_nome" name="responsavel_nome" type="text"
+             value="{{ aluno.responsavel_nome }}">
+      <small class="field-error d-none" id="responsavel_nome_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="responsavel_email">Email</label>
+      <input id="responsavel_email" name="responsavel_email" type="email"
+             value="{{ aluno.responsavel_email }}">
+      <small class="field-error d-none" id="responsavel_email_error"></small>
+    </div>
   </div>
 
-  <div class="form-group">
-    <label>Email</label>
-    <input name="responsavel_email" type="email">
-  </div>
-</div>
+  <div class="form-grid">
+    <div class="form-group">
+      <label for="responsavel_telefone">Telefone</label>
+      <input id="responsavel_telefone" name="responsavel_telefone" type="text"
+             value="{{ aluno.responsavel_telefone }}">
+      <small class="field-error d-none" id="responsavel_telefone_error"></small>
+    </div>
 
-<div class="form-row">
-  <div class="form-group short-field">
-    <label>Telefone</label>
-    <input name="responsavel_telefone" type="text">
+    <div class="form-group">
+      <label for="responsavel_telefone2">Telefone 2</label>
+      <input id="responsavel_telefone2" name="responsavel_telefone2" type="text"
+             value="{{ aluno.responsavel_telefone2 }}">
+      <small class="field-error d-none" id="responsavel_telefone2_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="responsavel_cpf">CPF (se houver)</label>
+      <input id="responsavel_cpf" name="responsavel_cpf" type="text"
+             inputmode="numeric" maxlength="14"
+             placeholder="000.000.000-00"
+             value="{{ aluno.responsavel_cpf }}">
+      <small class="field-error d-none" id="responsavel_cpf_error">CPF inválido.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="responsavel_parentesco">Parentesco</label>
+      <input id="responsavel_parentesco" name="responsavel_parentesco" type="text"
+             placeholder="Tio, Avó, ..."
+             value="{{ aluno.responsavel_parentesco }}">
+      <small class="field-error d-none" id="responsavel_parentesco_error"></small>
+    </div>
   </div>
 
-  <div class="form-group short-field">
-    <label>Telefone 2</label>
-    <input name="responsavel_telefone2" type="text">
+  <!-- ================= PAI ================= -->
+
+  <h4 class="section-subtitle">Pai</h4>
+
+  <div class="form-grid-3">
+    <div class="form-group">
+      <label for="pai_nome">Nome</label>
+      <input id="pai_nome" name="pai_nome" type="text"
+             value="{{ aluno.pai_nome }}">
+      <small class="field-error d-none" id="pai_nome_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="pai_cpf">CPF</label>
+      <input id="pai_cpf" name="pai_cpf" type="text"
+             inputmode="numeric" maxlength="14"
+             placeholder="000.000.000-00"
+             value="{{ aluno.pai_cpf }}">
+      <small class="field-error d-none" id="pai_cpf_error">CPF inválido.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="pai_identidade">Identidade</label>
+      <input id="pai_identidade" name="pai_identidade" type="text"
+             value="{{ aluno.pai_identidade }}">
+      <small class="field-error d-none" id="pai_identidade_error"></small>
+    </div>
   </div>
 
-  <div class="form-group short-field">
-    <label>CPF (se houver)</label>
-    <input name="responsavel_cpf" type="text">
+  <div class="form-grid">
+    <div class="form-group">
+      <label for="pai_escolaridade">Escolaridade</label>
+      <input id="pai_escolaridade" name="pai_escolaridade" type="text"
+             value="{{ aluno.pai_escolaridade }}">
+      <small class="field-error d-none" id="pai_escolaridade_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="pai_profissao">Profissão</label>
+      <input id="pai_profissao" name="pai_profissao" type="text"
+             value="{{ aluno.pai_profissao }}">
+      <small class="field-error d-none" id="pai_profissao_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="pai_telefone">Telefone</label>
+      <input id="pai_telefone" name="pai_telefone" type="text"
+             value="{{ aluno.pai_telefone }}">
+      <small class="field-error d-none" id="pai_telefone_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="pai_telefone2">Telefone 2</label>
+      <input id="pai_telefone2" name="pai_telefone2" type="text"
+             value="{{ aluno.pai_telefone2 }}">
+      <small class="field-error d-none" id="pai_telefone2_error"></small>
+    </div>
   </div>
 
-  <div class="form-group short-field">
-    <label>Parentesco</label>
-    <input name="responsavel_parentesco" type="text">
+  <div class="form-grid-2">
+    <div class="form-group">
+      <label for="pai_email">Email</label>
+      <input id="pai_email" name="pai_email" type="email"
+             value="{{ aluno.pai_email }}">
+      <small class="field-error d-none" id="pai_email_error"></small>
+    </div>
   </div>
-</div>
 
-<hr>
+  <!-- ================= MÃE ================= -->
 
-<h4>Pai</h4>
-<div class="form-row">
-  <div class="form-group">
-    <label>Nome</label>
-    <input name="pai_nome" type="text">
-  </div>
-  <div class="form-group short-field">
-    <label>CPF</label>
-    <input name="pai_cpf" type="text">
-  </div>
-</div>
+  <h4 class="section-subtitle">Mãe</h4>
 
-<hr>
+  <div class="form-grid-3">
+    <div class="form-group">
+      <label for="mae_nome">Nome</label>
+      <input id="mae_nome" name="mae_nome" type="text"
+             value="{{ aluno.mae_nome }}">
+      <small class="field-error d-none" id="mae_nome_error"></small>
+    </div>
 
-<h4>Mãe</h4>
-<div class="form-row">
-  <div class="form-group">
-    <label>Nome</label>
-    <input name="mae_nome" type="text">
+    <div class="form-group">
+      <label for="mae_cpf">CPF</label>
+      <input id="mae_cpf" name="mae_cpf" type="text"
+             inputmode="numeric" maxlength="14"
+             placeholder="000.000.000-00"
+             value="{{ aluno.mae_cpf }}">
+      <small class="field-error d-none" id="mae_cpf_error">CPF inválido.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="mae_identidade">Identidade</label>
+      <input id="mae_identidade" name="mae_identidade" type="text"
+             value="{{ aluno.mae_identidade }}">
+      <small class="field-error d-none" id="mae_identidade_error"></small>
+    </div>
   </div>
-  <div class="form-group short-field">
-    <label>CPF</label>
-    <input name="mae_cpf" type="text">
+
+  <div class="form-grid">
+    <div class="form-group">
+      <label for="mae_escolaridade">Escolaridade</label>
+      <input id="mae_escolaridade" name="mae_escolaridade" type="text"
+             value="{{ aluno.mae_escolaridade }}">
+      <small class="field-error d-none" id="mae_escolaridade_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="mae_profissao">Profissão</label>
+      <input id="mae_profissao" name="mae_profissao" type="text"
+             value="{{ aluno.mae_profissao }}">
+      <small class="field-error d-none" id="mae_profissao_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="mae_telefone">Telefone</label>
+      <input id="mae_telefone" name="mae_telefone" type="text"
+             value="{{ aluno.mae_telefone }}">
+      <small class="field-error d-none" id="mae_telefone_error"></small>
+    </div>
+
+    <div class="form-group">
+      <label for="mae_telefone2">Telefone 2</label>
+      <input id="mae_telefone2" name="mae_telefone2" type="text"
+             value="{{ aluno.mae_telefone2 }}">
+      <small class="field-error d-none" id="mae_telefone2_error"></small>
+    </div>
   </div>
+
+  <div class="form-grid-2">
+    <div class="form-group">
+      <label for="mae_email">Email</label>
+      <input id="mae_email" name="mae_email" type="email"
+             value="{{ aluno.mae_email }}">
+      <small class="field-error d-none" id="mae_email_error"></small>
+    </div>
+  </div>
+
 </div>

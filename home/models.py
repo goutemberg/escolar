@@ -286,6 +286,7 @@ class TransporteEscolar(models.Model):
     aluno = models.OneToOneField(Aluno, on_delete=models.CASCADE)
     usa_transporte_escolar = models.BooleanField(default=False)
     trajeto = models.CharField(max_length=255, blank=True, null=True, default='')
+    usa_transporte_publico = models.BooleanField(default=False)
 
 
 # ================================================
@@ -392,7 +393,7 @@ class Nota(models.Model):
         blank=True
     )
 
-    valor = models.DecimalField(max_digits=5, decimal_places=2)
+    valor = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
    
 class NomeTurma(models.Model):
