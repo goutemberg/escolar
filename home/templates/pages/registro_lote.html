@@ -3,6 +3,28 @@
 <html lang="pt-br">
 <head>
   {% include 'partials/_head.html' %}
+
+<style>
+/* =========================
+   PADRÃO DE CAMPOS (LOTE)
+========================= */
+.content-wrapper input.form-control,
+.content-wrapper select.form-control {
+  border: 2px solid #ff8a00;
+  border-radius: 4px;
+}
+
+.content-wrapper input.form-control:focus,
+.content-wrapper select.form-control:focus {
+  border-color: #ff8a00;
+  box-shadow: 0 0 0 .2rem rgba(255,138,0,.25);
+  outline: none;
+}
+
+select.form-control {
+  background-color: #fff;
+}
+</style>
 </head>
 <body>
 
@@ -15,10 +37,11 @@
 
   <div class="tab-buttons">
     <button data-tab="0" onclick="showTab(0)" type="button">Alunos</button>
-    <button data-tab="1" onclick="showTab(1)" type="button">Dados dos Responsáveis</button>
-    <button data-tab="2" onclick="showTab(2)" type="button">Saúde</button>
-    <button data-tab="3" onclick="showTab(3)" type="button">Transporte</button>
-    <button data-tab="4" onclick="showTab(4)" type="button">Autorizações</button>
+    <button data-tab="1" onclick="showTab(1)" type="button">Responsáveis</button>
+    <button data-tab="2" onclick="showTab(2)" type="button">Endereço</button>
+    <button data-tab="3" onclick="showTab(3)" type="button">Saúde</button>
+    <button data-tab="4" onclick="showTab(4)" type="button">Transporte</button>
+    <button data-tab="5" onclick="showTab(5)" type="button">Autorizações</button>
   </div>
 
   <form id="formCadastroLote">
@@ -32,64 +55,98 @@
 
         <!-- ===== ALUNO 1 ===== -->
         <div class="aluno-bloco" data-index="0">
-          <h4>
-          <span class="titulo-aluno">Aluno 1</span>
-        </h4>
+          <h4><span class="titulo-aluno">Aluno 1</span></h4>
+
           <!-- Matrícula / Nome / Data -->
           <div class="form-row row">
             <div class="form-group col-md-2">
               <label>Matrícula</label>
-              <input
-                type="text"
-                name="alunos[0][matricula]"
-                class="form-control"
-                placeholder="Gerada"
-                readonly>
+              <input type="text" name="alunos[0][matricula]" class="form-control" readonly>
             </div>
 
             <div class="form-group col-md-8">
               <label>Nome</label>
-              <input
-                type="text"
-                name="alunos[0][nome]"
-                class="form-control">
+              <input type="text" name="alunos[0][nome]" class="form-control">
             </div>
 
             <div class="form-group col-md-2">
               <label>Data nasc.</label>
-              <input
-                type="date"
-                name="alunos[0][data_nascimento]"
-                class="form-control">
+              <input type="date" name="alunos[0][data_nascimento]" class="form-control">
             </div>
           </div>
 
-          <!-- CPF / RG / Sexo (CORRIGIDO) -->
+          <!-- CPF / RG / Sexo -->
           <div class="form-row row">
             <div class="form-group col-md-4">
               <label>CPF</label>
-              <input
-                type="text"
-                name="alunos[0][cpf]"
-                class="form-control">
+              <input type="text" name="alunos[0][cpf]" class="form-control">
             </div>
 
             <div class="form-group col-md-4">
               <label>RG</label>
-              <input
-                type="text"
-                name="alunos[0][rg]"
-                class="form-control">
+              <input type="text" name="alunos[0][rg]" class="form-control">
             </div>
 
             <div class="form-group col-md-4">
               <label>Sexo</label>
-              <select
-                name="alunos[0][sexo]"
-                class="form-control">
+              <select name="alunos[0][sexo]" class="form-control">
                 <option value="">Selecione</option>
                 <option value="Masculino">Masculino</option>
                 <option value="Feminino">Feminino</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Nacionalidade / Naturalidade / Cor -->
+          <div class="form-row row">
+            <div class="form-group col-md-4">
+              <label>Nacionalidade</label>
+              <input type="text" name="alunos[0][nacionalidade]" class="form-control">
+            </div>
+
+            <div class="form-group col-md-4">
+              <label>Naturalidade</label>
+              <input type="text" name="alunos[0][naturalidade]" class="form-control">
+            </div>
+
+            <div class="form-group col-md-4">
+              <label>Cor/Raça</label>
+              <select name="alunos[0][cor_raca]" class="form-control">
+                <option value="">Selecione</option>
+                <option value="branca">Branca</option>
+                <option value="preta">Preta</option>
+                <option value="parda">Parda</option>
+                <option value="amarela">Amarela</option>
+                <option value="indigena">Indígena</option>
+                <option value="nao_informado">Não informado</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Certidão / Livro / Sangue -->
+          <div class="form-row row">
+            <div class="form-group col-md-4">
+              <label>Certidão Nascimento</label>
+              <input type="text" name="alunos[0][certidao_numero]" class="form-control">
+            </div>
+
+            <div class="form-group col-md-4">
+              <label>Livro</label>
+              <input type="text" name="alunos[0][certidao_livro]" class="form-control">
+            </div>
+
+            <div class="form-group col-md-4">
+              <label>Tipo sanguíneo / Fator RH</label>
+              <select name="alunos[0][tipo_sanguineo]" class="form-control">
+                <option value="">Selecione</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
               </select>
             </div>
           </div>
@@ -98,17 +155,12 @@
           <div class="form-row row">
             <div class="form-group col-md-4">
               <label>Série/Ano</label>
-              <input
-                type="text"
-                name="alunos[0][serie_ano]"
-                class="form-control">
+              <input type="text" name="alunos[0][serie_ano]" class="form-control">
             </div>
 
             <div class="form-group col-md-4">
               <label>Turno</label>
-              <select
-                name="alunos[0][turno_aluno]"
-                class="form-control">
+              <select name="alunos[0][turno_aluno]" class="form-control">
                 <option value="">Selecione</option>
                 <option value="Matutino">Matutino</option>
                 <option value="Vespertino">Vespertino</option>
@@ -118,9 +170,7 @@
 
             <div class="form-group col-md-4">
               <label>Turma</label>
-              <select
-                name="alunos[0][turma_principal_id]"
-                class="form-control">
+              <select name="alunos[0][turma_principal_id]" class="form-control">
                 <option value="">Selecione</option>
                 {% for t in turmas %}
                   <option value="{{ t.id }}">{{ t.nome }}</option>
@@ -129,48 +179,79 @@
             </div>
           </div>
 
+          <!-- Situação / Forma / Financeiro / Dispensa -->
+          <div class="form-row row">
+            <div class="form-group col-md-3">
+              <label>Situação familiar</label>
+              <select name="alunos[0][situacao_familiar]" class="form-control">
+                <option value="">Selecione</option>
+                <option value="casados">Casados</option>
+                <option value="separados">Separados</option>
+                <option value="outros">Outros</option>
+              </select>
+            </div>
+
+            <div class="form-group col-md-3">
+              <label>Forma de acesso</label>
+              <select name="alunos[0][forma_acesso]" class="form-control">
+                <option value="">Selecione</option>
+                <option value="matricula">Matrícula</option>
+                <option value="rematricula">Rematrícula</option>
+                <option value="transferencia">Transferência</option>
+              </select>
+            </div>
+
+            <div class="form-group col-md-3">
+              <label>Resp. Financeiro</label>
+              <select name="alunos[0][responsavel_financeiro]" class="form-control">
+                <option value="">Selecione</option>
+                <option value="pai">Pai</option>
+                <option value="mae">Mãe</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+
+            <div class="form-group col-md-3">
+              <label>Dispensa Ens. Religioso</label>
+              <select name="alunos[0][dispensa_ensino_religioso]" class="form-control">
+                <option value="">Selecione</option>
+                <option value="true">Sim</option>
+                <option value="false">Não</option>
+              </select>
+            </div>
+          </div>
+
           <hr>
         </div>
       </div>
 
-      <button
-        type="button"
-        class="btn btn-secondary"
-        id="addAlunoBtn">
+      <button type="button" class="btn btn-secondary" id="addAlunoBtn">
         + Adicionar outro aluno
       </button>
     </div>
 
     <!-- ================= OUTRAS TABS ================= -->
+
     <div class="tab-section" data-tab="1" style="display:none">
       {% include 'partials/alunos/_responsaveis.html' %}
     </div>
 
     <div class="tab-section" data-tab="2" style="display:none">
-      <h3>Saúde</h3>
-      <div class="aluno-saude" data-index="0">
-        <h4>Aluno 1</h4>
-        {% include 'partials/alunos/_saude.html' %}
-      </div>
+      {% include 'partials/alunos/_endereco.html' %}
     </div>
 
     <div class="tab-section" data-tab="3" style="display:none">
-      <h3>Transporte</h3>
-      <div class="aluno-transporte" data-index="0">
-        <h4>Aluno 1</h4>
-        {% include 'partials/alunos/_transporte.html' %}
-      </div>
+      {% include 'partials/alunos/_saude.html' %}
     </div>
 
     <div class="tab-section" data-tab="4" style="display:none">
-      <h3>Autorizações</h3>
-      <div class="aluno-autorizacoes" data-index="0">
-        <h4>Aluno 1</h4>
-        {% include 'partials/alunos/_autorizacoes.html' %}
-      </div>
+      {% include 'partials/alunos/_transporte.html' %}
     </div>
 
-    <!-- FOOTER -->
+    <div class="tab-section" data-tab="5" style="display:none">
+      {% include 'partials/alunos/_autorizacoes.html' %}
+    </div>
+
     <div class="form-footer" style="display:flex; gap:8px;">
       <button class="btn btn-secondary" type="button" onclick="goBack()">Voltar</button>
       <button class="btn btn-light" type="button" onclick="cancelForm()">Cancelar</button>
@@ -189,18 +270,13 @@
 
 <script>
 function showTab(index) {
-  const tabs = document.querySelectorAll('.tab-section');
-  const btns = document.querySelectorAll('.tab-buttons [data-tab]');
-
-  tabs.forEach(tab => {
+  document.querySelectorAll('.tab-section').forEach(tab => {
     tab.style.display = tab.dataset.tab == index ? 'block' : 'none';
   });
-
-  btns.forEach(btn => {
+  document.querySelectorAll('.tab-buttons [data-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab == index);
   });
 }
-
 showTab(0);
 
 function goBack(){ window.history.back(); }

@@ -1,5 +1,3 @@
-
-
 const PREVIEW_MATRICULA_URL = '/preview-matricula/';
 
 /* =========================================================
@@ -20,21 +18,19 @@ document.addEventListener('DOMContentLoaded', () => {
   aplicarMascaraTelefone();
   carregarPreviewMatriculas();
   reindexarTudo();
-document.querySelectorAll('.aluno-bloco').forEach(bloco => {
-  const index = Number(bloco.dataset.index);
-  bindAtualizacaoNome(index);
-});
 
-  
+  document.querySelectorAll('.aluno-bloco').forEach(bloco => {
+    bindAtualizacaoNome(Number(bloco.dataset.index));
+  });
 
   /* ==========================================
-     ADD / REMOVE ALUNO
+     ADD ALUNO
   ========================================== */
 
   addAlunoBtn.addEventListener('click', () => {
     const index = alunosContainer.children.length;
 
-    const novoAluno = criarAlunoBloco(index);
+    const novoAluno = clonarAlunoBloco(index);
     alunosContainer.appendChild(novoAluno);
 
     duplicarBloco('.aluno-saude', index);
@@ -46,29 +42,27 @@ document.querySelectorAll('.aluno-bloco').forEach(bloco => {
 
     reindexarTudo();
     carregarPreviewMatriculas();
-  
+
     novoAluno.scrollIntoView({ behavior: 'smooth', block: 'start' });
     showTab(0);
   });
 
+  /* ==========================================
+     REMOVER ALUNO
+  ========================================== */
+
   alunosContainer.addEventListener('click', (e) => {
-  if (!e.target.classList.contains('remove-aluno')) return;
+    if (!e.target.classList.contains('remove-aluno')) return;
 
-  const bloco = e.target.closest('.aluno-bloco');
+    const bloco = e.target.closest('.aluno-bloco');
+    const indexAtual = [...document.querySelectorAll('.aluno-bloco')].indexOf(bloco);
 
-  // remove abas relacionadas usando o próprio bloco
-  const indexAtual = [...document.querySelectorAll('.aluno-bloco')]
-    .indexOf(bloco);
+    removerBlocosRelacionados(indexAtual);
+    bloco.remove();
 
-  removerBlocoRelacionado(indexAtual);
-
-  bloco.remove();
-
-  // 🔥 agora sim, reindexa com base no DOM atual
-  reindexarTudo();
-  carregarPreviewMatriculas();
-});
-
+    reindexarTudo();
+    carregarPreviewMatriculas();
+  });
 
   /* ==========================================
      SUBMIT
@@ -112,115 +106,43 @@ document.querySelectorAll('.aluno-bloco').forEach(bloco => {
 
 });
 
-
 /* =========================================================
-   CRIAÇÃO DE BLOCO DE ALUNO (COM MATRÍCULA)
+   CLONAGEM DE ALUNO (HTML PURO)
 ========================================================= */
 
-function criarAlunoBloco(index) {
-  const div = document.createElement('div');
-  div.className = 'aluno-bloco';
-  div.dataset.index = index;
+function clonarAlunoBloco(index) {
+  const modelo = document.querySelector('.aluno-bloco[data-index="0"]');
+  const clone = modelo.cloneNode(true);
 
-  div.innerHTML = `
-    <h4>
-    <span class="titulo-aluno">Aluno ${index + 1}</span>
-    </h4>
-    <div class="form-row row">
-      <div class="form-group col-md-2">
-        <label>Matrícula</label>
-        <input type="text"
-               name="alunos[${index}][matricula]"
-               class="form-control"
-               placeholder="Gerada"
-               readonly>
-      </div>
+  clone.dataset.index = index;
 
-      <div class="form-group col-md-8">
-        <label>Nome</label>
-        <input type="text"
-               name="alunos[${index}][nome]"
-               class="form-control">
-      </div>
+  clone.querySelectorAll('[name]').forEach(el => {
+    el.name = el.name.replace(/alunos\[\d+]/, `alunos[${index}]`);
 
-      <div class="form-group col-md-2">
-        <label>Data nasc.</label>
-        <input type="date"
-               name="alunos[${index}][data_nascimento]"
-               class="form-control">
-      </div>
-    </div>
+    if (el.type === 'checkbox' || el.type === 'radio') {
+      el.checked = false;
+    } else if (el.tagName === 'SELECT') {
+      el.selectedIndex = 0;
+    } else {
+      el.value = '';
+    }
+  });
 
-    <div class="form-row row">
-      <div class="form-group col-md-4">
-        <label>CPF</label>
-        <input type="text"
-               name="alunos[${index}][cpf]"
-               class="form-control">
-      </div>
-
-      <div class="form-group col-md-4">
-        <label>RG</label>
-        <input type="text"
-               name="alunos[${index}][rg]"
-               class="form-control">
-      </div>
-
-      <div class="form-group col-md-4">
-        <label>Sexo</label>
-        <select name="alunos[${index}][sexo]"
-                class="form-control">
-          <option value="">Selecione</option>
-          <option value="Masculino">Masculino</option>
-          <option value="Feminino">Feminino</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="form-row row">
-      <div class="form-group col-md-4">
-        <label>Série/Ano</label>
-        <input type="text"
-               name="alunos[${index}][serie_ano]"
-               class="form-control">
-      </div>
-
-      <div class="form-group col-md-4">
-        <label>Turno</label>
-        <select name="alunos[${index}][turno_aluno]"
-                class="form-control">
-          <option value="">Selecione</option>
-          <option value="Matutino">Matutino</option>
-          <option value="Vespertino">Vespertino</option>
-          <option value="Integral">Integral</option>
-        </select>
-      </div>
-
-      <div class="form-group col-md-4">
-        <label>Turma</label>
-        <select name="alunos[${index}][turma_principal_id]"
-                class="form-control">
-          <option value="">Selecione</option>
-          ${window.TURMAS_OPTIONS || ''}
-        </select>
-      </div>
-    </div>
-
-    <hr>
-  `;
-
-  return div;
+  return clone;
 }
 
 /* =========================================================
-   DUPLICAÇÃO DE ABAS (SAÚDE / TRANSPORTE / AUTORIZAÇÕES)
+   DUPLICAÇÃO DE ABAS POR ALUNO
 ========================================================= */
 
 function duplicarBloco(selector, index) {
-  const blocos = document.querySelectorAll(selector);
-  if (!blocos.length) return;
+  const modelo = document.querySelector(`${selector}[data-index="0"]`);
+  if (!modelo) return;
 
-  const clone = blocos[blocos.length - 1].cloneNode(true);
+  const container = modelo.parentElement;
+  if (!container) return;
+
+  const clone = modelo.cloneNode(true);
   clone.dataset.index = index;
 
   const h4 = clone.querySelector('h4');
@@ -228,6 +150,7 @@ function duplicarBloco(selector, index) {
 
   clone.querySelectorAll('[name]').forEach(el => {
     el.name = el.name.replace(/alunos\[\d+]/, `alunos[${index}]`);
+
     if (el.type === 'checkbox' || el.type === 'radio') {
       el.checked = false;
     } else {
@@ -235,39 +158,25 @@ function duplicarBloco(selector, index) {
     }
   });
 
-  blocos[blocos.length - 1].parentElement.appendChild(clone);
+  container.appendChild(clone);
 }
 
-/* =========================================================
-   UTIL — GARANTIR BOTÃO REMOVER
-========================================================= */
-
-function garantirBotaoRemover(bloco) {
-  if (bloco.querySelector('.remove-aluno')) return;
-
-  const h4 = bloco.querySelector('h4');
-  if (!h4) return;
-
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'remove-aluno btn btn-sm btn-danger';
-  btn.style.marginLeft = '8px';
-  btn.textContent = 'Remover';
-
-  h4.appendChild(btn);
-}
 
 /* =========================================================
-   REINDEXAÇÃO
+   REMOÇÃO DE ABAS RELACIONADAS
 ========================================================= */
 
-function removerBlocoRelacionado(index) {
+function removerBlocosRelacionados(index) {
   ['.aluno-saude', '.aluno-transporte', '.aluno-autorizacoes']
     .forEach(sel => {
       const bloco = document.querySelector(`${sel}[data-index="${index}"]`);
       if (bloco) bloco.remove();
     });
 }
+
+/* =========================================================
+   REINDEXAÇÃO
+========================================================= */
 
 function reindexarTudo() {
   reindexarGrupo('.aluno-bloco');
@@ -280,40 +189,33 @@ function reindexarGrupo(selector) {
   document.querySelectorAll(selector).forEach((bloco, i) => {
     bloco.dataset.index = i;
 
-    // atualiza título
     atualizarTituloAluno(i);
     bindAtualizacaoNome(i);
 
-    // corrige names
     bloco.querySelectorAll('[name]').forEach(el => {
       el.name = el.name.replace(/alunos\[\d+]/, `alunos[${i}]`);
     });
 
-    // ===== BOTÃO REMOVER (REGRA ÚNICA E ABSOLUTA) =====
     const h4 = bloco.querySelector('h4');
+    if (!h4) return;
+
     let btn = h4.querySelector('.remove-aluno');
 
     if (i === 0) {
-      // primeiro aluno nunca pode remover
       if (btn) btn.remove();
-    } else {
-      // todos os outros DEVEM ter botão
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'remove-aluno btn btn-sm btn-danger';
-        btn.style.marginLeft = '8px';
-        btn.textContent = 'Remover';
-        h4.appendChild(btn);
-      }
+    } else if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'remove-aluno btn btn-sm btn-danger';
+      btn.style.marginLeft = '8px';
+      btn.textContent = 'Remover';
+      h4.appendChild(btn);
     }
   });
 }
 
-
-
 /* =========================================================
-   PAYLOAD + VALIDAÇÕES
+   PAYLOAD
 ========================================================= */
 
 function montarPayload() {
@@ -330,7 +232,7 @@ function montarPayload() {
     const aluno = {};
 
     document.querySelectorAll(`[name^="alunos[${index}]"]`).forEach(el => {
-      const campo = el.name.match(/\[(\w+)]$/)[1];
+      const campo = el.name.match(/\[([^\]]+)]$/)[1];
       aluno[campo] = el.type === 'checkbox'
         ? el.checked
         : el.value.trim();
@@ -359,12 +261,13 @@ function validarCpfDuplicado(alunos) {
 }
 
 /* =========================================================
-   UX — TÍTULO COM NOME
+   UX — TÍTULO DINÂMICO
 ========================================================= */
 
 function bindAtualizacaoNome(index) {
   const input = document.querySelector(`input[name="alunos[${index}][nome]"]`);
   if (!input) return;
+
   input.addEventListener('input', () => atualizarTituloAluno(index));
 }
 
@@ -407,6 +310,10 @@ function aplicarMascaraTelefone(container = document) {
   });
 }
 
+/* =========================================================
+   MATRÍCULAS
+========================================================= */
+
 function carregarPreviewMatriculas() {
   const alunos = document.querySelectorAll('.aluno-bloco');
   const quantidade = alunos.length;
@@ -422,13 +329,8 @@ function carregarPreviewMatriculas() {
         const input = document.querySelector(
           `input[name="alunos[${index}][matricula]"]`
         );
-        if (input) {
-          input.value = matricula;
-        }
+        if (input) input.value = matricula;
       });
-    })
-    .catch(() => {
-      console.warn('⚠️ Erro ao carregar preview de matrículas');
     });
 }
 

@@ -245,17 +245,36 @@ function turmaLabel(a) {
     if (!a.turma) return "";
     return a.turma.nome || a.turma.sigla || "";
 }
+
 function getResponsavelPreferencial(responsaveis = []) {
-    if (!Array.isArray(responsaveis) || responsaveis.length === 0) return null;
+    if (!Array.isArray(responsaveis) || responsaveis.length === 0) {
+        return null;
+    }
 
-    const mae = responsaveis.find(r => normaliza(r.tipo) === "mae");
-    const pai = responsaveis.find(r => normaliza(r.tipo) === "pai");
-
+    // 1️⃣ Prioridade: Mãe
+    const mae = responsaveis.find(r =>
+        normaliza(r.tipo) === "mae" ||
+        normaliza(r.parentesco) === "mae"
+    );
     if (mae) return mae;
+
+    // 2️⃣ Segunda prioridade: Pai
+    const pai = responsaveis.find(r =>
+        normaliza(r.tipo) === "pai" ||
+        normaliza(r.parentesco) === "pai"
+    );
     if (pai) return pai;
 
-    return responsaveis[0];
+    // 3️⃣ Fallback: Responsável genérico
+    const responsavel = responsaveis.find(r =>
+        normaliza(r.tipo) === "responsavel"
+    );
+    if (responsavel) return responsavel;
+
+    // 4️⃣ Último recurso: não mostra nada
+    return null;
 }
+
 
 function highlight(text, term) {
     if (!term) return text;

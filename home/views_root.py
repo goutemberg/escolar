@@ -601,9 +601,6 @@ def salvar_aluno(request):
     except Exception:
         return HttpResponseBadRequest("JSON inválido")
 
-    # ----------------------------
-    # Campos obrigatórios
-    # ----------------------------
     obrig = ['nome', 'data_nascimento', 'rua', 'numero', 'bairro', 'cidade', 'estado']
     for c in obrig:
         if not data.get(c):
@@ -617,12 +614,7 @@ def salvar_aluno(request):
     try:
         with transaction.atomic():
 
-            # =========================
-            # Datas
-            # =========================
-            dn = datetime.strptime(
-                data.get('data_nascimento'), "%Y-%m-%d"
-            ).date()
+            dn = datetime.strptime(data.get('data_nascimento'), "%Y-%m-%d").date()
 
             data_ingresso = None
             if data.get('data_ingresso'):
@@ -631,7 +623,7 @@ def salvar_aluno(request):
                 ).date()
 
             # ==========================================================
-            # ======================= EDIÇÃO ===========================
+            # EDIÇÃO
             # ==========================================================
             if aluno_id:
                 aluno = (
@@ -662,45 +654,23 @@ def salvar_aluno(request):
                 aluno.cor_raca = data.get('cor_raca') or None
                 aluno.responsavel_financeiro = data.get('responsavel_financeiro') or None
                 aluno.situacao_familiar = data.get('situacao_familiar') or None
-                aluno.forma_acesso = data.get('forma_acesso') or None
+
+                if data.get('nivel_modalidade'):
+                    aluno.forma_acesso = data.get('nivel_modalidade')
+
                 aluno.dispensa_ensino_religioso = to_bool(
                     data.get('dispensa_ensino_religioso')
                 )
                 aluno.bolsa_familia = to_bool(data.get('bolsa_familia'))
                 aluno.serie_ano = data.get('serie_ano', '')
                 aluno.turno_aluno = data.get('turno') or data.get('turno_aluno', '')
-
                 aluno.save()
 
             # ==========================================================
-            # ======================= CADASTRO =========================
+            # CADASTRO
             # ==========================================================
             else:
-                # 🔐 Geração SEGURA da matrícula (concorrência-safe)
-                ano = datetime.now().year
-
-                ultimo = (
-                    Aluno.objects
-                    .select_for_update()  # 🔥 trava concorrência
-                    .filter(
-                        escola=request.user.escola,
-                        matricula__startswith=f"ALU{ano}"
-                    )
-                    .annotate(
-                        numero_final=Cast(
-                            Substr('matricula', 8, 4),
-                            IntegerField()
-                        )
-                    )
-                    .order_by('-numero_final')
-                    .first()
-                )
-
-                prox = (ultimo.numero_final if ultimo else 0) + 1
-                matricula = f"ALU{ano}{prox:04d}"
-
                 aluno = Aluno.objects.create(
-                    matricula=matricula,
                     nome=data.get('nome', ''),
                     data_nascimento=dn,
                     cpf=data.get('cpf', ''),
@@ -720,13 +690,11 @@ def salvar_aluno(request):
                     email=data.get('email', ''),
                     telefone=data.get('telefone', ''),
                     escola=request.user.escola,
-
-                    # extras
                     data_ingresso=data_ingresso,
                     cor_raca=data.get('cor_raca') or None,
                     responsavel_financeiro=data.get('responsavel_financeiro') or None,
                     situacao_familiar=data.get('situacao_familiar') or None,
-                    forma_acesso=data.get('forma_acesso') or None,
+                    forma_acesso=data.get('nivel_modalidade'),
                     dispensa_ensino_religioso=to_bool(
                         data.get('dispensa_ensino_religioso')
                     ),
@@ -737,9 +705,9 @@ def salvar_aluno(request):
                 )
 
             # ==========================================================
-            # Turma principal
+            # TURMA PRINCIPAL
             # ==========================================================
-            turma_id = data.get('turma_principal') or data.get('turma_id')
+            turma_id = data.get('turma_id')
             if turma_id:
                 turma = Turma.objects.filter(
                     id=turma_id,
@@ -747,55 +715,41 @@ def salvar_aluno(request):
                 ).first()
 
                 if turma:
-                    aluno.turma_principal = turma
-                    aluno.save(update_fields=['turma_principal'])
                     aluno.turmas.add(turma)
 
-                    if not aluno.turno_aluno and turma.turno:
-                        aluno.turno_aluno = turma.turno
-                    if not aluno.serie_ano and turma.nome:
-                        aluno.serie_ano = turma.nome
-
-                    aluno.save(update_fields=['turno_aluno', 'serie_ano'])
+                    if not aluno.turma_principal:
+                        aluno.turma_principal = turma
+                        aluno.save(update_fields=['turma_principal'])
 
             # ==========================================================
-            # RESPONSÁVEIS
+            # RESPONSÁVEIS (AJUSTADO – NÃO APAGA DADOS EXISTENTES)
             # ==========================================================
-            Responsavel.objects.filter(aluno=aluno).delete()
+            def salvar_responsavel(tipo):
+                nome = (data.get(f"{tipo}_nome") or "").strip()
+                qs = Responsavel.objects.filter(aluno=aluno, tipo=tipo)
 
-            def add_responsavel(payload):
-                if any(payload.values()):
-                    Responsavel.objects.create(aluno=aluno, **payload)
+                if nome:
+                    Responsavel.objects.update_or_create(
+                        aluno=aluno,
+                        tipo=tipo,
+                        defaults={
+                            'nome': nome,
+                            'cpf': data.get(f"{tipo}_cpf", ''),
+                            'telefone': data.get(f"{tipo}_telefone", ''),
+                            'telefone_secundario': data.get(f"{tipo}_telefone2", ''),
+                            'email': data.get(f"{tipo}_email", ''),
+                            'parentesco': data.get(f"{tipo}_parentesco", '') if tipo == 'responsavel' else '',
+                            'identidade': data.get(f"{tipo}_identidade", ''),
+                            'escolaridade': data.get(f"{tipo}_escolaridade", ''),
+                            'profissao': data.get(f"{tipo}_profissao", ''),
+                        }
+                    )
+                elif qs.exists():
+                    return
 
-            if data.get('responsavel_nome'):
-                add_responsavel({
-                    'nome': data.get('responsavel_nome', ''),
-                    'cpf': data.get('responsavel_cpf', ''),
-                    'parentesco': data.get('responsavel_parentesco', ''),
-                    'telefone': data.get('responsavel_telefone', ''),
-                    'telefone_secundario': data.get('responsavel_telefone2', ''),
-                    'email': data.get('responsavel_email', ''),
-                })
-
-            if data.get('pai_nome'):
-                add_responsavel({
-                    'nome': data.get('pai_nome', ''),
-                    'cpf': data.get('pai_cpf', ''),
-                    'telefone': data.get('pai_telefone', ''),
-                    'telefone_secundario': data.get('pai_telefone2', ''),
-                    'email': data.get('pai_email', ''),
-                    'parentesco': 'Pai',
-                })
-
-            if data.get('mae_nome'):
-                add_responsavel({
-                    'nome': data.get('mae_nome', ''),
-                    'cpf': data.get('mae_cpf', ''),
-                    'telefone': data.get('mae_telefone', ''),
-                    'telefone_secundario': data.get('mae_telefone2', ''),
-                    'email': data.get('mae_email', ''),
-                    'parentesco': 'Mãe',
-                })
+            salvar_responsavel('responsavel')
+            salvar_responsavel('pai')
+            salvar_responsavel('mae')
 
             # ==========================================================
             # SAÚDE
@@ -823,6 +777,9 @@ def salvar_aluno(request):
                     'usa_transporte_escolar': to_bool(
                         data.get('utiliza_transporte')
                         or data.get('usa_transporte_escolar')
+                    ),
+                    'usa_transporte_publico': to_bool(
+                        data.get('usa_transporte_publico')
                     ),
                     'trajeto': data.get('trajeto', ''),
                 }
@@ -855,7 +812,7 @@ def salvar_aluno(request):
             'matricula': aluno.matricula
         })
 
-    except (IntegrityError, ValidationError, DataError) as e:
+    except Exception as e:
         return JsonResponse({
             'status': 'erro',
             'mensagem': 'Erro ao salvar aluno.',
@@ -1111,15 +1068,31 @@ def editar_aluno_view(request, aluno_id):
         escola=request.user.escola
     )
 
-    # Segurança extra (defensivo)
+    # Segurança extra
     if aluno.escola != request.user.escola:
         return HttpResponseForbidden("Acesso negado")
 
     # ===============================
-    # RELAÇÕES (opcionais)
-    # ⚠️ NÃO filtrar por escola se o model NÃO tem FK escola
+    # RESPONSÁVEIS (CORRETO)
     # ===============================
-    responsavel = Responsavel.objects.filter(aluno=aluno).first()
+    pai = Responsavel.objects.filter(
+        aluno=aluno,
+        tipo='pai'
+    ).first()
+
+    mae = Responsavel.objects.filter(
+        aluno=aluno,
+        tipo='mae'
+    ).first()
+
+    responsavel = Responsavel.objects.filter(
+        aluno=aluno,
+        tipo='responsavel'
+    ).first()
+
+    # ===============================
+    # OUTRAS RELAÇÕES
+    # ===============================
     saude = Saude.objects.filter(aluno=aluno).first()
     transporte = TransporteEscolar.objects.filter(aluno=aluno).first()
     autorizacoes = Autorizacoes.objects.filter(aluno=aluno).first()
@@ -1137,7 +1110,6 @@ def editar_aluno_view(request, aluno_id):
         'Fundamental II'
     ]
 
-    # ✅ OPÇÃO A — correta (sem split no template)
     tipos_sanguineos = [
         'A+', 'A-',
         'B+', 'B-',
@@ -1149,15 +1121,18 @@ def editar_aluno_view(request, aluno_id):
     # RENDER
     # ===============================
     return render(request, 'pages/registrar_aluno.html', {
-        # modo
         'modo': 'edit',
 
         # principais
         'aluno': aluno,
         'matricula': aluno.matricula,
 
-        # relacionais
+        # responsáveis
+        'pai': pai,
+        'mae': mae,
         'responsavel': responsavel,
+
+        # outras relações
         'saude': saude,
         'transporte': transporte,
         'autorizacoes': autorizacoes,
@@ -1243,10 +1218,11 @@ def listar_alunos(request):
 
     escola = request.user.escola
 
-    alunos = Aluno.objects.filter(escola=escola).select_related(
-        "turma_principal"
-    ).prefetch_related(
-        "responsaveis"
+    alunos = (
+        Aluno.objects
+        .filter(escola=escola)
+        .select_related("turma_principal")
+        .prefetch_related("responsaveis")
     )
 
     lista = []
@@ -1257,7 +1233,10 @@ def listar_alunos(request):
             "nome": a.nome,
             "matricula": a.matricula,
             "ativo": a.ativo,
-            "data_nascimento": a.data_nascimento.isoformat() if a.data_nascimento else None,
+            "data_nascimento": (
+                a.data_nascimento.isoformat()
+                if a.data_nascimento else None
+            ),
             "sexo": a.sexo,
             "rua": a.rua,
             "numero": a.numero,
@@ -1267,18 +1246,26 @@ def listar_alunos(request):
             "estado": a.estado,
             "possui_necessidade_especial": a.possui_necessidade_especial,
 
+            # =========================
             # TURMA
+            # =========================
             "turma": {
                 "nome": a.turma_principal.nome if a.turma_principal else "",
-                "sigla": (a.turma_principal.nome[:3].upper() if a.turma_principal else ""),
+                "sigla": (
+                    a.turma_principal.nome[:3].upper()
+                    if a.turma_principal else ""
+                ),
             },
 
-            # RESPONSÁVEIS
+            # =========================
+            # RESPONSÁVEIS (AJUSTADO)
+            # =========================
             "responsaveis": [
                 {
                     "id": r.id,
                     "nome": r.nome,
                     "cpf": r.cpf,
+                    "tipo": r.tipo,              # 🔥 ESSENCIAL
                     "parentesco": r.parentesco,
                     "telefone": r.telefone,
                     "email": r.email,
@@ -1290,16 +1277,28 @@ def listar_alunos(request):
             ]
         })
 
+    # =========================
+    # TURMAS PERMITIDAS (PROFESSOR)
+    # =========================
     turmas_usuario = []
     if request.user.role == "professor":
         turmas_usuario = list(
-            request.user.professor_turmas.values_list("nome", flat=True)
+            request.user.professor_turmas
+            .values_list("nome", flat=True)
         )
 
-    return render(request, "pages/listar_alunos.html", {
-        "alunos_json": json.dumps(lista, ensure_ascii=False),
-        "turmas_usuario": json.dumps(turmas_usuario, ensure_ascii=False),
-    })
+    return render(
+        request,
+        "pages/listar_alunos.html",
+        {
+            "alunos_json": json.dumps(lista, ensure_ascii=False),
+            "turmas_usuario": json.dumps(
+                turmas_usuario,
+                ensure_ascii=False
+            ),
+        }
+    )
+
 
 @csrf_exempt  # ou use um decorator de CSRF seguro se for AJAX autenticado
 @require_POST
@@ -1438,6 +1437,10 @@ def criar_turma(request):
         for aluno_id in alunos_ids:
             aluno = Aluno.objects.get(id=aluno_id)
             aluno.turmas.add(turma)
+
+            if not aluno.turma_principal:
+                aluno.turma_principal = turma
+                aluno.save(update_fields=['turma_principal'])
 
         return JsonResponse({
             "success": True,

@@ -266,52 +266,50 @@
   </div>
 
   <div class="form-group short-field">
-    <label for="turno">
-      Turno
-    </label>
-    <select id="turno" name="turno">
-      <option value="">Selecione</option>
-      <option value="Matutino" {% if aluno.turno == 'Matutino' %}selected{% endif %}>Matutino</option>
-      <option value="Vespertino" {% if aluno.turno == 'Vespertino' %}selected{% endif %}>Vespertino</option>
-      <option value="Noturno" {% if aluno.turno == 'Noturno' %}selected{% endif %}>Noturno</option>
-      <option value="Integral" {% if aluno.turno == 'Integral' %}selected{% endif %}>Integral</option>
-    </select>
-  </div>
-
-  <div class="form-group short-field">
-    <label for="nivel_modalidade">
-      Nível/Modalidade
-    </label>
-    <select id="nivel_modalidade" name="nivel_modalidade">
-      <option value="">Selecione</option>
-      <option value="Infantil" {% if aluno.nivel_modalidade == 'Infantil' %}selected{% endif %}>Infantil</option>
-      <option value="Fundamental I" {% if aluno.nivel_modalidade == 'Fundamental I' %}selected{% endif %}>
-        Fundamental I
-      </option>
-      <option value="Fundamental II" {% if aluno.nivel_modalidade == 'Fundamental II' %}selected{% endif %}>
-        Fundamental II
-      </option>
-    </select>
-  </div>
-
-  <div class="form-group short-field">
-    <label for="turma_id">
-      Turma
-    </label>
-    <select id="turma_id" name="turma_id">
-      <option value="">Selecione</option>
-      {% if turmas %}
-        {% for t in turmas %}
-          <option
-            value="{{ t.id }}"
-            {% if aluno.turma and aluno.turma.id == t.id %}selected{% endif %}
-          >
-            {{ t.nome }}
-          </option>
-        {% endfor %}
-      {% endif %}
-    </select>
-  </div>
+  <label for="turno">
+    Turno
+  </label>
+  <select id="turno" name="turno">
+    <option value="">Selecione</option>
+    <option value="Matutino" {% if aluno.turno_aluno == 'Matutino' %}selected{% endif %}>Matutino</option>
+    <option value="Vespertino" {% if aluno.turno_aluno == 'Vespertino' %}selected{% endif %}>Vespertino</option>
+    <option value="Noturno" {% if aluno.turno_aluno == 'Noturno' %}selected{% endif %}>Noturno</option>
+    <option value="Integral" {% if aluno.turno_aluno == 'Integral' %}selected{% endif %}>Integral</option>
+  </select>
+</div>
+<div class="form-group short-field">
+  <label for="nivel_modalidade">
+    Nível/Modalidade
+  </label>
+  <select id="nivel_modalidade" name="nivel_modalidade">
+    <option value="">Selecione</option>
+    <option value="Infantil" {% if aluno.forma_acesso == 'Infantil' %}selected{% endif %}>Infantil</option>
+    <option value="Fundamental I" {% if aluno.forma_acesso == 'Fundamental I' %}selected{% endif %}>
+      Fundamental I
+    </option>
+    <option value="Fundamental II" {% if aluno.forma_acesso == 'Fundamental II' %}selected{% endif %}>
+      Fundamental II
+    </option>
+  </select>
+</div>
+ <div class="form-group short-field">
+  <label for="turma_id">
+    Turma
+  </label>
+  <select id="turma_id" name="turma_id">
+    <option value="">Selecione</option>
+    {% if turmas %}
+      {% for t in turmas %}
+        <option
+          value="{{ t.id }}"
+          {% if aluno.turma_principal and aluno.turma_principal.id == t.id %}selected{% endif %}
+        >
+          {{ t.nome }}
+        </option>
+      {% endfor %}
+    {% endif %}
+  </select>
+</div>
 </div>
  <!-- Linha com situacao_familiar / forma_acesso / dispensa_ensino_religioso -->
 <div class="form-row">
@@ -490,209 +488,162 @@
   </div>
 </div>
 </div>
-  <!-- TAB 1 -->
+<!-- TAB 1 -->
 <div class="tab-section" style="display:none">
-  <h3>
-    Dados dos Responsáveis
-  </h3>
+  <h3>Dados dos Responsáveis</h3>
 
-  <!-- Genérico (mantido) -->
+  <!-- RESPONSÁVEL -->
   <div class="form-row">
     <div class="form-group">
-      <label for="responsavel_nome">
-        Nome do Responsável
-      </label>
-      <input id="responsavel_nome" name="responsavel_nome" type="text" value="{{ aluno.responsavel_nome }}"/>
-      <small class="field-error d-none" id="responsavel_nome_error"></small>
+      <label for="responsavel_nome">Nome do Responsável</label>
+      <input id="responsavel_nome" name="responsavel_nome" type="text"
+             value="{{ responsavel.nome|default:'' }}">
     </div>
 
     <div class="form-group">
-      <label for="responsavel_email">
-        Email
-      </label>
-      <input id="responsavel_email" name="responsavel_email" type="email" value="{{ aluno.responsavel_email }}"/>
-      <small class="field-error d-none" id="responsavel_email_error"></small>
+      <label for="responsavel_email">Email</label>
+      <input id="responsavel_email" name="responsavel_email" type="email"
+             value="{{ responsavel.email|default:'' }}">
     </div>
   </div>
 
   <div class="form-row">
     <div class="form-group short-field">
-      <label for="responsavel_telefone">
-        Telefone
-      </label>
-      <input id="responsavel_telefone" name="responsavel_telefone" type="text" value="{{ aluno.responsavel_telefone }}"/>
-      <small class="field-error d-none" id="responsavel_telefone_error"></small>
+      <label for="responsavel_telefone">Telefone</label>
+      <input id="responsavel_telefone" name="responsavel_telefone" type="text"
+             value="{{ responsavel.telefone|default:'' }}">
     </div>
 
     <div class="form-group short-field">
       <label for="responsavel_telefone2">Telefone 2</label>
-      <input id="responsavel_telefone2" name="responsavel_telefone2" type="text" value="{{ aluno.responsavel_telefone2 }}"/>
-      <small class="field-error d-none" id="responsavel_telefone2_error"></small>
+      <input id="responsavel_telefone2" name="responsavel_telefone2" type="text"
+             value="{{ responsavel.telefone_secundario|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="responsavel_cpf">
-        CPF (se houver)
-      </label>
-      <input id="responsavel_cpf" name="responsavel_cpf" inputmode="numeric" maxlength="14"
-             placeholder="000.000.000-00" type="text" value="{{ aluno.responsavel_cpf }}"/>
-      <small class="field-error d-none" id="responsavel_cpf_error">CPF inválido.</small>
+      <label for="responsavel_cpf">CPF</label>
+      <input id="responsavel_cpf" name="responsavel_cpf" type="text"
+             value="{{ responsavel.cpf|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="responsavel_parentesco">
-        Parentesco
-      </label>
+      <label for="responsavel_parentesco">Parentesco</label>
       <input id="responsavel_parentesco" name="responsavel_parentesco" type="text"
-             placeholder="Tio, Avó, ..." value="{{ aluno.responsavel_parentesco }}"/>
-      <small class="field-error d-none" id="responsavel_parentesco_error"></small>
+             value="{{ responsavel.parentesco|default:'' }}">
     </div>
   </div>
 
-  <!-- Pai / Mãe no mesmo padrão -->
-  <h4 style="font-size:1rem;margin:.5rem 0;">
-    Pai
-  </h4>
+  <!-- PAI -->
+  <h4 style="font-size:1rem;margin:.5rem 0;">Pai</h4>
 
   <div class="form-row">
     <div class="form-group">
-      <label for="pai_nome">
-        Nome
-      </label>
-      <input id="pai_nome" name="pai_nome" type="text" value="{{ aluno.pai_nome }}"/>
-      <small class="field-error d-none" id="pai_nome_error"></small>
+      <label for="pai_nome">Nome</label>
+      <input id="pai_nome" name="pai_nome" type="text"
+             value="{{ pai.nome|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="pai_cpf">
-        CPF
-      </label>
-      <input id="pai_cpf" name="pai_cpf" inputmode="numeric" maxlength="14"
-             placeholder="000.000.000-00" type="text" value="{{ aluno.pai_cpf }}"/>
-      <small class="field-error d-none" id="pai_cpf_error">CPF inválido.</small>
+      <label for="pai_cpf">CPF</label>
+      <input id="pai_cpf" name="pai_cpf" type="text"
+             value="{{ pai.cpf|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="pai_identidade">
-        Identidade
-      </label>
-      <input id="pai_identidade" name="pai_identidade" type="text" value="{{ aluno.pai_identidade }}"/>
-      <small class="field-error d-none" id="pai_identidade_error"></small>
+      <label for="pai_identidade">Identidade</label>
+      <input id="pai_identidade" name="pai_identidade" type="text"
+             value="{{ pai.identidade|default:'' }}">
     </div>
   </div>
 
   <div class="form-row">
     <div class="form-group short-field">
-      <label for="pai_escolaridade">
-        Escolaridade
-      </label>
-      <input id="pai_escolaridade" name="pai_escolaridade" type="text" value="{{ aluno.pai_escolaridade }}"/>
-      <small class="field-error d-none" id="pai_escolaridade_error"></small>
+      <label for="pai_escolaridade">Escolaridade</label>
+      <input id="pai_escolaridade" name="pai_escolaridade" type="text"
+             value="{{ pai.escolaridade|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="pai_profissao">
-        Profissão
-      </label>
-      <input id="pai_profissao" name="pai_profissao" type="text" value="{{ aluno.pai_profissao }}"/>
-      <small class="field-error d-none" id="pai_profissao_error"></small>
+      <label for="pai_profissao">Profissão</label>
+      <input id="pai_profissao" name="pai_profissao" type="text"
+             value="{{ pai.profissao|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="pai_telefone">
-        Telefone
-      </label>
-      <input id="pai_telefone" name="pai_telefone" type="text" value="{{ aluno.pai_telefone }}"/>
-      <small class="field-error d-none" id="pai_telefone_error"></small>
+      <label for="pai_telefone">Telefone</label>
+      <input id="pai_telefone" name="pai_telefone" type="text"
+             value="{{ pai.telefone|default:'' }}">
     </div>
 
     <div class="form-group short-field">
       <label for="pai_telefone2">Telefone 2</label>
-      <input id="pai_telefone2" name="pai_telefone2" type="text" value="{{ aluno.pai_telefone2 }}"/>
-      <small class="field-error d-none" id="pai_telefone2_error"></small>
+      <input id="pai_telefone2" name="pai_telefone2" type="text"
+             value="{{ pai.telefone_secundario|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="pai_email">
-        Email
-      </label>
-      <input id="pai_email" name="pai_email" type="email" value="{{ aluno.pai_email }}"/>
-      <small class="field-error d-none" id="pai_email_error"></small>
+      <label for="pai_email">Email</label>
+      <input id="pai_email" name="pai_email" type="email"
+             value="{{ pai.email|default:'' }}">
     </div>
   </div>
 
-  <h4 style="font-size:1rem;margin:.5rem 0;">
-    Mãe
-  </h4>
+  <!-- MÃE -->
+  <h4 style="font-size:1rem;margin:.5rem 0;">Mãe</h4>
 
   <div class="form-row">
     <div class="form-group">
-      <label for="mae_nome">
-        Nome
-      </label>
-      <input id="mae_nome" name="mae_nome" type="text" value="{{ aluno.mae_nome }}"/>
-      <small class="field-error d-none" id="mae_nome_error"></small>
+      <label for="mae_nome">Nome</label>
+      <input id="mae_nome" name="mae_nome" type="text"
+             value="{{ mae.nome|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="mae_cpf">
-        CPF
-      </label>
-      <input id="mae_cpf" name="mae_cpf" inputmode="numeric" maxlength="14"
-             placeholder="000.000.000-00" type="text" value="{{ aluno.mae_cpf }}"/>
-      <small class="field-error d-none" id="mae_cpf_error">CPF inválido.</small>
+      <label for="mae_cpf">CPF</label>
+      <input id="mae_cpf" name="mae_cpf" type="text"
+             value="{{ mae.cpf|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="mae_identidade">
-        Identidade
-      </label>
-      <input id="mae_identidade" name="mae_identidade" type="text" value="{{ aluno.mae_identidade }}"/>
-      <small class="field-error d-none" id="mae_identidade_error"></small>
+      <label for="mae_identidade">Identidade</label>
+      <input id="mae_identidade" name="mae_identidade" type="text"
+             value="{{ mae.identidade|default:'' }}">
     </div>
   </div>
 
   <div class="form-row">
     <div class="form-group short-field">
-      <label for="mae_escolaridade">
-        Escolaridade
-      </label>
-      <input id="mae_escolaridade" name="mae_escolaridade" type="text" value="{{ aluno.mae_escolaridade }}"/>
-      <small class="field-error d-none" id="mae_escolaridade_error"></small>
+      <label for="mae_escolaridade">Escolaridade</label>
+      <input id="mae_escolaridade" name="mae_escolaridade" type="text"
+             value="{{ mae.escolaridade|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="mae_profissao">
-        Profissão
-      </label>
-      <input id="mae_profissao" name="mae_profissao" type="text" value="{{ aluno.mae_profissao }}"/>
-      <small class="field-error d-none" id="mae_profissao_error"></small>
+      <label for="mae_profissao">Profissão</label>
+      <input id="mae_profissao" name="mae_profissao" type="text"
+             value="{{ mae.profissao|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="mae_telefone">
-        Telefone
-      </label>
-      <input id="mae_telefone" name="mae_telefone" type="text" value="{{ aluno.mae_telefone }}"/>
-      <small class="field-error d-none" id="mae_telefone_error"></small>
+      <label for="mae_telefone">Telefone</label>
+      <input id="mae_telefone" name="mae_telefone" type="text"
+             value="{{ mae.telefone|default:'' }}">
     </div>
 
     <div class="form-group short-field">
       <label for="mae_telefone2">Telefone 2</label>
-      <input id="mae_telefone2" name="mae_telefone2" type="text" value="{{ aluno.mae_telefone2 }}"/>
-      <small class="field-error d-none" id="mae_telefone2_error"></small>
+      <input id="mae_telefone2" name="mae_telefone2" type="text"
+             value="{{ mae.telefone_secundario|default:'' }}">
     </div>
 
     <div class="form-group short-field">
-      <label for="mae_email">
-        Email
-      </label>
-      <input id="mae_email" name="mae_email" type="email" value="{{ aluno.mae_email }}"/>
-      <small class="field-error d-none" id="mae_email_error"></small>
+      <label for="mae_email">Email</label>
+      <input id="mae_email" name="mae_email" type="email"
+             value="{{ mae.email|default:'' }}">
     </div>
   </div>
 </div>
-  <!-- TAB 2 -->
+ <!-- TAB 2 -->
 <div class="tab-section" style="display:none">
   <h3>
     Saúde e Necessidades Especiais
@@ -725,7 +676,7 @@
       <small class="field-error d-none" id="possui_alergia_error"></small>
     </div>
 
-    <!-- Descrição (habilita só se Sim) -->
+    <!-- Descrição da alergia -->
     <div class="form-group">
       <label for="descricao_alergia">
         Descrição da(s) alergia(s)
@@ -741,23 +692,26 @@
       <small class="field-error d-none" id="descricao_alergia_error"></small>
     </div>
 
-    <!-- Restrições alimentares (texto livre) -->
+    <!-- Restrições alimentares (texto livre – NÃO salva no model) -->
     <div class="form-group">
       <label for="restricoes">
         Restrições alimentares
       </label>
       <input
-        id="restricoes"
-        name="restricoes"
-        type="text"
-        placeholder="Ex.: intolerância à lactose"
-        value="{{ saude.restricoes|default_if_none:'' }}"/>
+  id="restricoes"
+  name="descricao_necessidade"
+  type="text"
+  placeholder="Ex.: intolerância à lactose"
+  class="{% if not saude or not saude.possui_necessidade_especial %}is-disabled-dark{% endif %}"
+  {% if not saude or not saude.possui_necessidade_especial %}disabled{% endif %}
+  value="{{ saude.descricao_necessidade|default_if_none:'' }}"
+/>
       <small class="field-error d-none" id="restricoes_error"></small>
     </div>
   </div>
 
   <div class="form-row">
-    <!-- Necessidades especiais (simples) -->
+    <!-- Necessidades especiais -->
     <div class="form-group">
       <label for="necessidades">
         Necessidades especiais
@@ -767,11 +721,11 @@
         name="necessidades"
         type="text"
         placeholder="Descreva, se houver"
-        value="{{ saude.necessidades|default_if_none:'' }}"/>
+        value="{{ saude.descricao_necessidade|default_if_none:'' }}"/>
       <small class="field-error d-none" id="necessidades_error"></small>
     </div>
 
-    <!-- Usa medicação? (opcional) -->
+    <!-- Usa medicação -->
     <div class="form-group short-field">
       <label for="usa_medicacao">
         Usa medicação?
@@ -801,14 +755,15 @@
       <small class="field-error d-none" id="quais_medicacoes_error"></small>
     </div>
   </div>
-</div>  
-   <!-- TAB 3 -->
+</div>
+ 
+ <!-- TAB 3 -->
 <div class="tab-section" style="display:none">
-  <h3>
-    Transporte Escolar
-  </h3>
+  <h3>Transporte Escolar</h3>
 
   <div class="form-row">
+
+    <!-- Utiliza transporte escolar -->
     <div class="form-group short-field">
       <label for="utiliza_transporte">
         Utiliza transporte escolar?
@@ -816,102 +771,139 @@
       <select id="utiliza_transporte" name="utiliza_transporte">
         <option value="">Selecione</option>
         <option value="sim"
-          {% if transporte and transporte.utiliza_transporte %}selected{% endif %}>
+          {% if transporte and transporte.usa_transporte_escolar %}selected{% endif %}>
           Sim
         </option>
         <option value="nao"
-          {% if transporte and not transporte.utiliza_transporte %}selected{% endif %}>
+          {% if transporte and not transporte.usa_transporte_escolar %}selected{% endif %}>
           Não
         </option>
       </select>
       <small class="field-error d-none" id="utiliza_transporte_error"></small>
     </div>
 
-    <div class="form-group short-field">
-      <label for="usa_transporte_publico">
-        Usa transporte público?
-      </label>
-      <select id="usa_transporte_publico" name="usa_transporte_publico">
-        <option value="">Selecione</option>
-        <option value="sim"
-          {% if transporte and transporte.usa_transporte_publico %}selected{% endif %}>
-          Sim
-        </option>
-        <option value="nao"
-          {% if transporte and not transporte.usa_transporte_publico %}selected{% endif %}>
-          Não
-        </option>
-      </select>
-      <small class="field-error d-none" id="usa_transporte_publico_error"></small>
-    </div>
+    <!-- Usa transporte público -->
+<div class="form-group short-field">
+  <label for="usa_transporte_publico">
+    Usa transporte público?
+  </label>
+  <select id="usa_transporte_publico" name="usa_transporte_publico">
+    <option value="">Selecione</option>
 
+    <option value="sim"
+      {% if transporte and transporte.usa_transporte_publico %}
+        selected
+      {% endif %}
+    >
+      Sim
+    </option>
+
+    <option value="nao"
+      {% if transporte and not transporte.usa_transporte_publico %}
+        selected
+      {% endif %}
+    >
+      Não
+    </option>
+  </select>
+  <small class="field-error d-none" id="usa_transporte_publico_error"></small>
+</div>
+
+
+    <!-- Trajeto -->
     <div class="form-group">
       <label for="ponto_onibus">
-        Trajeto/Ponto de ônibus
+        Trajeto / Ponto de ônibus
       </label>
       <input
         id="ponto_onibus"
         name="ponto_onibus"
         type="text"
         placeholder="Ex.: Linha Centro • Ponto da Praça"
-        value="{{ transporte.ponto_onibus|default_if_none:'' }}"/>
+        value="{{ transporte.trajeto|default_if_none:'' }}"
+      />
       <small class="field-error d-none" id="ponto_onibus_error"></small>
+    </div>
+
+  </div>
+</div>
+
+   <!-- TAB 4 -->
+<div class="tab-section" style="display:none">
+  <h3>Autorizações</h3>
+
+  <div class="form-row">
+
+    <!-- Pode sair sozinho -->
+    <div class="form-group short-field">
+      <label for="pode_sair_sozinho">
+        Pode sair sozinho?
+      </label>
+      <select id="pode_sair_sozinho" name="pode_sair_sozinho">
+        <option value="">Selecione</option>
+
+        <option value="sim"
+          {% if autorizacoes and autorizacoes.autorizacao_saida_sozinho %}
+            selected
+          {% endif %}
+        >
+          Sim
+        </option>
+
+        <option value="nao"
+          {% if autorizacoes and not autorizacoes.autorizacao_saida_sozinho %}
+            selected
+          {% endif %}
+        >
+          Não
+        </option>
+      </select>
+      <small class="field-error d-none" id="pode_sair_sozinho_error"></small>
+    </div>
+
+    <!-- Pessoas autorizadas -->
+    <div class="form-group">
+      <label for="autorizados_buscar">
+        Pessoas autorizadas a buscar
+      </label>
+      <input
+        id="autorizados_buscar"
+        name="autorizados_buscar"
+        placeholder="Nome(s) e relação"
+        type="text"
+        value="{{ autorizacoes.pessoa_autorizada_buscar|default_if_none:'' }}"
+      />
+      <small class="field-error d-none" id="autorizados_buscar_error"></small>
+    </div>
+
+    <!-- Bolsa Família (campo do Aluno) -->
+    <div class="form-group short-field">
+      <label for="bolsa_familia">
+        Recebe Bolsa Família?
+      </label>
+      <select id="bolsa_familia" name="bolsa_familia">
+        <option value="">Selecione</option>
+
+        <option value="true"
+          {% if aluno.bolsa_familia %}
+            selected
+          {% endif %}
+        >
+          Sim
+        </option>
+
+        <option value="false"
+          {% if not aluno.bolsa_familia %}
+            selected
+          {% endif %}
+        >
+          Não
+        </option>
+      </select>
+      <small class="field-error d-none" id="bolsa_familia_error"></small>
     </div>
   </div>
 </div>
-    <!-- TAB 4 -->
-    <div class="tab-section" style="display:none">
-     <h3>
-      Autorizações
-     </h3>
-     <div class="form-row">
-      <div class="form-group short-field">
-       <label for="pode_sair_sozinho">
-        Pode sair sozinho?
-       </label>
-       <select id="pode_sair_sozinho" name="pode_sair_sozinho">
-        <option value="">
-         Selecione
-        </option>
-        <option value="sim">
-         Sim
-        </option>
-        <option value="nao">
-         Não
-        </option>
-       </select>
-       <small class="field-error d-none" id="pode_sair_sozinho_error">
-       </small>
-      </div>
-      <div class="form-group">
-       <label for="autorizados_buscar">
-        Pessoas autorizadas a buscar
-       </label>
-       <input id="autorizados_buscar" name="autorizados_buscar" placeholder="Nome(s) e relação" type="text"/>
-       <small class="field-error d-none" id="autorizados_buscar_error">
-       </small>
-      </div>
-      <!-- Bolsa Família -->
-      <div class="form-group short-field">
-       <label for="bolsa_familia">
-        Recebe Bolsa Família?
-       </label>
-       <select id="bolsa_familia" name="bolsa_familia">
-        <option value="">
-         Selecione
-        </option>
-        <option value="true">
-         Sim
-        </option>
-        <option value="false">
-         Não
-        </option>
-       </select>
-       <small class="field-error d-none" id="bolsa_familia_error">
-       </small>
-      </div>
-     </div>
-    </div>
     <div class="form-footer" style="display:flex; gap:8px; flex-wrap:wrap;">
       <button class="btn btn-secondary" type="button"
         onclick="window.location.href='{% url 'cadastro_aluno' %}'">
@@ -1199,8 +1191,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     mae_email: (document.getElementById('mae_email').value || '').trim(),
 
                     // ===== Saúde (atualizado p/ Sim/Não + descrição)
-                    possui_necessidade_especial: (document.getElementById('necessidades').value || '').trim() !== '',
-                    descricao_necessidade: (document.getElementById('necessidades').value || '').trim(),
+                    possui_necessidade_especial:(document.getElementById('restricoes')?.value || '').trim() !== '',
+                    descricao_necessidade:(document.getElementById('restricoes')?.value || '').trim(),
                     usa_medicacao: (document.getElementById('usa_medicacao').value === 'sim'),
                     quais_medicacoes: (document.getElementById('quais_medicacoes').value || '').trim(),
                     possui_alergia: possuiAlergia,
