@@ -175,26 +175,28 @@ def salvar_presencas(request):
         )
 
     # ===============================
-    # VALIDAÇÕES CRÍTICAS
+    # PROFESSOR (APENAS SE NECESSÁRIO)
     # ===============================
+    professor = None
 
-    professor = Docente.objects.filter(
-        user=request.user,
-        escola=request.user.escola
-    ).first()
+    if acesso == "professor":
+        professor = Docente.objects.filter(
+            user=request.user,
+            escola=request.user.escola
+        ).first()
 
-    if not professor:
-        return JsonResponse(
-            {
-                "status": "erro",
-                "mensagem": (
-                    "Professor não está corretamente vinculado ao usuário. "
-                    "Contate a coordenação."
-                )
-            },
-            status=400
-        )
+        if not professor:
+            return JsonResponse(
+                {
+                    "status": "erro",
+                    "mensagem": "Professor não está vinculado corretamente."
+                },
+                status=400
+            )
 
+    # ===============================
+    # TURMA
+    # ===============================
     try:
         turma = Turma.objects.get(
             id=turma_id,
@@ -206,6 +208,9 @@ def salvar_presencas(request):
             status=404
         )
 
+    # ===============================
+    # DISCIPLINA
+    # ===============================
     try:
         disciplina = Disciplina.objects.get(
             id=disciplina_id,
@@ -217,22 +222,26 @@ def salvar_presencas(request):
             status=404
         )
 
-    # Garante que o professor realmente dá essa disciplina nessa turma
-    if not TurmaDisciplina.objects.filter(
-        turma=turma,
-        disciplina=disciplina,
-        professor=professor
-    ).exists():
-        return JsonResponse(
-            {
-                "status": "erro",
-                "mensagem": (
-                    "Você não está vinculado a esta disciplina nesta turma."
-                )
-            },
-            status=403
-        )
+    # ===============================
+    # VALIDAÇÃO DE VÍNCULO (SÓ PROFESSOR)
+    # ===============================
+    if acesso == "professor":
+        if not TurmaDisciplina.objects.filter(
+            turma=turma,
+            disciplina=disciplina,
+            professor=professor
+        ).exists():
+            return JsonResponse(
+                {
+                    "status": "erro",
+                    "mensagem": "Você não está vinculado a esta disciplina nesta turma."
+                },
+                status=403
+            )
 
+    # ===============================
+    # DATA
+    # ===============================
     try:
         data_aula = datetime.strptime(data_aula, "%Y-%m-%d").date()
     except ValueError:
@@ -254,16 +263,16 @@ def salvar_presencas(request):
                 turma=turma,
                 disciplina=disciplina,
                 defaults={
-                    "professor": professor,
+                    "professor": professor if acesso == "professor" else None,
                     "feita_por": request.user,
                 }
             )
 
-            # Caso exista mas esteja incompleta
+            # Atualiza dados caso já exista
             if not created:
                 alterou = False
 
-                if chamada.professor is None:
+                if acesso == "professor" and chamada.professor is None:
                     chamada.professor = professor
                     alterou = True
 
@@ -330,6 +339,7 @@ def salvar_presencas(request):
             "mensagem": "Chamada salva com sucesso!"
         }
     )
+
 
 # ======================================================
 # 4) HISTÓRICO DE CHAMADAS
