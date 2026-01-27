@@ -340,6 +340,29 @@ def salvar_presencas(request):
         }
     )
 
+@login_required
+def disciplinas_por_turma(request, turma_id):
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=request.user.escola
+    )
+
+    qs = TurmaDisciplina.objects.filter(
+        turma=turma
+    ).select_related("disciplina")
+
+    disciplinas = [
+        {
+            "id": td.disciplina.id,
+            "nome": td.disciplina.nome
+        }
+        for td in qs
+    ]
+
+    return JsonResponse(disciplinas, safe=False)
+
+
 
 # ======================================================
 # 4) HISTÓRICO DE CHAMADAS

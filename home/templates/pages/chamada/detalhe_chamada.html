@@ -135,9 +135,11 @@
 
                 <div class="d-flex gap-2 flex-wrap">
                     <a href="{% url 'chamada:pdf_chamada' chamada_id=chamada.id %}"
-                       class="btn btn-danger">
-                        <i class="bi bi-file-earmark-pdf"></i> Gerar PDF
-                    </a>
+       class="btn btn-danger"
+       target="_blank"
+       rel="noopener noreferrer">
+        <i class="bi bi-file-earmark-pdf"></i> Gerar PDF
+    </a>
 
                     <button id="btnEditar" class="btn btn-warning">
                         <i class="bi bi-pencil"></i> Editar

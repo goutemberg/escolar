@@ -8,6 +8,7 @@ from home.views.chamada_aluno import (
     pdf_chamada,
     editar_chamada,
     atualizar_chamada,
+    disciplinas_por_turma
 )
 
 app_name = "chamada"
@@ -25,4 +26,6 @@ urlpatterns = [
     path("editar/<int:chamada_id>/salvar/", atualizar_chamada, name="atualizar_chamada"),
 
     path("api/carregar_alunos/<int:turma_id>/", api_carregar_alunos, name="api_carregar_alunos"),
+    path("api/disciplinas_por_turma/<int:turma_id>/", disciplinas_por_turma, name="disciplinas_por_turma")
+
 ]
