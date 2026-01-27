@@ -177,15 +177,12 @@
             </div>
 
             <div class="form-group col-md-4">
-                <label>Disciplina</label>
-                <select id="disciplina_id" class="form-control">
-                    <option value="">Selecione...</option>
-                    {% for d in disciplinas %}
-                        <option value="{{ d.id }}">{{ d.nome }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
+            <label for="disciplina_id">Disciplina</label>
+            <select id="disciplina_id" name="disciplina" class="form-control"
+        disabled>
+        <option value="">Selecione a turma primeiro</option>
+    </select>
+</div>
         </div>
 
         <button class="btn btn-primary mb-2" id="carregarButton" style="width: 220px;">
@@ -343,7 +340,11 @@ document.getElementById("salvarChamadaBtn").addEventListener("click", function (
 
         if (data.status === "sucesso") {
             alert("Chamada salva com sucesso!");
-        } else {
+            resetarTelaChamada();
+            return;
+        }
+
+        if (data.status === "parcial") {
             alert("Alguns registros não foram salvos.");
 
             data.erros.forEach(err => {
@@ -351,15 +352,101 @@ document.getElementById("salvarChamadaBtn").addEventListener("click", function (
                 if (row) {
                     row.classList.add("erro-linha");
                     const msg = row.querySelector(".erro-msg");
-                    msg.style.display = "block";
-                    msg.textContent = err.mensagem;
+                    if (msg) {
+                        msg.style.display = "block";
+                        msg.textContent = err.mensagem;
+                    }
                 }
             });
+            return;
         }
+
+        alert("Erro ao salvar chamada.");
     })
     .catch(() => {
         loader.style.display = "none";
         alert("Erro inesperado ao salvar chamada.");
+    });
+});
+
+/* ============================================================
+   4) RESET COMPLETO DA TELA
+============================================================ */
+function resetarTelaChamada() {
+
+    const turma = document.getElementById("turma_id");
+    const disciplina = document.getElementById("disciplina_id");
+    
+    const tbody = document.getElementById("tbodyChamada");
+    const areaTabela = document.getElementById("areaTabela");
+
+    if (turma) turma.value = "";
+
+    if (disciplina) {
+        disciplina.innerHTML = '<option value="">Selecione a turma primeiro</option>';
+        disciplina.disabled = true;
+    }
+
+    if (tbody) tbody.innerHTML = "";
+
+    if (areaTabela) areaTabela.style.display = "none";
+
+    document.getElementById("countP").textContent = "0";
+    document.getElementById("countF").textContent = "0";
+    document.getElementById("percentP").textContent = "0%";
+}
+
+/* ============================================================
+   5) DISCIPLINAS POR TURMA
+============================================================ */
+document.addEventListener("DOMContentLoaded", function () {
+    const turmaSelect = document.getElementById("turma_id");
+    const disciplinaSelect = document.getElementById("disciplina_id");
+
+    if (!turmaSelect || !disciplinaSelect) return;
+
+    disciplinaSelect.innerHTML =
+        '<option value="">Selecione a turma primeiro</option>';
+    disciplinaSelect.disabled = true;
+
+    turmaSelect.addEventListener("change", function () {
+        const turmaId = this.value;
+
+        disciplinaSelect.innerHTML =
+            '<option value="">Carregando disciplinas...</option>';
+        disciplinaSelect.disabled = true;
+
+        if (!turmaId) {
+            disciplinaSelect.innerHTML =
+                '<option value="">Selecione a turma primeiro</option>';
+            return;
+        }
+
+        fetch(`/chamada/api/disciplinas_por_turma/${turmaId}/`)
+            .then(res => res.json())
+            .then(data => {
+                disciplinaSelect.innerHTML =
+                    '<option value="">Selecione a disciplina</option>';
+
+                if (!data.length) {
+                    disciplinaSelect.innerHTML =
+                        '<option value="">Nenhuma disciplina vinculada</option>';
+                    return;
+                }
+
+                data.forEach(d => {
+                    const opt = document.createElement("option");
+                    opt.value = d.id;
+                    opt.textContent = d.nome;
+                    disciplinaSelect.appendChild(opt);
+                });
+
+                disciplinaSelect.disabled = false;
+            })
+            .catch(() => {
+                disciplinaSelect.innerHTML =
+                    '<option value="">Erro ao carregar disciplinas</option>';
+            });
     });
 });
 </script>
