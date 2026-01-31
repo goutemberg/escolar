@@ -2104,35 +2104,37 @@ def excluir_disciplina(request):
 
 
 @login_required
-@role_required(['diretor', 'coordenador', 'professor'])
+@role_required(["diretor", "coordenador", "professor"])
 def diario_classe(request):
     user = request.user
     today = date.today()
 
     contexto = {
-        'today': today,
+        "today": today,
     }
 
-    if user.role == 'professor':
-        try:
-            docente = user.docente  # recupera o objeto Docente vinculado
-            turmas_professor = TurmaDisciplina.objects.filter(professor=docente)
-            contexto['turmas_professor'] = turmas_professor
+    if user.role == "professor":
+        docente = user.docente
 
-            if turmas_professor.count() == 1:
-                turma_disciplina = turmas_professor.first()
-                contexto['turma'] = turma_disciplina.turma
-                contexto['disciplina'] = turma_disciplina.disciplina
-                contexto['alunos'] = turma_disciplina.turma.aluno_set.filter(ativo=True).order_by('nome')
+        turmas = (
+            TurmaDisciplina.objects
+            .filter(professor=docente)
+            .select_related("turma")
+            .values("turma__id", "turma__nome")
+            .distinct()
+        )
 
-        except Docente.DoesNotExist:
-            contexto['erro'] = "Este usuário não possui vínculo com um docente."
+        contexto["turmas"] = [
+            {"id": t["turma__id"], "nome": t["turma__nome"]}
+            for t in turmas
+        ]
 
     else:
-        # Diretor ou coordenador
-        contexto['turmas'] = TurmaDisciplina.objects.select_related('turma', 'disciplina').all()
+        turmas = Turma.objects.filter(escola=user.escola)
+        contexto["turmas"] = turmas
 
-    return render(request, 'pages/diario_classe.html', contexto)
+    return render(request, "pages/diario_classe.html", contexto)
+
 
 
 @require_POST

@@ -3,34 +3,41 @@
 
 <style>
   .navbar-custom { background-color: #ffffff; }
+
   .navbar-nav .nav-item:hover {
     background-color: #fab982;
     border-radius: 5px;
     transition: background-color 0.3s ease;
   }
+
   .navbar-nav .nav-item .nav-link.active {
     color: #212529 !important;
     background-color: transparent !important;
   }
+
   .nav-item.dropdown:hover {
     background-color: #fab982;
     border-radius: 5px;
   }
+
   .dropdown-menu {
     border: none;
     border-radius: 5px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   }
+
   .dropdown-item {
     padding: 10px 20px;
     color: #212529;
     transition: background-color 0.3s ease;
   }
+
   .dropdown-item:hover {
     background-color: #fab982;
     color: #000;
     border-radius: 5px;
   }
+
   .nav-disabled {
     pointer-events: none;
     opacity: 0.5;
@@ -50,7 +57,7 @@
            style="height: 60px; position: absolute; top: -30px; left: -110px;">
     </a>
 
-    <!-- MOBILE BUTTON -->
+    <!-- MOBILE -->
     <button class="navbar-toggler" type="button" data-toggle="collapse"
             data-target="#navbarResponsive"
             aria-controls="navbarResponsive"
@@ -71,7 +78,7 @@
         </li>
         {% endif %}
 
-        <!-- Página Inicial -->
+        <!-- HOME -->
         <li class="nav-item">
           <a class="nav-link" href="{% url 'index' %}">
             <i class="fas fa-home mr-1"></i> Página Inicial
@@ -81,18 +88,16 @@
         {% if user|has_role:'diretor,coordenador,professor' %}
         <!-- GESTÃO ACADÊMICA -->
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="gestaoAcademicaDropdown"
-             role="button" data-toggle="dropdown"
-             aria-haspopup="true" aria-expanded="false">
+          <a class="nav-link dropdown-toggle" href="#" role="button"
+             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <i class="fas fa-graduation-cap mr-1"></i> Gestão Acadêmica
           </a>
 
           <div class="dropdown-menu">
 
             {% if user|has_role:'diretor,coordenador' %}
-            <!-- PROFESSORES -->
             <h6 class="dropdown-header">
-              <i class="fas fa-chalkboard-teacher mr-1"></i> Professor
+              <i class="fas fa-chalkboard-teacher mr-1"></i> Professores
             </h6>
 
             <a class="dropdown-item" href="{% url 'cadastro_professor' %}">
@@ -104,33 +109,10 @@
             </a>
 
             <div class="dropdown-divider"></div>
-
-            <!-- ALUNOS -->
-            <h6 class="dropdown-header">
-              <i class="fas fa-user-graduate mr-1"></i> Aluno
-            </h6>
-
-            <a class="dropdown-item" href="{% url 'cadastro_aluno' %}">
-              <i class="fas fa-user-check mr-1"></i> Matrícula Individual
-            </a>
-
-            <a class="dropdown-item nav-disabled" href="{% url 'matricula_lote:registro_matricula_lote' %}">
-              <i class="fas fa-users mr-1"></i> Matrícula em Lote (Irmãos)
-            </a>
-
-            <a class="dropdown-item" href="{% url 'listar_aluno' %}">
-              <i class="fas fa-list-ul mr-1"></i> Listar Alunos
-            </a>
-
-            <a class="dropdown-item nav-disabled"  href="{% url 'reimprimir_documentos_aluno' %}">
-              <i class="fas fa-file-alt mr-1"></i> Reimprimir Documentos
-            </a>
-
-            <div class="dropdown-divider"></div>
             {% endif %}
 
             {% if user|has_role:'professor,diretor,coordenador' %}
-            <a class="dropdown-item nav-disabled" href="{% url 'registrar_notas' %}">
+            <a class="dropdown-item nav-disabled">
               <i class="fas fa-pen-alt mr-1"></i> Lançar Notas
             </a>
 
@@ -142,12 +124,10 @@
               <i class="fas fa-list mr-1"></i> Histórico de Chamadas
             </a>
 
-            <!-- DIÁRIO DE CLASSE (outra lógica, mantido separado) -->
-            <a class="dropdown-item nav-disabled" href="{% url 'diario_classe' %}">
+            <a class="dropdown-item" href="{% url 'diario_classe' %}">
               <i class="fas fa-book mr-1"></i> Diário de Classe
             </a>
 
-            <!-- REGISTRO PEDAGÓGICO -->
             <a class="dropdown-item" href="{% url 'registro_pedagogico:registro_pedagogico' %}">
               <i class="fas fa-book-open mr-1"></i> Registro Pedagógico
             </a>
@@ -158,21 +138,56 @@
         {% endif %}
 
         {% if user|has_role:'diretor,coordenador' %}
+        <!-- ALUNOS -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button"
+             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-user-graduate mr-1"></i> Alunos
+          </a>
+
+          <div class="dropdown-menu">
+            <a class="dropdown-item" href="{% url 'cadastro_aluno' %}">
+              <i class="fas fa-user-check mr-1"></i> Matrícula Individual
+            </a>
+
+            <a class="dropdown-item nav-disabled">
+              <i class="fas fa-users mr-1"></i> Matrícula em Lote
+            </a>
+
+            <a class="dropdown-item" href="{% url 'listar_aluno' %}">
+              <i class="fas fa-list-ul mr-1"></i> Listar Alunos
+            </a>
+
+            <div class="dropdown-divider"></div>
+
+            <!-- FUTURO -->
+            <a class="dropdown-item nav-disabled">
+              <i class="fas fa-chart-line mr-1"></i> Relatório de Presença (Mensal)
+            </a>
+
+            <a class="dropdown-item nav-disabled">
+              <i class="fas fa-chart-pie mr-1"></i> Relatório de Presença (Anual)
+            </a>
+
+            <a class="dropdown-item nav-disabled">
+              <i class="fas fa-file-pdf mr-1"></i> Histórico do Aluno
+            </a>
+          </div>
+        </li>
+        {% endif %}
+
+        {% if user|has_role:'diretor,coordenador' %}
         <!-- GESTÃO GERAL -->
         <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="gestaoGeralDropdown"
-             role="button" data-toggle="dropdown"
-             aria-haspopup="true" aria-expanded="false">
+          <a class="nav-link dropdown-toggle" href="#" role="button"
+             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <i class="fas fa-cogs mr-1"></i> Gestão Geral
           </a>
 
           <div class="dropdown-menu">
-
-            {% if request.user.is_superuser or request.user.escola %}
             <a class="dropdown-item" href="{% url 'minha_escola' %}">
               <i class="fas fa-school mr-1"></i> Minha Escola
             </a>
-            {% endif %}
 
             <div class="dropdown-divider"></div>
 
@@ -191,7 +206,6 @@
             <a class="dropdown-item" href="{% url 'turmas:listar' %}">
               <i class="fas fa-list mr-1"></i> Listar Turmas
             </a>
-
           </div>
         </li>
         {% endif %}

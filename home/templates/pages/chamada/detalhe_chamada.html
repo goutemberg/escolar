@@ -129,7 +129,11 @@
                     <div class="col-md-6"><strong>Professor:</strong> {{ chamada.professor.nome }}</div>
                     <div class="col-md-6">
                         <strong>Feita por:</strong>
-                        {{ chamada.feita_por.get_full_name|default:chamada.feita_por.username }}
+                        {% if chamada.criado_por %}
+    {{ chamada.criado_por.username }}
+{% else %}
+    -
+{% endif %}
                     </div>
                 </div>
 

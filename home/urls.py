@@ -122,4 +122,8 @@ urlpatterns = [
     path("", include(("home.routes.registro_pedagogico", "registro_pedagogico"), namespace="registro_pedagogico")),
     path("", include(("home.routes.api_alunos_por_turma", "api_alunos_por_turma"), namespace="api_alunos_por_turma")),
 
+
+    path("diario-classe/", include(("home.routes.diario", "diario_classe"), namespace="diario_classe")),
+    
+
 ]

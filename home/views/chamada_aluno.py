@@ -3,7 +3,7 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction, IntegrityError
 from django.contrib.auth.decorators import login_required
-from django.template.loader import render_to_string
+
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -264,7 +264,7 @@ def salvar_presencas(request):
                 disciplina=disciplina,
                 defaults={
                     "professor": professor if acesso == "professor" else None,
-                    "feita_por": request.user,
+                    "criado_por": request.user,
                 }
             )
 
@@ -276,8 +276,8 @@ def salvar_presencas(request):
                     chamada.professor = professor
                     alterou = True
 
-                if chamada.feita_por != request.user:
-                    chamada.feita_por = request.user
+                if chamada.criado_por != request.user:
+                    chamada.criado_por = request.user
                     alterou = True
 
                 if alterou:
@@ -643,7 +643,7 @@ def atualizar_chamada(request, chamada_id):
                     }
                 )
 
-            chamada.feita_por = request.user
+            chamada.criado_por = request.user
             chamada.save()
 
     except Exception:
