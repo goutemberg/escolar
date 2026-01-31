@@ -349,16 +349,96 @@ class TurmaDisciplina(models.Model):
             self.escola = self.professor.escola
         super().save(*args, **kwargs)
 
+# # ================================================
+# #  DIÁRIO DE CLASSE
+# # ================================================
+class DiarioDeClasse(models.Model):
+    turma = models.ForeignKey(
+        Turma,
+        on_delete=models.CASCADE,
+        related_name="diarios"
+    )
+
+    disciplina = models.ForeignKey(
+        Disciplina,
+        on_delete=models.CASCADE,
+        related_name="diarios"
+    )
+
+    professor = models.ForeignKey(
+        Docente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="diarios"
+    )
+
+    criado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="diarios_criados"
+    )
+
+    data_ministrada = models.DateField()
+    hora_inicio = models.TimeField(null=True, blank=True)
+    hora_fim = models.TimeField(null=True, blank=True)
+
+    resumo_conteudo = models.TextField()
+
+    escola = models.ForeignKey(
+        Escola,
+        on_delete=models.CASCADE,
+        related_name="diarios_classe"
+    )
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Diário de Classe"
+        verbose_name_plural = "Diários de Classe"
+        ordering = ["-data_ministrada", "-criado_em"]
+
+    def __str__(self):
+        return f"{self.turma} - {self.data_ministrada}"
+
+
 
 # ================================================
 #  CHAMADA + PRESENÇA
 # ================================================
 class Chamada(models.Model):
     data = models.DateField()
+
     turma = models.ForeignKey(Turma, on_delete=models.CASCADE)
     disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE)
-    professor = models.ForeignKey(Docente, null=True, blank=True, on_delete=models.SET_NULL)
-    feita_por = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+
+    professor = models.ForeignKey(
+        Docente,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
+
+    # 🔑 auditoria
+    criado_por = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="chamadas_criadas"
+    )
+
+    # 🔗 vínculo com diário (opcional)
+    diario = models.OneToOneField(
+        DiarioDeClasse,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="chamada"
+    )
 
     class Meta:
         constraints = [
@@ -367,6 +447,10 @@ class Chamada(models.Model):
                 name="unique_chamada_por_dia"
             )
         ]
+
+    def __str__(self):
+        return f"{self.turma} - {self.data}"
+
 
 class Presenca(models.Model):
     chamada = models.ForeignKey(Chamada, on_delete=models.CASCADE)
@@ -379,21 +463,6 @@ class Presenca(models.Model):
 
     def __str__(self):
         return f"{self.aluno.nome} - {self.chamada.data} - {'Presente' if self.presente else 'Ausente'}"
-
-
-class Nota(models.Model):
-    aluno = models.ForeignKey(Aluno, on_delete=models.CASCADE)
-    disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE)
-    turma = models.ForeignKey(Turma, on_delete=models.CASCADE)
-    escola = models.ForeignKey(Escola, on_delete=models.CASCADE)
-
-    bimestre = models.PositiveSmallIntegerField(
-        choices=[(1,'1º'),(2,'2º'),(3,'3º'),(4,'4º')],
-        null=True,
-        blank=True
-    )
-
-    valor = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
    
 class NomeTurma(models.Model):

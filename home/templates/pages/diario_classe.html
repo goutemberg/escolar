@@ -1,247 +1,201 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
- <head>
-  <meta charset="utf-8"/>
-  <title>
-   Diário de Classe
-  </title>
-  {% include 'partials/_head.html' %}
-  <style>
-   .titulo-pagina {
-      background-color: #fab982;
-      color: #000;
-      font-weight: bold;
-      font-size: 1.5rem;
-      padding: 1rem 1.5rem;
-      border-radius: 5px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-      margin-bottom: 1.5rem;
-    }
-  </style>
- </head>
- <body>
-  {% include 'partials/_nav.html' %}
-  <section class="py-5">
-   <div class="container">
-    <div class="titulo-pagina">
-     Diário de Classe
-    </div>
-    {% if user.role != 'professor' %}
-    <div class="form-group">
-     <label for="turmaSelect">
-      Selecione a Turma
-     </label>
-     <select class="form-control" id="turmaSelect">
-      <option value="">
-       Selecione
-      </option>
-      {% for turma in turmas %}
-      <option data-disciplina="{{ turma.disciplina.id }}" value="{{ turma.turma.id }}">
-       {{ turma.turma.nome }}
-      </option>
-      {% endfor %}
-     </select>
-    </div>
-    <div id="formularioChamadaContainer">
-    </div>
-    {% else %}
-        {% if turmas_professor|length &gt; 1 %}
-    <div class="form-group">
-     <label for="turmaSelect">
-      Selecione a Turma
-     </label>
-     <select class="form-control" id="turmaSelect">
-      <option value="">
-       Selecione
-      </option>
-      {% for t in turmas_professor %}
-      <option data-disciplina="{{ t.disciplina.id }}" value="{{ t.turma.id }}">
-       {{ t.turma.nome }}
-      </option>
-      {% endfor %}
-     </select>
-    </div>
-    <div id="formularioChamadaContainer">
-    </div>
-    {% elif turma %}
-    <h5>
-     Turma: {{ turma.nome }}
-    </h5>
-    <form id="formChamada">
-     <input id="turmaId" type="hidden" value="{{ turma.id }}"/>
-     <input id="disciplinaId" type="hidden" value="{{ disciplina.id }}"/>
-     <div class="form-group mb-3">
-      <label for="dataChamada">
-       Data
-      </label>
-      <input class="form-control" id="dataChamada" max="{{ today }}" min="2000-01-01" name="data" required="" type="date" value="{{ today }}"/>
-     </div>
-     <table class="table table-bordered table-hover table-striped">
-      <thead class="thead-dark">
-       <tr>
-        <th>
-         Nome do Aluno
-        </th>
-        <th>
-         Presença
-        </th>
-        <th>
-         Observações
-        </th>
-       </tr>
-      </thead>
-      <tbody>
-       {% for aluno in alunos %}
-       <tr>
-        <td>
-         {{ aluno.nome }}
-        </td>
-        <td>
-         <div class="form-check form-switch">
-          <input checked="" class="form-check-input presenca" data-id="{{ aluno.id }}" type="checkbox"/>
-          <label class="form-check-label">
-           Presente
-          </label>
-         </div>
-        </td>
-        <td>
-         <input class="form-control observacao" data-id="{{ aluno.id }}" placeholder="Observações" type="text"/>
-        </td>
-       </tr>
-       {% endfor %}
-      </tbody>
-     </table>
-     <button class="btn btn-primary" type="submit">
-      Salvar Chamada
-     </button>
-    </form>
-    {% else %}
-    <p>
-     Você ainda não possui uma turma vinculada.
-    </p>
-    {% endif %}
-      {% endif %}
-   </div>
-  </section>
-  <script>
-   // Preenche e restringe o campo de data para hoje
-    document.addEventListener('DOMContentLoaded', function () {
-      const inputData = document.getElementById('dataChamada');
-      if (inputData) {
-        const today = new Date().toISOString().split('T')[0];
-        inputData.value = today;
-        inputData.max = today;
-        inputData.min = "2000-01-01";
-      }
-    });
+<head>
+    {% include 'partials/_head.html' %}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
 
-    function montarFormularioChamada(turmaId, disciplinaId, alunos) {
-      const container = document.getElementById('formularioChamadaContainer');
-      if (!alunos.length) {
-        container.innerHTML = "<p>Não há alunos nessa turma.</p>";
-        return;
-      }
-
-      const today = new Date().toISOString().split('T')[0];
-
-      let html = `
-        <form id="formChamada">
-          <input type="hidden" id="turmaId" value="${turmaId}">
-          <input type="hidden" id="disciplinaId" value="${disciplinaId}">
-          <div class="form-group mb-3">
-            <label for="dataChamada">Data</label>
-            <input type="date" class="form-control" id="dataChamada" name="data" required
-                   value="${today}" max="${today}" min="2000-01-01">
-          </div>
-          <table class="table table-bordered table-hover table-striped">
-            <thead class="thead-dark">
-              <tr>
-                <th>Nome do Aluno</th>
-                <th>Presença</th>
-                <th>Observações</th>
-              </tr>
-            </thead>
-            <tbody>`;
-
-      alunos.forEach(aluno => {
-        html += `
-          <tr>
-            <td>${aluno.nome}</td>
-            <td>
-              <div class="form-check form-switch">
-                <input class="form-check-input presenca" type="checkbox" data-id="${aluno.id}" checked>
-                <label class="form-check-label">Presente</label>
-              </div>
-            </td>
-            <td>
-              <input type="text" class="form-control observacao" data-id="${aluno.id}" placeholder="Observações">
-            </td>
-          </tr>`;
-      });
-
-      html += `
-            </tbody>
-          </table>
-          <button type="submit" class="btn btn-primary">Salvar Chamada</button>
-        </form>`;
-
-      container.innerHTML = html;
-      document.getElementById('formChamada').addEventListener('submit', enviarChamada);
-    }
-
-    function enviarChamada(e) {
-      e.preventDefault();
-
-      const turmaId = document.getElementById('turmaId').value;
-      const disciplinaId = document.getElementById('disciplinaId').value;
-      const presencas = [];
-
-      document.querySelectorAll('.presenca').forEach(input => {
-        const alunoId = input.dataset.id;
-        const presente = input.checked;
-        const observacao = document.querySelector(`.observacao[data-id="${alunoId}"]`).value;
-
-        presencas.push({
-          aluno_id: alunoId,
-          presente: presente,
-          observacao: observacao
-        });
-      });
-
-      fetch('{% url "salvar_chamada" %}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify({
-          turma_id: turmaId,
-          disciplina_id: disciplinaId,
-          presencas: presencas
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          alert('Chamada salva com sucesso!');
-          location.reload();
-        } else {
-          alert(data.erro || 'Erro ao salvar chamada!');
+    <style>
+        .table thead {
+            background-color: #fab982;
+            color: #212529;
         }
-      });
-    }
 
-    document.getElementById('turmaSelect')?.addEventListener('change', function () {
-      const turmaId = this.value;
-      const disciplinaId = this.options[this.selectedIndex].dataset.disciplina;
+        .acoes-diario i {
+            cursor: pointer;
+            font-size: 1.2rem;
+            margin: 0 6px;
+            color: #495057;
+        }
 
-      if (!turmaId) return;
+        .acoes-diario i:hover {
+            color: #000;
+            opacity: 0.85;
+        }
 
-      fetch(`/buscar-alunos/${turmaId}/`)
-        .then(res => res.json())
-        .then(data => montarFormularioChamada(turmaId, disciplinaId, data.alunos));
-    });
-  </script>
-  {% include 'partials/_footer.html' %}
- </body>
+        .estado-vazio {
+            padding: 30px;
+            text-align: center;
+            color: #6c757d;
+        }
+
+        .estado-vazio i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .btn-add-aula:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        select,
+        select option {
+            color: #212529 !important;
+            background-color: #ffffff !important;
+        }
+
+        textarea.form-control {
+            min-height: 90px;
+        }
+
+        /* ===== BOTÃO NOVA AULA ===== */
+        .btn-warning {
+            background-color: #fab982;
+            border-color: #fab982;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background-color: #f5a65a;
+            border-color: #f5a65a;
+        }
+
+        /* ===== TOAST GLOBAL ===== */
+        .toast-global {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #212529;
+            color: #fff;
+            padding: 12px 18px;
+            border-radius: 6px;
+            opacity: 0;
+            transition: opacity .3s ease;
+            z-index: 9999;
+            font-size: 14px;
+        }
+
+        .toast-global.show {
+            opacity: 1;
+        }
+
+        .toast-success {
+            background: #28a745;
+        }
+
+        .toast-error {
+            background: #dc3545;
+        }
+        .nova-aula-highlight {
+            background-color: rgba(250, 185, 130, 0.25);
+            transition: background-color 1.5s ease;
+}
+    </style>
+</head>
+
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<section class="content-wrapper" style="margin-top: 50px;">
+
+    <div class="header-bar">
+        Diário de Classe
+    </div>
+
+    <!-- FILTROS -->
+    <div class="card p-3 mb-3">
+        <div class="row align-items-end g-3">
+
+            <div class="col-md-4">
+                <label for="turma_id">Turma</label>
+                <select id="turma_id" class="form-control">
+                    <option value="">Selecione a turma</option>
+                    {% for turma in turmas %}
+                        <option value="{{ turma.id }}">{{ turma.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label for="disciplina">Componente Curricular</label>
+                <select id="disciplina" class="form-control">
+                    <option value="">Selecione a disciplina</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="mes">Mês</label>
+                <input type="month" id="mes" class="form-control">
+                <small id="mes-pt" class="text-muted"></small>
+            </div>
+
+            <!-- AÇÕES -->
+            <div class="col-md-2 text-end">
+                <label class="d-block">&nbsp;</label>
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <button
+                        id="btnNovoDiario"
+                        class="btn btn-warning btn-add-aula"
+                        disabled
+                    >
+                        <i class="bi bi-plus-lg"></i> Aula
+                    </button>
+
+                    <button
+                        id="btnPdfDiario"
+                        class="btn btn-outline-secondary"
+                        disabled
+                        title="Gerar PDF do Diário de Classe"
+                    >
+                        <i class="bi bi-file-earmark-pdf"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- TABELA -->
+    <div class="card p-3">
+        <table class="table table-bordered table-hover mb-0">
+            <thead>
+                <tr class="text-center align-middle">
+                    <th style="width:60px">Nº</th>
+                    <th style="width:220px">Dia / Horário</th>
+                    <th style="width:160px">Data Ministrada</th>
+                    <th>Resumo do Conteúdo</th>
+                    <th style="width:150px">Ações</th>
+                </tr>
+            </thead>
+
+            <tbody id="tabela-diario">
+                <tr id="estado-vazio">
+                    <td colspan="5">
+                        <div class="estado-vazio">
+                            <i class="bi bi-journal-text"></i>
+                            <strong>Nenhum registro encontrado</strong>
+                            <p class="mb-0">
+                                Selecione a turma, disciplina e mês
+                                ou clique em <b>“Nova Aula”</b>.
+                            </p>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</section>
+
+<!-- TOAST GLOBAL -->
+<div id="toast" class="toast-global"></div>
+
+{% include 'partials/_footer.html' %}
+
+<script src="{% static 'home/js/diario_classe.js' %}"></script>
+</body>
 </html>

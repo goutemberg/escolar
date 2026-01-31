@@ -141,11 +141,11 @@
                             <td>{{ c.professor.nome }}</td>
 
                             <td>
-                                {% if c.feita_por %}
-                                    {% if c.feita_por == request.user %}
+                                {% if c.criado_por %}
+                                    {% if c.criado_por == request.user %}
                                         <span class="badge bg-primary">Você</span>
                                     {% else %}
-                                        {{ c.feita_por.get_full_name|default:c.feita_por.username }}
+                                        {{ c.criado_por.get_full_name|default:c.criado_por.username }}
                                     {% endif %}
                                 {% else %}
                                     <span class="text-muted">—</span>
