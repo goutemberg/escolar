@@ -34,8 +34,12 @@ urlpatterns = [
     path('salvar_aluno/', views_root.salvar_aluno, name='salvar_aluno'),
     path('alternar_status_aluno/<int:aluno_id>/', views_root.alternar_status_aluno, name='alternar_status_aluno'),
     path('listar_aluno/', views_root.listar_alunos, name='listar_aluno'),
-    path('alunos/<int:aluno_id>/editar/', views_root.editar_aluno_view, name='editar_aluno',
-),
+    path('alunos/<int:aluno_id>/editar/', views_root.editar_aluno_view, name='editar_aluno'),
+    
+    path("alunos/<int:aluno_id>/toggle-ativo/", views_root.toggle_aluno_ativo, name="toggle_aluno_ativo"),
+    path("alunos/<int:aluno_id>/excluir/", views_root.excluir_aluno, name="excluir_aluno"),
+
+
     
 
 

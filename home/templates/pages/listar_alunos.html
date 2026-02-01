@@ -139,95 +139,121 @@
 {% include 'partials/_nav.html' %}
 
 <section class="py-5">
-<div class="container">
+  <div class="container">
 
-<div class="titulo-pagina">Lista de Alunos</div>
+    <div class="titulo-pagina">Lista de Alunos</div>
 
-<div class="dashboard-cards">
-    <div class="dash-card">
+    <!-- =========================
+         CARDS
+    ========================== -->
+    <div class="dashboard-cards">
+      <div class="dash-card">
         <div class="icone-card"><i class="bi bi-people-fill"></i></div>
         <h4>Total</h4>
         <div class="valor" id="cardTotal">0</div>
-    </div>
-    <div class="dash-card">
+      </div>
+      <div class="dash-card">
         <div class="icone-card"><i class="bi bi-person-check-fill"></i></div>
         <h4>Ativos</h4>
         <div class="valor" id="cardAtivos">0</div>
-    </div>
-    <div class="dash-card">
+      </div>
+      <div class="dash-card">
         <div class="icone-card"><i class="bi bi-person-x-fill"></i></div>
         <h4>Inativos</h4>
         <div class="valor" id="cardInativos">0</div>
-    </div>
-    <div class="dash-card">
+      </div>
+      <div class="dash-card">
         <div class="icone-card"><i class="bi bi-calendar-event-fill"></i></div>
         <h4>Aniversariantes do mês</h4>
         <div class="valor" id="cardNivers">0</div>
+      </div>
     </div>
-</div>
 
-<div class="list-controls">
-    <input id="filtroAluno" class="form-control"
-           placeholder="🔍 Buscar aluno, CPF, matrícula, responsável...">
-    <div id="autocompleteBox"></div>
+    <!-- =========================
+         FILTROS
+    ========================== -->
+    <div class="list-controls">
+      <input id="filtroAluno" class="form-control"
+             placeholder="🔍 Buscar aluno, CPF, matrícula, responsável...">
+      <div id="autocompleteBox"></div>
 
-    <select id="filtroStatus" class="custom-select">
+      <select id="filtroStatus" class="custom-select">
         <option value="">Status: todos</option>
         <option value="ativo">Ativos</option>
         <option value="inativo">Inativos</option>
-    </select>
+      </select>
 
-    <select id="filtroTurma" class="custom-select">
+      <select id="filtroTurma" class="custom-select">
         <option value="">Turma: todas</option>
-    </select>
+      </select>
 
-    <select id="pageSize" class="custom-select">
+      <select id="pageSize" class="custom-select">
         <option value="10">Exibir 10</option>
         <option value="25" selected>Exibir 25</option>
         <option value="50">Exibir 50</option>
         <option value="100">Exibir 100</option>
-    </select>
+      </select>
 
-    <button id="clearFilters" class="btn btn-secondary btn-sm">
+      <button id="clearFilters" class="btn btn-secondary btn-sm">
         Limpar filtros
-    </button>
-</div>
+      </button>
+    </div>
 
-<table id="tabelaAlunos">
-<thead>
-<tr>
-    <th data-sort="matricula">Matrícula</th>
-    <th data-sort="turma">Turma</th>
-    <th data-sort="nome">Nome</th>
-    <th data-sort="responsaveis">Responsáveis</th>
-    <th data-sort="telefone">Telefone</th>
-    <th data-sort="nee">NEE</th>
-    <th data-sort="ativo">Status</th>
-    <th>Ações</th>
-</tr>
-</thead>
+    <!-- =========================
+         TABELA
+    ========================== -->
+    <table id="tabelaAlunos" class="table table-striped table-hover">
+      <thead>
+        <tr>
+          <th data-sort="matricula">Matrícula</th>
+          <th data-sort="turma">Turma</th>
+          <th data-sort="nome">Nome</th>
+          <th data-sort="responsaveis">Responsáveis</th>
+          <th data-sort="telefone">Telefone</th>
+          <th data-sort="nee">NEE</th>
+          <th data-sort="ativo">Status</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
 
-<tbody id="tabelaAlunosBody">
-<script id="alunos-data" type="application/json">
-{{ alunos_json|safe }}
-</script>
-</tbody>
-</table>
+      <tbody id="tabelaAlunosBody">
+        <!-- Dados vêm do JS -->
+      </tbody>
+    </table>
 
-<div class="pagination-bar mt-3 d-flex justify-content-between align-items-center">
-    <div id="resultsInfo">Mostrando 0–0 de 0</div>
-    <ul class="pagination mb-0">
-        <li class="page-item"><button id="firstPage" class="page-link">«</button></li>
-        <li class="page-item"><button id="prevPage" class="page-link">‹</button></li>
-        <li class="page-item disabled"><span id="pageIndicator" class="page-link">1 / 1</span></li>
-        <li class="page-item"><button id="nextPage" class="page-link">›</button></li>
-        <li class="page-item"><button id="lastPage" class="page-link">»</button></li>
-    </ul>
-</div>
+    <!-- =========================
+         JSON (FONTE DOS DADOS)
+    ========================== -->
+    <script id="alunos-data" type="application/json">
+      {{ alunos_json|safe }}
+    </script>
 
-</div>
+    <!-- =========================
+         PAGINAÇÃO
+    ========================== -->
+    <div class="pagination-bar mt-3 d-flex justify-content-between align-items-center">
+      <div id="resultsInfo">Mostrando 0–0 de 0</div>
+      <ul class="pagination mb-0">
+        <li class="page-item">
+          <button id="firstPage" class="page-link">«</button>
+        </li>
+        <li class="page-item">
+          <button id="prevPage" class="page-link">‹</button>
+        </li>
+        <li class="page-item disabled">
+          <span id="pageIndicator" class="page-link">1 / 1</span>
+        </li>
+        <li class="page-item">
+          <button id="nextPage" class="page-link">›</button>
+        </li>
+        <li class="page-item">
+          <button id="lastPage" class="page-link">»</button>
+        </li>
+      </ul>
+    </div>
+
+  </div>
 </section>
-
 <script>
 const alunos = JSON.parse(document.getElementById("alunos-data").textContent);
 const userRole = "{{ user.role }}";
@@ -247,39 +273,97 @@ function turmaLabel(a) {
 }
 
 function getResponsavelPreferencial(responsaveis = []) {
-    if (!Array.isArray(responsaveis) || responsaveis.length === 0) {
-        return null;
-    }
+    if (!Array.isArray(responsaveis) || responsaveis.length === 0) return null;
 
-    // 1️⃣ Prioridade: Mãe
     const mae = responsaveis.find(r =>
-        normaliza(r.tipo) === "mae" ||
-        normaliza(r.parentesco) === "mae"
+        normaliza(r.tipo) === "mae" || normaliza(r.parentesco) === "mae"
     );
     if (mae) return mae;
 
-    // 2️⃣ Segunda prioridade: Pai
     const pai = responsaveis.find(r =>
-        normaliza(r.tipo) === "pai" ||
-        normaliza(r.parentesco) === "pai"
+        normaliza(r.tipo) === "pai" || normaliza(r.parentesco) === "pai"
     );
     if (pai) return pai;
 
-    // 3️⃣ Fallback: Responsável genérico
     const responsavel = responsaveis.find(r =>
         normaliza(r.tipo) === "responsavel"
     );
     if (responsavel) return responsavel;
 
-    // 4️⃣ Último recurso: não mostra nada
     return null;
 }
 
+/* ===============================
+   CSRF
+================================ */
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
 
-function highlight(text, term) {
-    if (!term) return text;
-    const regex = new RegExp(`(${term})`, "gi");
-    return text.replace(regex, `<mark>$1</mark>`);
+/* ===============================
+   TOGGLE ATIVO / INATIVO
+================================ */
+function toggleAlunoAtivo(alunoId) {
+    fetch(`/alunos/${alunoId}/toggle-ativo/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Content-Type": "application/json"
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert("Erro ao alterar status do aluno.");
+            return;
+        }
+
+        const aluno = alunos.find(a => a.id === alunoId);
+        if (aluno) aluno.ativo = data.ativo;
+
+        renderizarTabela(currentPage);
+    })
+    .catch(() => alert("Erro inesperado ao alterar status."));
+}
+
+function excluirAluno(alunoId) {
+    if (!confirm("Tem certeza que deseja excluir este aluno? Essa ação não pode ser desfeita.")) {
+        return;
+    }
+
+    fetch(`/alunos/${alunoId}/excluir/`, {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCookie("csrftoken"),
+            "Content-Type": "application/json"
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.message || "Não foi possível excluir o aluno.");
+            return;
+        }
+
+        const idx = alunos.findIndex(a => a.id === alunoId);
+        if (idx !== -1) alunos.splice(idx, 1);
+
+        renderizarTabela(currentPage);
+    })
+    .catch(() => {
+        alert("Erro inesperado ao excluir aluno.");
+    });
 }
 
 function alunosPermitidos() {
@@ -294,7 +378,7 @@ function alunosPermitidos() {
 }
 
 /* ===============================
-   FUSE – apenas texto livre
+   FUSE
 ================================ */
 const fuse = new Fuse(alunos, {
     threshold: 0.3,
@@ -320,35 +404,52 @@ let pageSize = 25;
 let currentPage = 1;
 
 /* ===============================
-   BUSCA INTELIGENTE
+   BUSCA
 ================================ */
 function aplicarBusca() {
-    const termo = normaliza(searchTerm);
+    const termoOriginal = searchTerm.trim();
+    const termo = normaliza(termoOriginal);
     let lista = alunosPermitidos();
 
     if (!termo) return lista;
 
-     /* 🔹 BUSCA POR ANIVERSARIANTES */
+    /* 🔹 BUSCA POR ANIVERSARIANTES */
     if (termo.startsWith("aniver")) {
         const mesAtual = new Date().getMonth();
-        return lista.filter(a => {
-            if (!a.data_nascimento) return false;
-            return new Date(a.data_nascimento).getMonth() === mesAtual;
-        });
+        return lista.filter(a =>
+            a.data_nascimento &&
+            new Date(a.data_nascimento).getMonth() === mesAtual
+        );
     }
 
-    /* 🔹 BUSCA POR MATRÍCULA (EXATA / PROGRESSIVA) */
-    const pareceMatricula = /^[a-zA-Z0-9]+$/.test(termo);
-
-    if (pareceMatricula) {
+    /* 🔹 BUSCA POR MATRÍCULA (REGRA REAL) */
+    if (/^alu\d+/i.test(termo) || /^\d+$/.test(termo)) {
         return lista.filter(a =>
             normaliza(a.matricula).startsWith(termo)
         );
     }
 
-    /* 🔹 BUSCA TEXTUAL NORMAL (Fuse) */
+    const partes = termo.split(" ").filter(p => p.length > 1);
+
+    /* 🔹 NOME COMPLETO (2+ palavras) */
+    if (partes.length > 1) {
+        return lista.filter(a => {
+            const nome = normaliza(a.nome);
+            return partes.every(p => nome.includes(p));
+        });
+    }
+
+    /* 🔹 UMA PALAVRA → NOME SIMPLES */
+    if (partes.length === 1) {
+        return lista.filter(a =>
+            normaliza(a.nome).includes(partes[0])
+        );
+    }
+
+    /* 🔹 FALLBACK FUZZY */
     return fuse.search(termo).map(r => r.item);
 }
+
 
 function filtrarSimples(lista) {
     return lista.filter(a => {
@@ -380,22 +481,9 @@ function atualizarCards(listaTotal) {
     const ativos = listaTotal.filter(a => a.ativo).length;
     const inativos = total - ativos;
 
-    const mes = new Date().getMonth();
-    const aniversario = listaTotal.filter(a => {
-        if (!a.data_nascimento) return false;
-        return new Date(a.data_nascimento).getMonth() === mes;
-    }).length;
-
     document.getElementById("cardTotal").textContent = total;
     document.getElementById("cardAtivos").textContent = ativos;
     document.getElementById("cardInativos").textContent = inativos;
-    document.getElementById("cardNivers").textContent = aniversario;
-}
-
-function removerAluno(id) {
-    if (!confirm("Remover aluno da lista?")) return;
-    alunos.splice(alunos.findIndex(a => a.id === id), 1);
-    renderizarTabela(currentPage);
 }
 
 function renderizarTabela(pagina = 1) {
@@ -416,41 +504,57 @@ function renderizarTabela(pagina = 1) {
     tbody.innerHTML = "";
 
     lista.slice(ini, fim).forEach(a => {
-        const respObj = getResponsavelPreferencial(a.responsaveis);
-        const resp = respObj?.nome || "";
-        const respTelefone = respObj?.telefone || "";
+        const resp = getResponsavelPreferencial(a.responsaveis);
 
+        // 🔐 regra FINAL
+        const podeExcluir = ["diretor", "coordenador"].includes(userRole);
 
         tbody.insertAdjacentHTML("beforeend", `
             <tr>
                 <td>${a.matricula}</td>
                 <td>${turmaLabel(a)}</td>
                 <td>${a.nome}</td>
-                <td>${resp}</td>
-                <td>${respTelefone}</td>
+                <td>${resp?.nome || ""}</td>
+                <td>${resp?.telefone || ""}</td>
                 <td>${a.possui_necessidade_especial ? "🧩" : "–"}</td>
                 <td>
                     ${a.ativo
                         ? "<span class='badge badge-success'>Ativo</span>"
                         : "<span class='badge badge-secondary'>Inativo</span>"
                     }
+                </td>
                 <td style="white-space:nowrap;">
-    <a href="/alunos/${a.id}/editar/" class="btn btn-info btn-sm mr-1">Editar</a>
-    <a href="/alunos/${a.id}/pdf/" target="_blank" class="btn btn-secondary btn-sm mr-1">
-        Imprimir
-    </a>
-      <!-- FUTURO: Inativar aluno
-    <button class="btn btn-warning btn-sm" onclick="inativarAluno(${a.id})">
-        Inativar
-    </button>
-    -->
-</td>
+                    <a href="/alunos/${a.id}/editar/" class="btn btn-info btn-sm mr-1">
+                        Editar
+                    </a>
+
+                    <a href="/alunos/${a.id}/pdf/" target="_blank"
+                       class="btn btn-secondary btn-sm mr-1">
+                        Imprimir
+                    </a>
+
+                    <button
+                        class="btn btn-sm ${a.ativo ? "btn-warning" : "btn-success"} mr-1"
+                        onclick="toggleAlunoAtivo(${a.id})">
+                        ${a.ativo ? "Inativar" : "Ativar"}
+                    </button>
+
+                    ${podeExcluir ? `
+                        <button
+                            class="btn btn-danger btn-sm"
+                            onclick="excluirAluno(${a.id})">
+                            Excluir
+                        </button>
+                    ` : ""}
+                </td>
+            </tr>
         `);
     });
 
     document.getElementById("resultsInfo").textContent =
-        total ? `Mostrando ${ini + 1}–${Math.min(fim, total)} de ${total}`
-              : "Nenhum resultado";
+        total
+            ? `Mostrando ${ini + 1}–${Math.min(fim, total)} de ${total}`
+            : "Nenhum resultado";
 
     document.getElementById("pageIndicator").textContent =
         `${currentPage} / ${totalPaginas}`;
@@ -461,22 +565,18 @@ document.getElementById("filtroAluno").oninput = e => {
     searchTerm = e.target.value;
     renderizarTabela(1);
 };
-
 document.getElementById("filtroStatus").onchange = e => {
     statusFilter = e.target.value;
     renderizarTabela(1);
 };
-
 document.getElementById("filtroTurma").onchange = e => {
     turmaFilter = e.target.value;
     renderizarTabela(1);
 };
-
 document.getElementById("pageSize").onchange = e => {
     pageSize = parseInt(e.target.value);
     renderizarTabela(1);
 };
-
 document.getElementById("clearFilters").onclick = () => {
     searchTerm = "";
     statusFilter = "";
@@ -498,6 +598,7 @@ document.querySelectorAll("th[data-sort]").forEach(th => {
         renderizarTabela(1);
     };
 });
+
 renderizarTabela(1);
 </script>
 </body>
