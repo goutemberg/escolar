@@ -31,6 +31,16 @@
             gap: 1rem;
             margin-bottom: 2rem;
         }
+        .dash-card {
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.dash-card.ativo {
+  border: 2px solid #ff8a00;
+  background-color: #fff7ed;
+  box-shadow: 0 4px 12px rgba(255,138,0,.25);
+}
 
         @media(max-width:992px) {
             .dashboard-cards { grid-template-columns: repeat(2, 1fr); }
@@ -131,7 +141,41 @@
             background: #ffe4b3;
             padding: 0 2px;
         }
-    </style>
+        /* 🔥 FORÇA ESTADO ATIVO DO CARD */
+        .dash-card.ativo {
+            border: 2px solid #ff8a00 !important;
+            background-color: #fff7ed !important;
+            box-shadow: 0 4px 12px rgba(255,138,0,.25) !important;
+}
+   .action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all .15s ease;
+  margin: 0 3px;
+}
+
+.action-icon i {
+  font-size: 1.1rem;
+}
+
+/* cores */
+.action-edit { background: #e7f1ff; color: #0d6efd; }
+.action-print { background: #f1f3f5; color: #6c757d; }
+.action-disable { background: #fff3cd; color: #856404; }
+.action-enable { background: #e6f4ea; color: #198754; }
+.action-delete { background: #fdecea; color: #dc3545; }
+
+/* hover */
+.action-icon:hover {
+  transform: scale(1.12);
+  box-shadow: 0 4px 10px rgba(0,0,0,.15);
+}
+  </style>
 </head>
 
 <body>
@@ -146,28 +190,50 @@
     <!-- =========================
          CARDS
     ========================== -->
-    <div class="dashboard-cards">
-      <div class="dash-card">
-        <div class="icone-card"><i class="bi bi-people-fill"></i></div>
-        <h4>Total</h4>
-        <div class="valor" id="cardTotal">0</div>
-      </div>
-      <div class="dash-card">
-        <div class="icone-card"><i class="bi bi-person-check-fill"></i></div>
-        <h4>Ativos</h4>
-        <div class="valor" id="cardAtivos">0</div>
-      </div>
-      <div class="dash-card">
-        <div class="icone-card"><i class="bi bi-person-x-fill"></i></div>
-        <h4>Inativos</h4>
-        <div class="valor" id="cardInativos">0</div>
-      </div>
-      <div class="dash-card">
-        <div class="icone-card"><i class="bi bi-calendar-event-fill"></i></div>
-        <h4>Aniversariantes do mês</h4>
-        <div class="valor" id="cardNivers">0</div>
-      </div>
+   <div class="dashboard-cards">
+
+  <div class="dash-card"
+       data-card="total"
+       onclick="filtroDashboard('total')">
+    <div class="icone-card">
+      <i class="bi bi-people-fill"></i>
     </div>
+    <h4>Total</h4>
+    <div class="valor" id="cardTotal">0</div>
+  </div>
+
+  <div class="dash-card"
+       data-card="ativo"
+       onclick="filtroDashboard('ativo')">
+    <div class="icone-card">
+      <i class="bi bi-person-check-fill"></i>
+    </div>
+    <h4>Ativos</h4>
+    <div class="valor" id="cardAtivos">0</div>
+  </div>
+
+  <div class="dash-card"
+       data-card="inativo"
+       onclick="filtroDashboard('inativo')">
+    <div class="icone-card">
+      <i class="bi bi-person-x-fill"></i>
+    </div>
+    <h4>Inativos</h4>
+    <div class="valor" id="cardInativos">0</div>
+  </div>
+
+  <div class="dash-card"
+       data-card="aniver"
+       onclick="filtroDashboard('aniver')">
+    <div class="icone-card">
+      <i class="bi bi-calendar-event-fill"></i>
+    </div>
+    <h4>Aniversariantes do mês</h4>
+    <div class="valor" id="cardNivers">0</div>
+  </div>
+
+</div>
+
 
     <!-- =========================
          FILTROS
@@ -476,14 +542,76 @@ function ordenarLista(lista) {
     });
 }
 
-function atualizarCards(listaTotal) {
-    const total = listaTotal.length;
-    const ativos = listaTotal.filter(a => a.ativo).length;
+function atualizarCards() {
+
+    const lista = alunosPermitidos();
+
+    const total = lista.length;
+    const ativos = lista.filter(a => a.ativo).length;
     const inativos = total - ativos;
+
+    const mesAtual = new Date().getMonth();
+    const aniversariantes = lista.filter(a => {
+        if (!a.data_nascimento) return false;
+        const d = new Date(a.data_nascimento);
+        return !isNaN(d) && d.getMonth() === mesAtual;
+    }).length;
 
     document.getElementById("cardTotal").textContent = total;
     document.getElementById("cardAtivos").textContent = ativos;
     document.getElementById("cardInativos").textContent = inativos;
+    document.getElementById("cardNivers").textContent = aniversariantes;
+}
+
+function filtroDashboard(tipo) {
+
+    ativarCard(tipo);
+    searchTerm = "";
+    turmaFilter = "";
+
+    if (tipo === "total") {
+        statusFilter = "";
+        document.getElementById("filtroStatus").value = "";
+    }
+
+    if (tipo === "ativo") {
+        statusFilter = "ativo";
+        document.getElementById("filtroStatus").value = "ativo";
+    }
+
+    if (tipo === "inativo") {
+        statusFilter = "inativo";
+        document.getElementById("filtroStatus").value = "inativo";
+    }
+
+    if (tipo === "aniver") {
+        statusFilter = "";
+        document.getElementById("filtroStatus").value = "";
+        searchTerm = "aniver";
+        document.getElementById("filtroAluno").value = "Aniversariantes";
+    }
+
+    renderizarTabela(1);
+}
+
+function limparCardsAtivos() {
+    document
+      .querySelectorAll(".dash-card")
+      .forEach(c => c.classList.remove("ativo"));
+}
+
+function ativarCard(tipo) {
+    document
+      .querySelectorAll(".dash-card")
+      .forEach(card => card.classList.remove("ativo"));
+
+    const cardAtivo = document.querySelector(
+        `.dash-card[data-card="${tipo}"]`
+    );
+
+    if (cardAtivo) {
+        cardAtivo.classList.add("ativo");
+    }
 }
 
 function renderizarTabela(pagina = 1) {
@@ -510,45 +638,56 @@ function renderizarTabela(pagina = 1) {
         const podeExcluir = ["diretor", "coordenador"].includes(userRole);
 
         tbody.insertAdjacentHTML("beforeend", `
-            <tr>
-                <td>${a.matricula}</td>
-                <td>${turmaLabel(a)}</td>
-                <td>${a.nome}</td>
-                <td>${resp?.nome || ""}</td>
-                <td>${resp?.telefone || ""}</td>
-                <td>${a.possui_necessidade_especial ? "🧩" : "–"}</td>
-                <td>
-                    ${a.ativo
-                        ? "<span class='badge badge-success'>Ativo</span>"
-                        : "<span class='badge badge-secondary'>Inativo</span>"
-                    }
-                </td>
-                <td style="white-space:nowrap;">
-                    <a href="/alunos/${a.id}/editar/" class="btn btn-info btn-sm mr-1">
-                        Editar
-                    </a>
+    <tr>
+        <td>${a.matricula}</td>
+        <td>${turmaLabel(a)}</td>
+        <td>${a.nome}</td>
+        <td>${resp?.nome || ""}</td>
+        <td>${resp?.telefone || ""}</td>
+        <td>${a.possui_necessidade_especial ? "🧩" : "–"}</td>
+        <td>
+            ${a.ativo
+                ? "<span class='badge badge-success'>Ativo</span>"
+                : "<span class='badge badge-secondary'>Inativo</span>"
+            }
+        </td>
 
-                    <a href="/alunos/${a.id}/pdf/" target="_blank"
-                       class="btn btn-secondary btn-sm mr-1">
-                        Imprimir
-                    </a>
+        <td style="white-space:nowrap; text-align:center;">
 
-                    <button
-                        class="btn btn-sm ${a.ativo ? "btn-warning" : "btn-success"} mr-1"
-                        onclick="toggleAlunoAtivo(${a.id})">
-                        ${a.ativo ? "Inativar" : "Ativar"}
-                    </button>
+            <!-- Editar -->
+            <span class="action-icon action-edit"
+                  title="Editar aluno"
+                  onclick="window.location.href='/alunos/${a.id}/editar/'">
+                <i class="bi bi-pencil-fill"></i>
+            </span>
 
-                    ${podeExcluir ? `
-                        <button
-                            class="btn btn-danger btn-sm"
-                            onclick="excluirAluno(${a.id})">
-                            Excluir
-                        </button>
-                    ` : ""}
-                </td>
-            </tr>
-        `);
+            <!-- Imprimir -->
+            <span class="action-icon action-print"
+                  title="Imprimir ficha"
+                  onclick="window.open('/alunos/${a.id}/pdf/', '_blank')">
+                <i class="bi bi-printer-fill"></i>
+            </span>
+
+            <!-- Ativar / Inativar -->
+            <span class="action-icon ${a.ativo ? "action-disable" : "action-enable"}"
+                  title="${a.ativo ? "Inativar aluno" : "Ativar aluno"}"
+                  onclick="toggleAlunoAtivo(${a.id})">
+                <i class="bi ${a.ativo ? "bi-pause-fill" : "bi-play-fill"}"></i>
+            </span>
+
+            <!-- Excluir -->
+            ${podeExcluir ? `
+                <span class="action-icon action-delete"
+                      title="Excluir aluno"
+                      onclick="excluirAluno(${a.id})">
+                    <i class="bi bi-trash-fill"></i>
+                </span>
+            ` : ""}
+
+        </td>
+    </tr>
+`);
+
     });
 
     document.getElementById("resultsInfo").textContent =
