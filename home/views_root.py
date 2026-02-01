@@ -66,6 +66,7 @@ from .models import (
     TurmaDisciplina,
     Presenca,
     Chamada,
+    RegistroPedagogico,
 )
 from home.decorators import role_required
 from home.utils import gerar_matricula_unica
@@ -1298,6 +1299,70 @@ def listar_alunos(request):
             ),
         }
     )
+
+# ============================================================
+# ATIVAR / INATIVAR ALUNO
+# ============================================================
+@login_required
+def toggle_aluno_ativo(request, aluno_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método não permitido"}, status=405)
+
+    escola = request.user.escola
+
+    aluno = get_object_or_404(
+        Aluno,
+        id=aluno_id,
+        escola=escola
+    )
+
+    aluno.ativo = not aluno.ativo
+    aluno.save(update_fields=["ativo"])
+
+    return JsonResponse({
+        "success": True,
+        "ativo": aluno.ativo
+    })
+
+@login_required
+@require_POST
+def excluir_aluno(request, aluno_id):
+    escola = request.user.escola
+
+    aluno = get_object_or_404(
+        Aluno,
+        id=aluno_id,
+        escola=escola
+    )
+
+    # 🔒 Validações impeditivas
+    if Presenca.objects.filter(aluno=aluno).exists():
+        return JsonResponse({
+            "success": False,
+            "reason": "presenca",
+            "message": "Aluno possui registros de presença."
+        }, status=400)
+
+    if RegistroPedagogico.objects.filter(aluno=aluno).exists():
+        return JsonResponse({
+            "success": False,
+            "reason": "registro_pedagogico",
+            "message": "Aluno possui registros pedagógicos."
+        }, status=400)
+
+    if aluno.turmas.exists():
+        return JsonResponse({
+            "success": False,
+            "reason": "turmas",
+            "message": "Aluno está vinculado a turmas."
+        }, status=400)
+
+    # ✅ Exclusão segura
+    aluno.delete()
+
+    return JsonResponse({
+        "success": True
+    })
 
 
 @csrf_exempt  # ou use um decorator de CSRF seguro se for AJAX autenticado
