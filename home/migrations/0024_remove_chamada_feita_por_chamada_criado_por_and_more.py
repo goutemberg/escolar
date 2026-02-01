@@ -12,15 +12,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='chamada',
-            name='criado_por',
-        ),
-        migrations.AddField(
-            model_name='chamada',
-            name='criado_por',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='chamadas_criadas', to=settings.AUTH_USER_MODEL),
-        ),
         migrations.CreateModel(
             name='DiarioDeClasse',
             fields=[
@@ -31,11 +22,35 @@ class Migration(migrations.Migration):
                 ('resumo_conteudo', models.TextField()),
                 ('criado_em', models.DateTimeField(auto_now_add=True)),
                 ('atualizado_em', models.DateTimeField(auto_now=True)),
-                ('criado_por', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='diarios_criados', to=settings.AUTH_USER_MODEL)),
-                ('disciplina', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='diarios', to='home.disciplina')),
-                ('escola', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='diarios_classe', to='home.escola')),
-                ('professor', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='diarios', to='home.docente')),
-                ('turma', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='diarios', to='home.turma')),
+                ('criado_por', models.ForeignKey(
+                    blank=True,
+                    null=True,
+                    on_delete=django.db.models.deletion.SET_NULL,
+                    related_name='diarios_criados',
+                    to=settings.AUTH_USER_MODEL
+                )),
+                ('disciplina', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='diarios',
+                    to='home.disciplina'
+                )),
+                ('escola', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='diarios_classe',
+                    to='home.escola'
+                )),
+                ('professor', models.ForeignKey(
+                    blank=True,
+                    null=True,
+                    on_delete=django.db.models.deletion.SET_NULL,
+                    related_name='diarios',
+                    to='home.docente'
+                )),
+                ('turma', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='diarios',
+                    to='home.turma'
+                )),
             ],
             options={
                 'verbose_name': 'Diário de Classe',
@@ -46,6 +61,12 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='chamada',
             name='diario',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='chamada', to='home.diariodeclasse'),
+            field=models.OneToOneField(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name='chamada',
+                to='home.diariodeclasse'
+            ),
         ),
     ]
