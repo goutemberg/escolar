@@ -1,0 +1,141 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    {% include "partials/_head.html" %}
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    <style>
+        .box-padrao {
+            background: #ffffff;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            overflow: hidden;
+            max-width: 1200px;
+            margin: 110px auto 40px auto;
+        }
+
+        .box-header {
+            background: #6c757d;
+            color: #ffffff;
+            padding: 12px 20px;
+            font-weight: 600;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .box-body {
+            padding: 16px 20px 20px 20px;
+        }
+
+        .acoes-relatorio a {
+            margin-right: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+{% include "partials/_nav.html" %}
+
+<section class="box-padrao">
+
+    <!-- HEADER -->
+    <div class="box-header">
+        <div>
+            <i class="bi bi-bar-chart"></i>
+            Relatório Anual de Chamadas
+        </div>
+
+        <!-- AÇÕES (PDF / EXCEL) -->
+        <div class="acoes-relatorio">
+            <a href="{% url 'chamada:relatorio_anual_chamadas_pdf' %}?ano={{ ano }}"
+            class="btn btn-danger btn-sm"
+            target="_blank">
+            <i class="bi bi-file-earmark-pdf"></i> PDF
+            </a>
+
+            <a href="{% url 'chamada:relatorio_anual_chamadas_excel' %}?ano={{ ano }}"
+                class="btn btn-success btn-sm">
+                <i class="bi bi-file-earmark-excel"></i> Excel
+            </a>
+        </div>
+    </div>
+
+    <!-- CORPO -->
+    <div class="box-body">
+
+        <!-- FILTRO -->
+        <form method="get" class="row align-items-end g-2 mb-3">
+
+            <div class="col-md-2">
+                <label><strong>Ano</strong></label>
+                <input type="number"
+                       name="ano"
+                       class="form-control"
+                       value="{{ ano }}"
+                       min="2000"
+                       max="2100">
+            </div>
+
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Filtrar
+                </button>
+            </div>
+
+        </form>
+
+        <!-- TABELA -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Turma</th>
+                            <th>Disciplina</th>
+                            <th>Professor</th>
+                            <th class="text-center">Aulas</th>
+                            <th class="text-center">Presentes</th>
+                            <th class="text-center">Ausentes</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                    {% if resumo %}
+                        {% for r in resumo %}
+                        <tr>
+                            <td>{{ r.turma__nome }}</td>
+                            <td>{{ r.disciplina__nome }}</td>
+                            <td>{{ r.professor__nome|default:"—" }}</td>
+                            <td class="text-center">{{ r.total_aulas }}</td>
+                            <td class="text-center text-success fw-bold">
+                                {{ r.total_presentes }}
+                            </td>
+                            <td class="text-center text-danger fw-bold">
+                                {{ r.total_ausentes }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                Nenhum dado encontrado para o ano selecionado.
+                            </td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+
+    </div>
+</section>
+
+</body>
+</html>

@@ -160,14 +160,19 @@
 
             <div class="dropdown-divider"></div>
 
-            <!-- FUTURO -->
-            <a class="dropdown-item nav-disabled">
-              <i class="fas fa-chart-line mr-1"></i> Relatório de Presença (Mensal)
+            <!-- 🔹 AJUSTE APENAS DE NOME -->
+            <a class="dropdown-item"
+                href="{% url 'chamada:relatorio_resumo_mensal' %}">
+              <i class="fas fa-chart-line mr-1"></i> Resumo de Presença (Mensal)
             </a>
 
-            <a class="dropdown-item nav-disabled">
-              <i class="fas fa-chart-pie mr-1"></i> Relatório de Presença (Anual)
+            <a class="dropdown-item"
+                href="{% url 'chamada:relatorio_anual_chamadas' %}">
+              <i class="fas fa-chart-pie mr-1"></i> Resumo de Presença (Anual)
             </a>
+            <a class="dropdown-item" href="{% url 'relatorios:presenca_aluno_mensal' %}">
+    <i class="fas fa-user-check mr-1"></i> Presença por Aluno
+</a>
 
             <a class="dropdown-item nav-disabled">
               <i class="fas fa-file-pdf mr-1"></i> Histórico do Aluno

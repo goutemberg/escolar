@@ -349,10 +349,18 @@ class TurmaDisciplina(models.Model):
             self.escola = self.professor.escola
         super().save(*args, **kwargs)
 
-# # ================================================
-# #  DIÁRIO DE CLASSE
-# # ================================================
+# ================================================
+#  DIÁRIO DE CLASSE
+# ================================================
 class DiarioDeClasse(models.Model):
+
+    STATUS_AULA = [
+        ('PLANEJADA', 'Planejada'),
+        ('REALIZADA', 'Realizada'),
+        ('CANCELADA', 'Cancelada'),
+        ('INVALIDA', 'Inválida'),
+    ]
+
     turma = models.ForeignKey(
         Turma,
         on_delete=models.CASCADE,
@@ -387,6 +395,13 @@ class DiarioDeClasse(models.Model):
 
     resumo_conteudo = models.TextField()
 
+    # ✅ NOVO CAMPO (ETAPA 1 – SEGURO)
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_AULA,
+        default='REALIZADA'
+    )
+
     escola = models.ForeignKey(
         Escola,
         on_delete=models.CASCADE,
@@ -405,24 +420,17 @@ class DiarioDeClasse(models.Model):
         return f"{self.turma} - {self.data_ministrada}"
 
 
-
 # ================================================
-#  CHAMADA + PRESENÇA
+#  CHAMADA (REGISTRO DE PRESENÇA DA AULA)
 # ================================================
 class Chamada(models.Model):
-    data = models.DateField()
 
-    turma = models.ForeignKey(Turma, on_delete=models.CASCADE)
-    disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE)
-
-    professor = models.ForeignKey(
-        Docente,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL
+    diario = models.OneToOneField(
+        "DiarioDeClasse",
+        on_delete=models.CASCADE,
+        related_name="chamada"
     )
 
-    # 🔑 auditoria
     criado_por = models.ForeignKey(
         User,
         null=True,
@@ -431,25 +439,15 @@ class Chamada(models.Model):
         related_name="chamadas_criadas"
     )
 
-    # 🔗 vínculo com diário (opcional)
-    diario = models.OneToOneField(
-        DiarioDeClasse,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="chamada"
-    )
+    criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["data", "turma", "disciplina"],
-                name="unique_chamada_por_dia"
-            )
-        ]
+        verbose_name = "Chamada"
+        verbose_name_plural = "Chamadas"
 
     def __str__(self):
-        return f"{self.turma} - {self.data}"
+        return f"Chamada - {self.diario}"
+
 
 
 class Presenca(models.Model):

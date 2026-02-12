@@ -128,6 +128,10 @@ urlpatterns = [
 
 
     path("diario-classe/", include(("home.routes.diario", "diario_classe"), namespace="diario_classe")),
+
+
+    path("relatorios/", include(("home.routes.relatorios", "relatorios"), namespace="relatorios")),
+
     
 
 ]
