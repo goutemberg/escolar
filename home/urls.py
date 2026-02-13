@@ -132,6 +132,9 @@ urlpatterns = [
 
     path("relatorios/", include(("home.routes.relatorios", "relatorios"), namespace="relatorios")),
 
+
+    path("avaliacoes/", include(("home.routes.avaliacoes", "avaliacoes"), namespace="avaliacoes")),
+
     
 
 ]

@@ -1,0 +1,299 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    {% include 'partials/_head.html' %}
+    <style>
+        .content {
+            max-width: 1100px;
+            margin: 30px auto;
+        }
+
+        .header-bar {
+            background-color: #6c757d;
+            color: #fff;
+            padding: 18px;
+            font-weight: bold;
+            font-size: 20px;
+            border-radius: 8px;
+        }
+
+        .card-custom {
+            border: 1px solid #eee;
+            padding: 25px;
+            margin-top: 20px;
+            border-radius: 6px;
+            background-color: #fff;
+        }
+
+        .btn-primary-custom {
+            background-color: #fab982 !important;
+            border: none !important;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .btn-primary-custom:hover {
+            background-color: #f4a261 !important;
+        }
+
+        .btn-danger-custom {
+            background-color: #d9534f;
+            color: white;
+            border: none;
+            font-weight: bold;
+        }
+
+        table th {
+            background-color: #fab982;
+            text-align: center;
+        }
+
+        table td {
+            vertical-align: middle;
+        }
+
+        .form-control {
+            margin-bottom: 12px;
+        }
+
+        h5 {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<div class="content">
+
+    <div class="header-bar">
+        Cadastro de Avaliações
+    </div>
+
+    <div class="card-custom">
+
+        <h5>Nova Avaliação</h5>
+
+        <select id="disciplina" class="form-control">
+            <option value="">Selecione a Disciplina</option>
+            {% for d in disciplinas %}
+            <option value="{{ d.id }}">{{ d.nome }}</option>
+            {% endfor %}
+        </select>
+
+        <select id="tipo" class="form-control">
+            <option value="">Selecione o Tipo</option>
+            {% for tipo in tipos %}
+            <option value="{{ tipo.id }}">
+                {{ tipo.nome }} (Peso: {{ tipo.peso }})
+            </option>
+            {% endfor %}
+        </select>
+
+        <input type="text"
+               id="descricao"
+               placeholder="Descrição (Ex: Prova 1)"
+               class="form-control">
+
+        <input type="number"
+               id="bimestre"
+               placeholder="Bimestre"
+               min="1"
+               max="4"
+               class="form-control">
+
+        <input type="date"
+               id="data"
+               class="form-control">
+
+        <button id="btnCadastrar"
+                class="btn btn-primary-custom mt-2">
+            Cadastrar Avaliação
+        </button>
+
+    </div>
+
+    <div class="card-custom">
+
+        <h5>Lista de Avaliações</h5>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Descrição</th>
+                    <th>Disciplina</th>
+                    <th>Tipo</th>
+                    <th>Bimestre</th>
+                    <th>Data</th>
+                    <th style="width:200px;">Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in avaliacoes %}
+                <tr>
+                    <td>{{ a.descricao }}</td>
+                    <td>{{ a.disciplina.nome }}</td>
+                    <td>{{ a.tipo.nome }}</td>
+                    <td class="text-center">{{ a.bimestre }}</td>
+                    <td class="text-center">{{ a.data }}</td>
+                    <td class="text-center">
+
+                        <button class="btn btn-warning btn-sm btnEditar"
+                                data-id="{{ a.id }}"
+                                data-descricao="{{ a.descricao }}"
+                                data-bimestre="{{ a.bimestre }}"
+                                data-data="{{ a.data }}"
+                                data-disciplina="{{ a.disciplina.id }}"
+                                data-tipo="{{ a.tipo.id }}">
+                            Editar
+                        </button>
+
+                        <button class="btn btn-danger-custom btn-sm btnExcluir"
+                                data-id="{{ a.id }}">
+                            Excluir
+                        </button>
+
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">
+                        Nenhuma avaliação cadastrada.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const btnCadastrar = document.getElementById("btnCadastrar");
+
+    const campoData = document.getElementById("data");
+
+if (!campoData.value) {
+
+    const hoje = new Date();
+
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+
+    campoData.value = `${ano}-${mes}-${dia}`;
+}
+
+
+    btnCadastrar.addEventListener("click", function () {
+
+        const disciplina = document.getElementById("disciplina").value;
+        const tipo = document.getElementById("tipo").value;
+        const descricao = document.getElementById("descricao").value.trim();
+        const bimestre = document.getElementById("bimestre").value;
+        const data = document.getElementById("data").value;
+
+        if (!disciplina) { alert("Selecione a disciplina."); return; }
+        if (!tipo) { alert("Selecione o tipo."); return; }
+        if (!descricao) { alert("Informe a descrição."); return; }
+        if (!bimestre || bimestre < 1 || bimestre > 4) {
+            alert("Bimestre deve ser entre 1 e 4."); return;
+        }
+        if (!data) { alert("Informe a data."); return; }
+
+        const editId = btnCadastrar.dataset.editId || null;
+
+        let url = "";
+        let method = "";
+
+        if (editId) {
+            url = `/avaliacoes/editar/${editId}/`;
+            method = "PUT";
+        } else {
+            url = "";
+            method = "POST";
+        }
+
+        fetch(url, {
+            method: method,
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({
+                disciplina_id: disciplina,
+                tipo_id: tipo,
+                descricao: descricao,
+                bimestre: bimestre,
+                data: data
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.mensagem) {
+                alert(data.mensagem);
+                location.reload();
+            } else {
+                alert(data.erro || "Erro.");
+            }
+        });
+
+    });
+
+    document.querySelectorAll(".btnExcluir").forEach(function (btn) {
+
+        btn.addEventListener("click", function () {
+
+            const id = this.dataset.id;
+
+            if (!confirm("Deseja realmente excluir?")) return;
+
+            fetch(`/avaliacoes/excluir/${id}/`, {
+                method: "DELETE",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}"
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(data.mensagem || data.erro);
+                location.reload();
+            });
+
+        });
+
+    });
+
+    document.querySelectorAll(".btnEditar").forEach(function (btn) {
+
+        btn.addEventListener("click", function () {
+
+            const id = this.dataset.id;
+
+            document.getElementById("disciplina").value = this.dataset.disciplina;
+            document.getElementById("tipo").value = this.dataset.tipo;
+            document.getElementById("descricao").value = this.dataset.descricao;
+            document.getElementById("bimestre").value = this.dataset.bimestre;
+            document.getElementById("data").value = this.dataset.data;
+
+            btnCadastrar.textContent = "Atualizar Avaliação";
+            btnCadastrar.dataset.editId = id;
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        });
+
+    });
+
+});
+</script>
+
+{% include 'partials/_footer.html' %}
+
+</body>
+</html>

@@ -2,11 +2,11 @@
 {% load custom_tags %}
 <!DOCTYPE html>
 <html lang="pt-br">
- <head>
-  {% include 'partials/_head.html' %}
-  <style>
-   .content {
-            max-width: 900px;
+<head>
+    {% include 'partials/_head.html' %}
+    <style>
+        .content {
+            max-width: 1100px;
             margin: 20px auto;
         }
 
@@ -14,28 +14,31 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
+            font-size: 14px;
         }
 
         th, td {
-            padding: 10px;
-            border: 1px solid #ccc;
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
             vertical-align: middle;
         }
 
         th {
             background-color: #fab982;
-            text-align: left;
+            color: #000;
+            font-weight: 600;
         }
 
-        td.input-notas {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
+        td:first-child {
+            text-align: left;
+            font-weight: 500;
         }
 
         input[type="number"] {
-            width: 60px;
-            padding: 5px;
+            width: 70px;
+            padding: 4px;
+            text-align: center;
         }
 
         .form-top {
@@ -43,144 +46,179 @@
         }
 
         .form-top select {
-            padding: 5px;
+            padding: 6px;
             margin-right: 10px;
         }
 
         .btn-salvar {
             background-color: #fab982;
             border: none;
-            padding: 10px 20px;
+            padding: 10px 25px;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 15px;
+            margin-top: 20px;
         }
-  </style>
- </head>
- <body>
-  {% include 'partials/_nav.html' %}
-  <div class="content">
-   <h2>
-    Lançamento de Notas
-   </h2>
-   <form class="form-top" method="GET">
-    <label for="turma">
-     Turma:
-    </label>
-    <select id="turma" name="turma" onchange="this.form.submit()">
-     <option value="">
-      Selecione uma turma
-     </option>
-     {% for t in turmas %}
-     <option %}="" %}selected{%="" endif="" if="" request.get.turma='t.id|stringformat:"s"' value="{{ t.id }}" {%="">
-      {{ t.nome }} - {{ t.turno }}
-     </option>
-     {% endfor %}
-    </select>
-    {% if disciplinas %}
-    <label for="disciplina">
-     Disciplina:
-    </label>
-    <select id="disciplina" name="disciplina" onchange="this.form.submit()">
-     <option value="">
-      Selecione uma disciplina
-     </option>
-     {% for d in disciplinas %}
-     <option %}="" %}selected{%="" endif="" if="" request.get.disciplina='d.id|stringformat:"s"' value="{{ d.id }}" {%="">
-      {{ d.nome }}
-     </option>
-     {% endfor %}
-    </select>
+
+        .media-cell {
+            font-weight: bold;
+            background-color: #f9f9f9;
+        }
+
+        .sem-avaliacoes {
+            margin-top: 20px;
+            color: #999;
+        }
+    </style>
+</head>
+
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<div class="content">
+
+    <h2>Lançamento de Notas</h2>
+
+    <form class="form-top" method="GET">
+        <label for="turma">Turma:</label>
+        <select id="turma" name="turma" onchange="this.form.submit()">
+            <option value="">Selecione uma turma</option>
+            {% for t in turmas %}
+                <option value="{{ t.id }}"
+                    {% if request.GET.turma == t.id|stringformat:"s" %}selected{% endif %}>
+                    {{ t.nome }} - {{ t.turno }}
+                </option>
+            {% endfor %}
+        </select>
+
+        {% if disciplinas %}
+            <label for="disciplina">Disciplina:</label>
+            <select id="disciplina" name="disciplina" onchange="this.form.submit()">
+                <option value="">Selecione uma disciplina</option>
+                {% for d in disciplinas %}
+                    <option value="{{ d.id }}"
+                        {% if request.GET.disciplina == d.id|stringformat:"s" %}selected{% endif %}>
+                        {{ d.nome }}
+                    </option>
+                {% endfor %}
+            </select>
+        {% endif %}
+    </form>
+
+    {% if alunos and avaliacoes %}
+
+    <form id="notasForm">
+        <input type="hidden" name="turma_id" value="{{ turma_id }}">
+        <input type="hidden" name="disciplina_id" value="{{ disciplina_id }}">
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Aluno</th>
+
+                    {% for avaliacao in avaliacoes %}
+                        <th>
+                            {{ avaliacao.descricao }}<br>
+                            <small>({{ avaliacao.tipo.nome }})</small>
+                        </th>
+                    {% endfor %}
+
+                    <th>Média</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for aluno in alunos %}
+                <tr>
+                    <td>{{ aluno.nome }}</td>
+
+                    {% for avaliacao in avaliacoes %}
+                        <td>
+                            <input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="10"
+                                name="{{ avaliacao.id }}_{{ aluno.id }}"
+                                value="{{ notas|get_nota_avaliacao:aluno.id|stringformat:'s'|add:'|'|add:avaliacao.id|stringformat:'s' }}"
+                            >
+                        </td>
+                    {% endfor %}
+
+                    <td class="media-cell">
+                        {{ medias|get_item:aluno.id|default:"-" }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <button type="button" class="btn-salvar" onclick="salvarNotas()">
+            Salvar Notas
+        </button>
+
+    </form>
+
+    {% elif turma_id and disciplina_id %}
+        <p class="sem-avaliacoes">
+            Não há avaliações cadastradas para esta disciplina.
+        </p>
+    {% else %}
+        <p>Selecione uma turma e uma disciplina para lançar as notas.</p>
     {% endif %}
-   </form>
-   {% if alunos %}
-   <form id="notasForm">
-    <input name="turma_id" type="hidden" value="{{ turma_id }}"/>
-    <input name="disciplina_id" type="hidden" value="{{ disciplina_id }}"/>
-    <table>
-     <thead>
-      <tr>
-       <th>
-        Aluno
-       </th>
-       <th>
-        Notas
-       </th>
-      </tr>
-     </thead>
-     <tbody>
-      {% for aluno in alunos %}
-      <tr>
-       <td>
-        {{ aluno.nome }}
-       </td>
-       <td class="input-notas">
-        <input max="10" min="0" name="nota1_{{ aluno.id }}" step="0.1" type="number" value="{{ notas|get_item:aluno.id|get_item:'nota1'|default_if_none:'' }}"/>
-        <input max="10" min="0" name="nota2_{{ aluno.id }}" step="0.1" type="number" value="{{ notas|get_item:aluno.id|get_item:'nota2'|default_if_none:'' }}"/>
-        <input max="10" min="0" name="nota3_{{ aluno.id }}" step="0.1" type="number" value="{{ notas|get_item:aluno.id|get_item:'nota3'|default_if_none:'' }}"/>
-        <input max="10" min="0" name="nota4_{{ aluno.id }}" step="0.1" type="number" value="{{ notas|get_item:aluno.id|get_item:'nota4'|default_if_none:'' }}"/>
-       </td>
-      </tr>
-      {% endfor %}
-     </tbody>
-    </table>
-    <button class="btn-salvar" onclick="salvarNotas()" type="button">
-     Salvar Notas
-    </button>
-   </form>
-   {% elif turma_id and disciplina_id %}
-   <p>
-    Não há alunos cadastrados nesta turma.
-   </p>
-   {% else %}
-   <p>
-    Selecione uma turma e uma disciplina para lançar as notas.
-   </p>
-   {% endif %}
-  </div>
-  {% include 'partials/_footer.html' %}
-  <script>
-   function salvarNotas() {
-        const form = document.getElementById('notasForm');
-        const turmaId = form.querySelector('input[name="turma_id"]').value;
-        const disciplinaId = form.querySelector('input[name="disciplina_id"]').value;
 
-        const dados = {
-            turma_id: turmaId,
-            disciplina_id: disciplinaId,
-            notas: {}
-        };
+</div>
 
-        const inputs = form.querySelectorAll('input[type="number"]');
-        inputs.forEach(input => {
-            const [campo, alunoId] = input.name.split('_');
-            if (!dados.notas[alunoId]) {
-                dados.notas[alunoId] = {};
-            }
-            dados.notas[alunoId][campo] = input.value;
-        });
+{% include 'partials/_footer.html' %}
 
-        fetch('{% url "lancar_notas" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
-            },
-            body: JSON.stringify(dados)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.mensagem) {
-                alert(data.mensagem);
-            } else {
-                alert(data.erro || "Erro ao salvar.");
-            }
-        })
-        .catch(error => {
-            console.error("Erro na requisição:", error);
-            alert("Erro inesperado ao salvar.");
-        });
-    }
-  </script>
- </body>
+<script>
+function salvarNotas() {
+
+    const form = document.getElementById('notasForm');
+    const turmaId = form.querySelector('input[name="turma_id"]').value;
+    const disciplinaId = form.querySelector('input[name="disciplina_id"]').value;
+
+    const dados = {
+        turma_id: turmaId,
+        disciplina_id: disciplinaId,
+        notas: {}
+    };
+
+    const inputs = form.querySelectorAll('input[type="number"]');
+
+    inputs.forEach(input => {
+        const [avaliacaoId, alunoId] = input.name.split('_');
+
+        if (!dados.notas[alunoId]) {
+            dados.notas[alunoId] = {};
+        }
+
+        dados.notas[alunoId][avaliacaoId] = input.value;
+    });
+
+    fetch('{% url "lancar_notas" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify(dados)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.mensagem) {
+            alert(data.mensagem);
+            location.reload();
+        } else {
+            alert(data.erro || "Erro ao salvar.");
+        }
+    })
+    .catch(error => {
+        console.error("Erro na requisição:", error);
+        alert("Erro inesperado ao salvar.");
+    });
+}
+</script>
+
+</body>
 </html>

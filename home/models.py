@@ -545,3 +545,114 @@ class RegistroPedagogico(models.Model):
             f"{self.aluno} - {self.get_trimestre_display()} "
             f"({self.ano_letivo})"
         )
+
+###########################################################################
+# notas
+###########################################################################
+
+class TipoAvaliacao(models.Model):
+    nome = models.CharField(max_length=100)
+    peso = models.DecimalField(max_digits=5, decimal_places=2, default=1)
+
+    escola = models.ForeignKey(
+        'Escola',
+        on_delete=models.CASCADE,
+        related_name='tipos_avaliacao'
+    )
+
+    ativo = models.BooleanField(default=True)
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.nome} ({self.escola.nome})"
+
+
+class Avaliacao(models.Model):
+
+    BIMESTRES = [
+        (1, '1º Bimestre'),
+        (2, '2º Bimestre'),
+        (3, '3º Bimestre'),
+        (4, '4º Bimestre'),
+    ]
+
+    disciplina = models.ForeignKey(
+        'Disciplina',
+        on_delete=models.CASCADE,
+        related_name='avaliacoes'
+    )
+
+    tipo = models.ForeignKey(
+        'TipoAvaliacao',
+        on_delete=models.PROTECT,
+        related_name='avaliacoes'
+    )
+
+    descricao = models.CharField(max_length=200)
+
+    bimestre = models.IntegerField(choices=BIMESTRES)
+
+    data = models.DateField()
+
+    escola = models.ForeignKey(
+        'Escola',
+        on_delete=models.CASCADE,
+        related_name='avaliacoes'
+    )
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.descricao} - {self.disciplina.nome}"
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['disciplina', 'bimestre', 'descricao', 'escola'],
+                name='unique_avaliacao_por_disciplina_bimestre_escola'
+            )
+        ]
+        ordering = ['-data']
+
+
+
+class Nota(models.Model):
+    aluno = models.ForeignKey(
+        'Aluno',
+        on_delete=models.CASCADE,
+        related_name='notas'
+    )
+
+    avaliacao = models.ForeignKey(
+        'Avaliacao',
+        on_delete=models.CASCADE,
+        related_name='notas'
+    )
+
+    valor = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    escola = models.ForeignKey(
+        'Escola',
+        on_delete=models.CASCADE,
+        related_name='notas'
+    )
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('aluno', 'avaliacao')
+
+    def __str__(self):
+        return f"{self.aluno.nome} - {self.avaliacao.descricao}"
+
+
+
