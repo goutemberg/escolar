@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    {% include 'partials/_head.html' %}
+</head>
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<div class="container mt-4">
+    <h3>Tipos de Avaliação</h3>
+
+    <div class="mb-3">
+        <input type="text" id="nome" placeholder="Nome (Ex: Prova)" class="form-control mb-2">
+        <input type="number" id="peso" placeholder="Peso" step="0.1" class="form-control mb-2">
+        <button onclick="criarTipo()" class="btn btn-warning">Cadastrar</button>
+    </div>
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Peso</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for tipo in tipos %}
+            <tr>
+                <td>{{ tipo.nome }}</td>
+                <td>{{ tipo.peso }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function criarTipo() {
+
+    fetch("", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+            nome: document.getElementById("nome").value,
+            peso: document.getElementById("peso").value
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert(data.mensagem || data.erro);
+        location.reload();
+    });
+}
+</script>
+
+</body>
+</html>
