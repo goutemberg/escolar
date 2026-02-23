@@ -5,9 +5,11 @@ def vincular_chamadas_a_diarios(apps, schema_editor):
     Chamada = apps.get_model("home", "Chamada")
     DiarioDeClasse = apps.get_model("home", "DiarioDeClasse")
 
-    for chamada in Chamada.objects.filter(diario__isnull=True):
+    for chamada in Chamada.objects.all().iterator():
 
-        # Tentativa 1: casar por data + turma + disciplina
+        if chamada.diario_id is not None:
+            continue
+
         diario_qs = DiarioDeClasse.objects.filter(
             data_ministrada=chamada.data,
             turma=chamada.turma,
@@ -16,7 +18,6 @@ def vincular_chamadas_a_diarios(apps, schema_editor):
 
         diario = diario_qs.first()
 
-        # Se não existir, cria um diário novo
         if not diario:
             diario = DiarioDeClasse.objects.create(
                 data_ministrada=chamada.data,
@@ -39,5 +40,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(vincular_chamadas_a_diarios),
+        migrations.RunPython(
+            vincular_chamadas_a_diarios,
+            reverse_code=migrations.RunPython.noop,
+        ),
     ]
