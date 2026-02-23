@@ -1,10 +1,12 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.db.models import Prefetch
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 import json
-from datetime import date
+from datetime import date, datetime
+from collections import defaultdict
+from decimal import Decimal
 
 from home.models import (
     Turma,
@@ -316,5 +318,114 @@ def lancar_notas(request):
 # BOLETIM
 # =========================
 
+@login_required
 def boletim_aluno(request, aluno_id):
-    pass
+
+    escola = request.user.escola
+
+    aluno = get_object_or_404(Aluno, id=aluno_id, escola=escola)
+
+    # Buscar todas disciplinas da escola
+    disciplinas = Disciplina.objects.filter(escola=escola)
+
+    boletim = []
+
+    for disciplina in disciplinas:
+
+        avaliacoes = Avaliacao.objects.filter(
+            escola=escola,
+            disciplina=disciplina
+        ).select_related("tipo")
+
+        notas = Nota.objects.filter(
+            escola=escola,
+            aluno=aluno,
+            avaliacao__disciplina=disciplina
+        ).select_related("avaliacao", "avaliacao__tipo")
+
+        # Organizar por bimestre
+        bimestres = {
+            1: [],
+            2: [],
+            3: [],
+            4: []
+        }
+
+        for nota in notas:
+            bimestres[nota.avaliacao.bimestre].append(nota)
+
+        medias_bimestre = {}
+
+        for bimestre, lista_notas in bimestres.items():
+
+            if not lista_notas:
+                medias_bimestre[bimestre] = None
+                continue
+
+            soma = Decimal(0)
+            soma_peso = Decimal(0)
+            nota_recuperacao = None
+
+            for nota in lista_notas:
+
+                peso = nota.avaliacao.tipo.peso or Decimal(1)
+
+                # Se for recuperação
+                if nota.avaliacao.tipo.nome.lower() == "recuperação":
+                    nota_recuperacao = nota.valor
+                    continue
+
+                soma += nota.valor * peso
+                soma_peso += peso
+
+            if soma_peso > 0:
+                media = soma / soma_peso
+            else:
+                media = None
+
+            # Aplicar regra da recuperação
+            if nota_recuperacao is not None:
+                if media is None:
+                    media_final = nota_recuperacao
+                else:
+                    media_final = max(media, nota_recuperacao)
+            else:
+                media_final = media
+
+            medias_bimestre[bimestre] = (
+                round(media_final, 2) if media_final is not None else None
+            )
+
+        # Média final anual
+        notas_validas = [
+            m for m in medias_bimestre.values() if m is not None
+        ]
+
+        if notas_validas:
+            media_final = round(
+                sum(notas_validas) / len(notas_validas), 2
+            )
+        else:
+            media_final = None
+
+        situacao = (
+            "Aprovado"
+            if media_final is not None and media_final >= 7
+            else "Reprovado"
+        )
+
+        boletim.append({
+            "disciplina": disciplina.nome,
+            "bimestres": medias_bimestre,
+            "media_final": media_final,
+            "situacao": situacao
+        })
+
+    context = {
+        "escola": escola,
+        "aluno": aluno,
+        "boletim": boletim,
+        "ano": datetime.now().year
+    }
+
+    return render(request, "avaliacoes/boletim_aluno.html", context)

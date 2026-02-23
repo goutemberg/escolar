@@ -1,0 +1,49 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    {% include 'partials/_head.html' %}
+</head>
+<body>
+{% include 'partials/_nav.html' %}
+
+<div class="container mt-5">
+
+    <h3>Boletim Consolidado - {{ turma.nome }}</h3>
+
+    <table class="table table-bordered mt-4">
+        <thead>
+            <tr>
+                <th>Aluno</th>
+                <th>Média Final</th>
+                <th>Situação</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for item in resultado %}
+            <tr>
+                <td>{{ item.aluno.nome }}</td>
+                <td>{{ item.media|default:"-" }}</td>
+                <td>
+                    {% if item.status == "Aprovado" %}
+                        <span class="badge badge-success">Aprovado</span>
+                    {% else %}
+                        <span class="badge badge-danger">Reprovado</span>
+                    {% endif %}
+                </td>
+            </tr>
+        {% empty %}
+            <tr>
+                <td colspan="3" class="text-center">
+                    Nenhum aluno encontrado.
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+{% include 'partials/_footer.html' %}
+</body>
+</html>

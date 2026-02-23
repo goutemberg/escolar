@@ -67,6 +67,7 @@ from .models import (
     Presenca,
     Chamada,
     RegistroPedagogico,
+    Nota,
 )
 from home.decorators import role_required
 from home.utils import gerar_matricula_unica
@@ -1957,41 +1958,49 @@ def listar_turmas_para_boletim(request):
 @login_required
 @role_required(['diretor', 'coordenador'])
 def visualizar_boletim(request, aluno_id):
+
     aluno = get_object_or_404(Aluno, pk=aluno_id)
+    escola = aluno.escola  # 👈 AQUI
+
     turma_id = request.GET.get("turma")
 
-    # Se turma for passada, filtra as notas por ela
-    if turma_id:
-        notas = Nota.objects.filter(
-            aluno=aluno,
-            escola=request.user.escola,
-            turma_id=turma_id
-        ).select_related('disciplina')
-    else:
-        # fallback se vier direto pela URL
-        notas = Nota.objects.filter(
-            aluno=aluno,
-            escola=request.user.escola
-        ).select_related('disciplina')
+    notas = Nota.objects.filter(
+        aluno=aluno,
+        escola=request.user.escola
+    ).select_related('avaliacao__disciplina', 'avaliacao')
 
-    # Organiza as notas no formato {disciplina: {1: nota, 2: nota, ...}}
+    if turma_id:
+        if not aluno.turmas.filter(id=turma_id).exists():
+            return HttpResponse("Aluno não pertence a essa turma.")
+
     from collections import defaultdict
 
-    boletim = defaultdict(lambda: {"1": None, "2": None, "3": None, "4": None, "obs": "", "media": None})
+    boletim = defaultdict(lambda: {
+        "1": None,
+        "2": None,
+        "3": None,
+        "4": None,
+        "obs": "",
+        "media": None
+    })
 
     for nota in notas:
-        nome_disciplina = nota.disciplina.nome
-        boletim[nome_disciplina][str(nota.bimestre)] = nota.valor
-        if nota.observacoes:
-            boletim[nome_disciplina]["obs"] = nota.observacoes
+        disciplina_nome = nota.avaliacao.disciplina.nome
+        bimestre = str(nota.avaliacao.bimestre)
+        boletim[disciplina_nome][bimestre] = nota.valor
 
     for dados in boletim.values():
-        notas_validas = [v for k, v in dados.items() if k in ['1', '2', '3', '4'] and v is not None]
+        notas_validas = [
+            v for k, v in dados.items()
+            if k in ['1', '2', '3', '4'] and v is not None
+        ]
+
         if notas_validas:
             dados["media"] = round(sum(notas_validas) / len(notas_validas), 2)
 
     return render(request, 'pages/boletim.html', {
         'aluno': aluno,
+        'escola': escola,  # 👈 AGORA ENVIA
         'boletim': dict(boletim)
     })
 

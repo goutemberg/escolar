@@ -1,134 +1,250 @@
 {% load static %}
-{% load dict_utils %}
 <!DOCTYPE html>
 <html lang="pt-br">
- <head>
-  {% include 'partials/_head.html' %}
- </head>
- <body>
-  {% include 'partials/_nav.html' %}
-{% block content %}
-  <div class="container mt-4" style="background: #fff; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-   <div class="text-center mb-4">
-    <img alt="Logo da Escola" height="80" src="{% static 'home/images/logo.svg' %}"/>
-    <h3 class="mt-3">
-     Boletim Escolar
-    </h3>
-   </div>
-   <div class="mb-4">
-    <strong>
-     Nome do Aluno:
-    </strong>
-    {{ aluno.nome }}
-    <br/>
-    <strong>
-     CPF:
-    </strong>
-    {{ aluno.cpf }}
-    <br/>
-    <strong>
-     Turma:
-    </strong>
-    {{ aluno.turmas.all.0.nome|default:"-" }}
-    <br/>
-    <strong>
-     Ano de Ingresso:
-    </strong>
-    {{ aluno.ano_ingresso|default:"-" }}
-    <br/>
-   </div>
-   <table class="table table-bordered text-center">
-    <thead class="bg-light text-dark">
-     <tr>
-      <th rowspan="2">
-       Disciplina
-      </th>
-      <th colspan="4">
-       Unidades
-      </th>
-      <th rowspan="2">
-       Média Anual
-      </th>
-      <th rowspan="2">
-       Recuperação
-      </th>
-      <th rowspan="2">
-       Média Final
-      </th>
-      <th rowspan="2">
-       Observações
-      </th>
-     </tr>
-     <tr>
-      <th>
-       1ª
-      </th>
-      <th>
-       2ª
-      </th>
-      <th>
-       3ª
-      </th>
-      <th>
-       4ª
-      </th>
-     </tr>
-    </thead>
-    <tbody>
-     {% for disciplina, dados in boletim.items %}
-     <tr>
-      <td>
-       {{ disciplina }}
-      </td>
-      <td>
-       {{ dados|dict_get:"1"|default:"-" }}
-      </td>
-      <td>
-       {{ dados|dict_get:"2"|default:"-" }}
-      </td>
-      <td>
-       {{ dados|dict_get:"3"|default:"-" }}
-      </td>
-      <td>
-       {{ dados|dict_get:"4"|default:"-" }}
-      </td>
-      <td>
-       {{ dados.media|default:"-" }}
-      </td>
-      {# Média Anual #}
-      <td>
-       –
-      </td>
-      {# Recuperação pode ser ajustada depois se houver campo #}
-      <td>
-       {{ dados.media|default:"-" }}
-      </td>
-      {# Média Final = igual à Anual por enquanto #}
-      <td>
-       {{ dados.obs|default:"-" }}
-      </td>
-     </tr>
-     {% empty %}
-     <tr>
-      <td class="text-center" colspan="9">
-       Nenhuma nota registrada.
-      </td>
-     </tr>
-     {% endfor %}
-    </tbody>
-   </table>
-   <div class="d-flex justify-content-between mt-4">
-    <a class="btn btn-secondary" href="{% url 'listar_turmas_boletim' %}">
-     Voltar
-    </a>
-    <button class="btn btn-outline-primary" onclick="window.print()">
-     Imprimir
-    </button>
-   </div>
-  </div>
-  {% endblock %}
-  <div>
-   {% include 'partials/_footer.html' %}
-  </div>
- </body>
+<head>
+    {% include 'partials/_head.html' %}
+    <style>
+
+        body {
+            background-color: #f5f6fa;
+        }
+
+        .boletim-container {
+            max-width: 1200px;
+            margin: 40px auto;
+        }
+
+        .boletim-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 35px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+
+        .boletim-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 35px;
+        }
+
+        .boletim-header img {
+            height: 70px;
+        }
+
+        .boletim-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .info-box strong {
+            display: block;
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .info-box span {
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        table thead {
+            background-color: #fab982;
+            color: #000;
+        }
+
+        table th {
+            text-align: center;
+            font-weight: 600;
+        }
+
+        table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .badge-aprovado {
+            background-color: #28a745;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .badge-reprovado {
+            background-color: #dc3545;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .btn-print {
+            border: 1px solid #fab982;
+            color: #fab982;
+        }
+
+        .btn-print:hover {
+            background-color: #fab982;
+            color: #000;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: #fff;
+            }
+
+            .boletim-card {
+                box-shadow: none;
+            }
+        }
+
+    </style>
+</head>
+
+<body>
+
+{% include 'partials/_nav.html' %}
+
+<div class="boletim-container">
+
+    <div class="boletim-card">
+
+        <!-- HEADER -->
+        <div class="boletim-header">
+            <div>
+                <img src="{% static 'home/images/logo.svg' %}" alt="Logo">
+            </div>
+            <div class="boletim-title">
+                Boletim Escolar {{ ano }}
+            </div>
+        </div>
+
+        <!-- DADOS DA ESCOLA -->
+        <div class="info-grid">
+            <div class="info-box">
+                <strong>Escola</strong>
+                <span>{{ escola.nome }}</span>
+            </div>
+            <div class="info-box">
+                <strong>CNPJ</strong>
+                <span>{{ escola.cnpj|default:"-" }}</span>
+            </div>
+            <div class="info-box">
+                <strong>Endereço</strong>
+                <span>{{ escola.cidade }} - {{ escola.estado }}</span>
+            </div>
+        </div>
+
+        <!-- DADOS DO ALUNO -->
+        <div class="info-grid">
+            <div class="info-box">
+                <strong>Aluno</strong>
+                <span>{{ aluno.nome }}</span>
+            </div>
+            <div class="info-box">
+                <strong>CPF</strong>
+                <span>{{ aluno.cpf }}</span>
+            </div>
+            <div class="info-box">
+                <strong>Turma</strong>
+                <span>{{ aluno.turmas.all.0.nome|default:"-" }}</span>
+            </div>
+            <div class="info-box">
+                <strong>Ano de Ingresso</strong>
+                <span>{{ aluno.ano_ingresso|default:"-" }}</span>
+            </div>
+        </div>
+
+        <!-- TABELA -->
+        <div class="table-responsive mt-4">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Disciplina</th>
+                        <th>1º</th>
+                        <th>2º</th>
+                        <th>3º</th>
+                        <th>4º</th>
+                        <th>Média Final</th>
+                        <th>Situação</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                {% for item in boletim %}
+                    <tr>
+                        <td style="text-align:left;">
+                            {{ item.disciplina }}
+                        </td>
+
+                        <td>{{ item.bimestres.1|default:"-" }}</td>
+                        <td>{{ item.bimestres.2|default:"-" }}</td>
+                        <td>{{ item.bimestres.3|default:"-" }}</td>
+                        <td>{{ item.bimestres.4|default:"-" }}</td>
+
+                        <td>
+                            {{ item.media_final|default:"-" }}
+                        </td>
+
+                        <td>
+                            {% if item.media_final %}
+                                {% if item.media_final >= 7 %}
+                                    <span class="badge-aprovado">Aprovado</span>
+                                {% else %}
+                                    <span class="badge-reprovado">Reprovado</span>
+                                {% endif %}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">
+                            Nenhuma nota registrada.
+                        </td>
+                    </tr>
+                {% endfor %}
+
+                </tbody>
+            </table>
+        </div>
+
+        <!-- BOTÕES -->
+        <div class="d-flex justify-content-between mt-4 no-print">
+            <a href="{% url 'listar_turmas_boletim' %}" class="btn btn-secondary">
+                Voltar
+            </a>
+
+            <button onclick="window.print()" class="btn btn-print">
+                Imprimir
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
+{% include 'partials/_footer.html' %}
+
+</body>
 </html>
