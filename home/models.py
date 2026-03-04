@@ -10,20 +10,37 @@ from .utils import gerar_matricula_unica
 #  ESCOLA
 # ================================================
 class Escola(models.Model):
+
+    TEMA_CHOICES = [
+        ("legacy", "Escola Pequeno Aprendiz"),
+        ("nucleo", "Padrão Núcleo Escolar"),
+    ]
+
     nome = models.CharField(max_length=255, unique=True)
+
     cnpj = models.CharField(
         max_length=18,
         unique=True,
-        validators=[RegexValidator(regex=r'^\d{14}$', message='CNPJ inválido')]
+        validators=[
+            RegexValidator(
+                regex=r'^\d{14}$',
+                message='CNPJ inválido'
+            )
+        ]
     )
+
     telefone = models.CharField(
         max_length=16,
-        validators=[RegexValidator(
-            regex=r'^\(?\d{2}\)?[\s-]?\d{4,5}-?\d{4}$',
-            message='Telefone inválido'
-        )]
+        validators=[
+            RegexValidator(
+                regex=r'^\(?\d{2}\)?[\s-]?\d{4,5}-?\d{4}$',
+                message='Telefone inválido'
+            )
+        ]
     )
+
     email = models.EmailField(max_length=100)
+
     endereco = models.CharField(max_length=255)
     numero = models.CharField(max_length=10)
     complemento = models.CharField(max_length=255, blank=True, null=True)
@@ -33,9 +50,17 @@ class Escola(models.Model):
     site = models.CharField(max_length=200, blank=True, null=True)
     cep = models.CharField(max_length=9, default='00000000')
 
+    # 🔵 Novo campo para controle de layout
+    tema = models.CharField(
+        max_length=20,
+        choices=TEMA_CHOICES,
+        default="nucleo",
+    )
+
     def clean(self):
         if self.cnpj:
             self.cnpj = self.cnpj.replace('.', '').replace('/', '').replace('-', '')
+
         if Escola.objects.filter(cnpj=self.cnpj).exclude(id=self.id).exists():
             raise ValidationError("Este CNPJ já está cadastrado no sistema.")
 

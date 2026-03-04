@@ -1,148 +1,271 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
- <head>
+<head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>
-   Escolinha - Nova Senha
-  </title>
+  <title>Escolinha - Nova Senha</title>
+
   <link href="{% static 'home/css/bootstrap.min.css' %}" rel="stylesheet"/>
   <link href="{% static 'home/css/identidade.css' %}" rel="stylesheet"/>
+
   <style>
-   body {
-      background: linear-gradient(135deg, #fff0e6, #fefefe);
+    /* ✅ CORES DO NÚCLEO (INLINE) */
+    :root{
+      --nucleo-primary: #0EA5E9;
+      --nucleo-primary-dark: #0284C7;
+
+      /* ✅ toque multicolor (bem sutil) */
+      --nucleo-rainbow: linear-gradient(90deg,
+        #0EA5E9 0%,
+        #22C55E 35%,
+        #F59E0B 70%,
+        #EF4444 100%
+      );
+
+      --bg-light: #f8fafc;
+      --bg-white: #ffffff;
+      --text-dark: #0f172a;
+      --text-light: #64748b;
+      --border-color: #e2e8f0;
     }
 
-    .login-wrapper {
+    body{
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background:
+        radial-gradient(900px 420px at 20% 10%, rgba(14,165,233,.18), transparent 60%),
+        radial-gradient(900px 420px at 85% 15%, rgba(34,197,94,.10), transparent 55%),
+        linear-gradient(180deg, #ffffff 0%, var(--bg-light) 100%);
+      color: var(--text-dark);
+      margin: 0;
     }
 
-    .login-card {
-      background-color: #fff;
-      border-radius: 20px;
-      padding: 40px 30px;
+    .login-wrapper{
+      min-height: 100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 24px;
+    }
+
+    .login-card{
       width: 100%;
-      max-width: 460px;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      max-width: 440px;
+      background: var(--bg-white);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 18px 45px rgba(0,0,0,.08);
     }
 
-    .login-title {
-      font-weight: bold;
-      color: #fab982;
-      text-align: center;
-      margin-bottom: 30px;
-      font-size: 28px;
+    .login-top{
+      position: relative;
+      padding: 18px 18px 14px;
+      background: rgba(14,165,233,.08);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: inset 0 3px 0 rgba(14,165,233,.55);
+      display:flex;
+      align-items:center;
+      gap: 12px;
     }
 
-    .btn-login {
-      background-color: #f89952;
-      color: #fff;
-      font-weight: bold;
-      border-radius: 4px;
-      transition: background-color 0.3s ease;
-      padding: 10px;
-      border: none;
+    .login-top::before{
+      content:"";
+      position:absolute;
+      left:0; right:0; top:0;
+      height:4px;
+      background: var(--nucleo-rainbow);
+    }
+
+    .logo-badge{
+      width: 70px;
+      height: 70px;
+      border-radius: 14px;
+      background: rgba(14,165,233,.10);
+      border: 1px solid rgba(14,165,233,.22);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex: 0 0 auto;
+      overflow: hidden;
+      padding: 6px; /* deixe 0 se quiser ocupar 100% */
+    }
+
+    .logo-badge img{
       width: 100%;
-      box-sizing: border-box;
-    }
-
-    .btn-login:hover {
-      background-color: #e28032;
-    }
-
-    .form-control-custom {
-      width: 100%;
-      padding: 8px;
-      border-radius: 4px;
-      border: 1px solid #f89952;
-      font-size: 0.95rem;
-      background-color: #fff;
-      color: #333;
-      box-sizing: border-box;
-    }
-
-    .form-control-custom:focus {
-      border-color: #f6821f;
-      outline: none;
-      box-shadow: 0 0 0 0.15rem rgba(248, 137, 82, 0.25);
-    }
-
-    label {
+      height: 100%;
+      object-fit: contain;
       display: block;
-      font-size: 0.85rem;
-      margin-bottom: 5px;
-      color: #444;
-      font-weight: normal;
     }
 
-    .alert {
-      font-size: 0.9rem;
-      margin-bottom: 10px;
-      padding: 10px;
-      border-radius: 4px;
+    .login-head{
+      flex: 1;
+      min-width: 0;
     }
 
-    .alert-danger {
-      background-color: #f8d7da;
-      color: #721c24;
+    .login-title{
+      margin: 0;
+      font-weight: 900;
+      font-size: 18px;
+      letter-spacing: .2px;
+      color: var(--text-dark);
+      line-height: 1.15;
     }
 
-    .alert-success {
-      background-color: #d4edda;
-      color: #155724;
+    .login-subtitle{
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--text-light);
+    }
+
+    .login-body{
+      padding: 18px;
+    }
+
+    label{
+      display:block;
+      font-size: .86rem;
+      margin-bottom: 6px;
+      color: var(--text-dark);
+      font-weight: 700;
+    }
+
+    .form-control-custom{
+      width: 100%;
+      height: 44px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      font-size: .95rem;
+      background: #fff;
+      color: var(--text-dark);
+      box-sizing: border-box;
+      transition: all .2s ease;
+    }
+
+    .form-control-custom:focus{
+      outline: none;
+      border-color: rgba(14,165,233,.60);
+      box-shadow: 0 0 0 3px rgba(14,165,233,.18);
+    }
+
+    .btn-login{
+      height: 44px;
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--nucleo-primary);
+      background: var(--nucleo-primary);
+      color: #fff;
+      font-weight: 900;
+      font-size: .95rem;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap: 8px;
+      transition: all .2s ease;
+    }
+
+    .btn-login:hover{
+      background: var(--nucleo-primary-dark);
+      border-color: var(--nucleo-primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(0,0,0,.10);
+    }
+
+    .alert{
+      font-size: .92rem;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      border: 1px solid transparent;
+    }
+
+    .alert-danger{
+      border-color: rgba(220,53,69,.18);
+      background: rgba(220,53,69,.08);
+      color: #842029;
+    }
+
+    .alert-success{
+      border-color: rgba(34,197,94,.22);
+      background: rgba(34,197,94,.10);
+      color: #14532d;
+    }
+
+    .helper{
+      margin-top: 12px;
+      font-size: 12.5px;
+      color: var(--text-light);
+      text-align: center;
+    }
+
+    .helper strong{
+      color: var(--nucleo-primary-dark);
     }
   </style>
- </head>
- <body>
+</head>
+
+<body>
   <div class="login-wrapper">
-   <div class="login-card">
-    <h2 class="login-title">
-     Nova Senha
-    </h2>
-    <div id="alerta">
+    <div class="login-card">
+
+      <div class="login-top">
+        <div class="logo-badge">
+          <img alt="Logo Núcleo Escolar" src="{% static 'home/images/logo.png' %}"/>
+        </div>
+
+        <div class="login-head">
+          <h2 class="login-title">Nova Senha</h2>
+          <div class="login-subtitle">Defina uma senha nova para continuar</div>
+        </div>
+      </div>
+
+      <div class="login-body">
+
+        <div id="alerta"></div>
+
+        <form id="trocarSenhaForm">
+          {% csrf_token %}
+
+          <div class="form-group mb-3">
+            <label for="nova_senha">Digite sua nova senha</label>
+            <input class="form-control-custom" id="nova_senha" name="nova_senha" required type="password"/>
+          </div>
+
+          <div class="form-group mb-3">
+            <label for="nova_senha_confirmar">Confirme sua nova senha</label>
+            <input class="form-control-custom" id="nova_senha_confirmar" name="nova_senha_confirmar" required type="password"/>
+          </div>
+
+          <button class="btn-login" type="submit">Atualizar Senha</button>
+
+          <div class="helper">
+            © {{ now|date:"Y" }} <strong>Núcleo Escolar</strong> • Gestão Escolar
+          </div>
+        </form>
+
+      </div>
     </div>
-    <form id="trocarSenhaForm">
-     {% csrf_token %}
-     <div class="form-group mb-3">
-      <label for="nova_senha">
-       Digite sua nova senha
-      </label>
-      <input class="form-control-custom" id="nova_senha" name="nova_senha" required="" type="password"/>
-     </div>
-     <div class="form-group mb-3">
-      <label for="nova_senha_confirmar">
-       Confirme sua nova senha
-      </label>
-      <input class="form-control-custom" id="nova_senha_confirmar" name="nova_senha_confirmar" required="" type="password"/>
-     </div>
-     <button class="btn-login" type="submit">
-      Atualizar Senha
-     </button>
-    </form>
-   </div>
   </div>
+
   <script>
-   document.getElementById("trocarSenhaForm").addEventListener("submit", function (event) {
-    event.preventDefault();
+    document.getElementById("trocarSenhaForm").addEventListener("submit", function (event) {
+      event.preventDefault();
 
-    const novaSenha = document.getElementById("nova_senha").value;
-    const confirmarSenha = document.getElementById("nova_senha_confirmar").value;
+      const novaSenha = document.getElementById("nova_senha").value;
+      const confirmarSenha = document.getElementById("nova_senha_confirmar").value;
 
-    fetch("{% url 'trocar_senha_api' %}", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": "{{ csrf_token }}"
-      },
-      body: JSON.stringify({
-        nova_senha: novaSenha,
-        nova_senha_confirmar: confirmarSenha
+      fetch("{% url 'trocar_senha_api' %}", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({
+          nova_senha: novaSenha,
+          nova_senha_confirmar: confirmarSenha
+        })
       })
-    })
       .then(res => res.json())
       .then(data => {
         const alerta = document.getElementById("alerta");
@@ -160,7 +283,7 @@
           '<div class="alert alert-danger">Erro interno ao tentar trocar a senha.</div>';
         console.error("Erro:", error);
       });
-  });
+    });
   </script>
- </body>
+</body>
 </html>

@@ -16,6 +16,9 @@ find /app -name "*.pyc" -delete || true
 echo "=== Rodando migrations ==="
 python manage.py migrate --noinput --settings=plantao_pro.settings.prod
 
+echo "=== Rodando o commands ==="
+python manage.py commands --clear --noinput --settings=plantao_pro.settings.prod
+
 echo "=== Gerando staticfiles NOVO (do zero) ==="
 python manage.py collectstatic --clear --noinput --settings=plantao_pro.settings.prod
 

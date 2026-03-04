@@ -1,0 +1,109 @@
+
+/* NÃO mexe no body do layout inteiro */
+body { background: transparent !important; }
+
+/* Garante grid dos cards no novo layout */
+.container .dashboard-cards,
+.container-fluid .dashboard-cards,
+main .dashboard-cards,
+.page-content .dashboard-cards{
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0,1fr)) !important;
+  gap:1rem !important;
+  margin-bottom:1.6rem !important;
+}
+@media(max-width:992px){
+  .container .dashboard-cards,
+  .container-fluid .dashboard-cards,
+  main .dashboard-cards,
+  .page-content .dashboard-cards{
+    grid-template-columns:repeat(2, minmax(0,1fr)) !important;
+  }
+}
+@media(max-width:576px){
+  .container .dashboard-cards,
+  .container-fluid .dashboard-cards,
+  main .dashboard-cards,
+  .page-content .dashboard-cards{
+    grid-template-columns:1fr !important;
+  }
+}
+
+/* Cards */
+.dash-card{
+  background:#fff;
+  padding:1.15rem 1.2rem;
+  border-radius:12px;
+  text-align:center;
+  border:2px solid #fab982;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+  cursor:pointer;
+  transition:all .2s ease;
+}
+.dash-card .icone-card{
+  font-size:2rem;
+  color:#fab982;
+  margin-bottom:.45rem;
+}
+.dash-card h4{ font-size:1rem; margin-bottom:.2rem; color:#374151; }
+.dash-card .valor{ font-size:1.75rem; font-weight:800; color:#111827; }
+.dash-card.ativo{
+  border:2px solid #ff8a00 !important;
+  background:#fff7ed !important;
+  box-shadow:0 6px 18px rgba(255,138,0,.18) !important;
+}
+
+/* Filtros mais “novo layout” (menos cara de bootstrap cru) */
+.list-controls{
+  display:flex;
+  flex-direction:column;
+  gap:.75rem;
+  margin-bottom:1.2rem;
+}
+.list-controls input,
+.list-controls select{
+  width:100% !important;
+  height:46px;
+  border:2px solid #fab982 !important;
+  border-radius:12px;
+  background:#fff;
+}
+
+/* Tabela no mesmo padrão */
+table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  background:#fff;
+  border-radius:12px;
+  overflow:hidden;
+  border:1px solid rgba(250,185,130,.55);
+}
+table thead th{
+  padding:12px;
+  background:#fff7ed;
+  border-bottom:1px solid rgba(250,185,130,.55);
+  font-weight:800;
+  cursor:pointer;
+  color:#374151;
+  white-space:nowrap;
+}
+table tbody td{ padding:12px; }
+table tbody tr:hover{ background:#fafafa; }
+
+/* Ações (mantém o seu padrão, só arredonda mais) */
+.action-icon{
+  width:36px;
+  height:36px;
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:all .15s ease;
+  margin:0 3px;
+}
+.action-icon:hover{
+  transform:scale(1.10);
+  box-shadow:0 6px 14px rgba(0,0,0,.12);
+}

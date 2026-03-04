@@ -1,0 +1,38 @@
+   
+        body { background: #f7f7f7; }
+
+        .list-controls { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1.4rem; }
+        .list-controls input, .list-controls select {
+            width: 100% !important; height: 44px;
+            border: 2px solid #fab982 !important; border-radius: 6px;
+        }
+
+        #autocompleteBox {
+            border: 2px solid #fab982;
+            border-top: none;
+            position: absolute;
+            background: #fff;
+            z-index: 999;
+            width: 100%;
+            display: none;
+            max-height: 220px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .15);
+            top: 44px;
+        }
+        #autocompleteBox div { padding: 8px 10px; cursor: pointer; }
+        #autocompleteBox div:hover { background: #f5f5f5; }
+
+        table {
+            width: 100%; border-collapse: collapse; background: #fff;
+            border-radius: 8px; overflow: hidden; border: 2px solid #fab982;
+        }
+        table thead th {
+            padding: 12px; background: #fef6ef; border-bottom: 2px solid #fab982;
+            font-weight: 600; cursor: pointer; color: #444;
+        }
+        table tbody td { padding: 10px 12px; }
+        table tbody tr:hover { background: #fafafa; }
+
+        mark { background: #ffe4b3; padding: 0 2px; }
+   

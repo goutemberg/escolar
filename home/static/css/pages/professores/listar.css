@@ -1,0 +1,105 @@
+    body { background:#f7f7f7; }
+
+    .dashboard-cards{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:1rem;
+      margin-bottom:2rem;
+    }
+
+    @media(max-width:992px){
+      .dashboard-cards{grid-template-columns:repeat(2,1fr);}
+    }
+    @media(max-width:576px){
+      .dashboard-cards{grid-template-columns:1fr;}
+    }
+
+    .dash-card{
+      background:#fff;
+      padding:1.2rem;
+      border-radius:10px;
+      text-align:center;
+      border:2px solid #fab982;
+      box-shadow:0 2px 4px rgba(0,0,0,.08);
+    }
+
+    .dash-card .icone-card{
+      font-size:2rem;
+      color:#fab982;
+      margin-bottom:.4rem;
+    }
+
+    .dash-card h4{
+      font-size:1rem;
+      margin-bottom:.25rem;
+      color:#444;
+    }
+
+    .dash-card .valor{
+      font-size:1.7rem;
+      font-weight:bold;
+      color:#444;
+    }
+
+    .list-controls{
+      display:flex;
+      flex-direction:column;
+      gap:.75rem;
+      margin-bottom:1.4rem;
+    }
+
+    .list-controls input,
+    .list-controls select{
+      height:44px;
+      border:2px solid #fab982 !important;
+      border-radius:6px;
+    }
+
+    table{
+      width:100%;
+      background:#fff;
+      border-radius:8px;
+      overflow:hidden;
+      border:2px solid #fab982;
+    }
+
+    thead th{
+      padding:12px;
+      background:#fef6ef;
+      border-bottom:2px solid #fab982;
+      cursor:pointer;
+    }
+
+    tbody td{ padding:10px 12px; }
+    tbody tr:hover{ background:#fafafa; }
+
+    mark{ background:#ffe4b3; }
+
+
+    /* garante os botões de ação lado a lado */
+td.col-acoes,
+td[data-col="acoes"],
+td.acoes,
+td:last-child{
+  white-space: nowrap;
+}
+
+/* se você usa um wrapper (recomendado) */
+.actions-inline{
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+/* fallback: quando não tem wrapper e os ícones são spans/a */
+.action-icon{
+  display: inline-flex !important;
+  vertical-align: middle;
+}
+
+/* garante que nada force quebra */
+.action-icon,
+.action-icon *{
+  white-space: nowrap;
+}

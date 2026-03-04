@@ -1,0 +1,15 @@
+{% extends "nucleo/base_nucleo.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+</div>
+
+<div class="grid">
+    {% include "nucleo/components/card.html" with title="Alunos" value="120" %}
+    {% include "nucleo/components/card.html" with title="Professores" value="15" %}
+    {% include "nucleo/components/card.html" with title="Turmas" value="8" %}
+</div>
+{% endblock %}

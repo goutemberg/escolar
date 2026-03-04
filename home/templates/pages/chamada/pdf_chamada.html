@@ -1,49 +1,266 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="utf-8">
-<style>
-body { font-family: DejaVu Sans, sans-serif; font-size: 11pt; }
-h2 { text-align: center; margin-bottom: 10px; }
-table { width: 100%; border-collapse: collapse; }
-td, th { border: 1px solid #000; padding: 5px; }
-th { background: #f0f0f0; }
-.assinatura { margin-top: 40px; text-align: center; }
-</style>
+  <meta charset="utf-8">
+  <style>
+    /* ====== Tokens simples (compatíveis com PDF) ====== */
+    :root{
+      --primary: {{ escola_cor_primaria|default:"#fab982" }};
+      --primary-dark: {{ escola_cor_secundaria|default:"#f97316" }};
+      --text: #111827;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --bg: #ffffff;
+      --soft: #fff7ed;
+    }
+
+    body{
+      font-family: DejaVu Sans, sans-serif;
+      font-size: 10.5pt;
+      color: var(--text);
+      background: var(--bg);
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ====== Layout ====== */
+    .page{
+      padding: 22px 26px;
+    }
+
+    .header{
+      display: table;
+      width: 100%;
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+    }
+    .header .col{
+      display: table-cell;
+      vertical-align: middle;
+    }
+    .header .logo{
+      width: 110px;
+    }
+    .header .logo img{
+      max-height: 55px;
+      max-width: 110px;
+    }
+    .header .title{
+      text-align: right;
+    }
+    .header .title h1{
+      margin: 0;
+      font-size: 16pt;
+      letter-spacing: .2px;
+    }
+    .header .title .sub{
+      margin-top: 2px;
+      font-size: 9.5pt;
+      color: var(--muted);
+    }
+
+    .school-block{
+      margin-top: 10px;
+      font-size: 9.8pt;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .school-block strong{ color: var(--text); }
+
+    .meta{
+      margin: 12px 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #fff;
+    }
+    .meta-row{
+      display: table;
+      width: 100%;
+    }
+    .meta-item{
+      display: table-cell;
+      padding: 4px 8px 4px 0;
+      vertical-align: top;
+    }
+    .meta-label{
+      font-size: 9pt;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .meta-value{
+      font-weight: 700;
+    }
+
+    /* ====== Tabela ====== */
+    table{
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td{
+      border-bottom: 1px solid var(--line);
+      padding: 8px 8px;
+      vertical-align: top;
+    }
+    th{
+      background: var(--soft);
+      text-align: left;
+      font-size: 9.6pt;
+    }
+    td{
+      font-size: 10pt;
+    }
+    .col-presente{
+      width: 85px;
+      text-align: center;
+      font-weight: 700;
+    }
+    .pill-yes{
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #e6f4ea;
+      color: #0f5132;
+      border: 1px solid #b7e1c1;
+      font-size: 9pt;
+    }
+    .pill-no{
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #fdecea;
+      color: #842029;
+      border: 1px solid #f5c2c7;
+      font-size: 9pt;
+    }
+    .obs{
+      color: var(--muted);
+    }
+
+    /* ====== Rodapé / assinatura ====== */
+    .footer{
+      margin-top: 20px;
+      display: table;
+      width: 100%;
+    }
+    .sig{
+      display: table-cell;
+      width: 55%;
+      text-align: center;
+      padding-top: 26px;
+    }
+    .sig .line{
+      border-top: 1px solid #111;
+      margin: 0 40px 6px;
+    }
+    .sig .label{
+      font-size: 9pt;
+      color: var(--muted);
+    }
+    .stamp{
+      display: table-cell;
+      width: 45%;
+      text-align: right;
+      vertical-align: bottom;
+      font-size: 9pt;
+      color: var(--muted);
+    }
+
+  </style>
 </head>
+
 <body>
+  <div class="page">
 
-<h2>Folha de Chamada</h2>
+    <!-- HEADER -->
+    <div class="header">
+      <div class="col logo">
+        {% if escola_logo_url %}
+          <img src="{{ escola_logo_url }}" alt="Logo da Escola">
+        {% endif %}
+      </div>
+      <div class="col title">
+        <h1>Folha de Chamada</h1>
+        <div class="sub">Relatório oficial • {{ chamada.data|date:"d/m/Y" }}</div>
+      </div>
+    </div>
 
-<p><strong>Data:</strong> {{ chamada.data|date:"d/m/Y" }}</p>
-<p><strong>Turma:</strong> {{ chamada.turma.nome }}</p>
-<p><strong>Disciplina:</strong> {{ chamada.disciplina.nome }}</p>
-<p><strong>Professor:</strong> {{ chamada.professor.nome }}</p>
-<p><strong>Chamada registrada por:</strong> {{ chamada.criado_por.get_full_name }}</p>
-<br>
-<table>
-<thead>
-    <tr>
-        <th>Aluno</th>
-        <th>Presente</th>
-        <th>Observação</th>
-    </tr>
-</thead>
-<tbody>
-    {% for p in presencas %}
-    <tr>
-        <td>{{ p.aluno.nome }}</td>
-        <td>{{ "Sim" if p.presente else "Não" }}</td>
-        <td>{{ p.observacao|default:"" }}</td>
-    </tr>
-    {% endfor %}
-</tbody>
-</table>
+    <!-- DADOS DA ESCOLA -->
+    <div class="school-block">
+      <strong>{{ escola.nome }}</strong><br>
+      {% if escola.cnpj %}CNPJ: {{ escola.cnpj }} • {% endif %}
+      {% if escola.telefone %}Tel: {{ escola.telefone }} • {% endif %}
+      {% if escola.email %}E-mail: {{ escola.email }}{% endif %}<br>
+      {% if escola.endereco_completo %}
+        Endereço: {{ escola.endereco_completo }}
+      {% endif %}
+    </div>
 
-<div class="assinatura">
-    ___________________________________________<br>
-    Assinatura do Professor
-</div>
+    <!-- META -->
+    <div class="meta">
+      <div class="meta-row">
+        <div class="meta-item">
+          <div class="meta-label">Turma</div>
+          <div class="meta-value">{{ chamada.turma.nome }}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Disciplina</div>
+          <div class="meta-value">{{ chamada.disciplina.nome }}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Professor</div>
+          <div class="meta-value">{{ chamada.professor.nome }}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Registrado por</div>
+          <div class="meta-value">{{ chamada.criado_por.get_full_name }}</div>
+        </div>
+      </div>
+    </div>
 
+    <!-- TABELA -->
+    <table>
+      <thead>
+        <tr>
+          <th>Aluno</th>
+          <th class="col-presente">Presente</th>
+          <th>Observação</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in presencas %}
+          <tr>
+            <td>{{ p.aluno.nome }}</td>
+            <td class="col-presente">
+              {% if p.presente %}
+                <span class="pill-yes">Sim</span>
+              {% else %}
+                <span class="pill-no">Não</span>
+              {% endif %}
+            </td>
+            <td class="obs">{{ p.observacao|default:"" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- FOOTER -->
+    <div class="footer">
+      <div class="sig">
+        <div class="line"></div>
+        <div class="label">Assinatura do Professor</div>
+      </div>
+      <div class="stamp">
+        Emitido em {{ hoje|date:"d/m/Y" }} às {{ agora|date:"H:i" }}<br>
+        Sistema Escolinha • {{ escola.nome }}
+      </div>
+    </div>
+
+  </div>
 </body>
 </html>

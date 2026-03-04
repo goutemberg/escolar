@@ -1,0 +1,11 @@
+<header class="topbar">
+    <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
+
+    <div class="topbar-title">
+        {{ request.user.escola.nome|default:"Núcleo Escolar" }}
+    </div>
+
+    <div class="topbar-user">
+        {{ request.user.first_name }}
+    </div>
+</header>

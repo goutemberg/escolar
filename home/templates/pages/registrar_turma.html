@@ -1,251 +1,237 @@
+{% extends "layout/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="pt-br">
 
-<head>
-    {% include 'partials/_head.html' %}
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-    <style>
-        .form-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
+  {% with tema=user.escola.tema|default:"legacy" %}
+    {% if tema == "nucleo" %}
+      <link rel="stylesheet" href="{% static 'css/pages/NOME-DA-PAGINA-nucleo.css' %}">
+    {% else %}
+      <link rel="stylesheet" href="{% static 'css/pages/turmas/registrar.css' %}">
+    {% endif %}
+  {% endwith %}
 
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-width: 150px;
-        }
+{% endblock extra_head %}
 
-        .short-field {
-            max-width: 180px;
-        }
+{% block content %}
 
-        #sugestoes {
-            position: absolute;
-            z-index: 1000;
-            background: white;
-            list-style: none;
-            padding: 0;
-            margin-top: 0;
-            width: 100%;
-            border: 1px solid #ccc;
-            max-height: 200px;
-            overflow-y: auto;
-        }
+  <div class="titulo-pagina" id="tituloPagina">
+    {% if modo == "edit" %}
+      Editar Turma
+    {% else %}
+      Criar Turma
+    {% endif %}
+  </div>
 
-        #sugestoes:empty {
-            display: none;
-        }
+  <section class="content-wrapper" style="margin-top: 15px;">
+    <form id="turmaForm" method="post">
+      {% csrf_token %}
 
-        .tag-item {
-            display: inline-flex;
-            align-items: center;
-            background: #eee;
-            border-radius: 4px;
-            padding: 5px 8px;
-            margin: 4px;
-            font-size: 14px;
-        }
+      <input type="hidden" id="turmaId" value="{{ turma.id|default:'' }}">
 
-        .tag-item button {
-            margin-left: 6px;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            color: #d00;
-            font-weight: bold;
-        }
-
-        select.form-control,
-        input.form-control,
-        textarea.form-control {
-            border: 1px solid #fab982 !important;
-        }
-
-        select.form-control:focus,
-        input.form-control:focus,
-        textarea.form-control:focus {
-            border-color: #fab982 !important;
-            box-shadow: 0 0 0 2px rgba(250, 185, 130, 0.4) !important;
-        }
-
-        .campo-erro {
-            border-color: red !important;
-            box-shadow: 0 0 0 2px rgba(255, 0, 0, 0.3) !important;
-        }
-
-        .mensagem-erro {
-            font-size: 12px;
-            color: red;
-            margin-top: 4px;
-        }
-
-        @keyframes shake {
-            0% { transform: translateX(0); }
-            20% { transform: translateX(-6px); }
-            40% { transform: translateX(6px); }
-            60% { transform: translateX(-6px); }
-            80% { transform: translateX(6px); }
-            100% { transform: translateX(0); }
-        }
-
-        .shake {
-            animation: shake 0.3s;
-        }
-    </style>
-</head>
-
-<body>
-
-{% include 'partials/_nav.html' %}
-
-<section class="form-container">
-    <div class="container">
-
-        <div class="header-bar">
-            {% if turma %}
-                Editar Turma
-            {% else %}
-                Criar Turma
-            {% endif %}
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nomeTurmaSelect">Nome da Turma *</label>
+          <select id="nomeTurmaSelect" name="nome" class="form-control" required>
+            <option value="">Selecione</option>
+            {% for item in nomes_turma %}
+              <option value="{{ item.nome }}">{{ item.nome }}</option>
+            {% endfor %}
+          </select>
+          <div class="mensagem-erro" id="erroNome"></div>
         </div>
 
-        <section class="content-wrapper" style="margin-top: 15px;">
-            <form id="turmaForm" method="post">
-                {% csrf_token %}
+        <div class="form-group short-field">
+          <label for="turnoTurma">Turno *</label>
+          <select id="turnoTurma" name="turno" class="form-control" required>
+            <option value="">Selecione</option>
+            <option>Manhã</option>
+            <option>Tarde</option>
+            <option>Noite</option>
+          </select>
+          <div class="mensagem-erro" id="erroTurno"></div>
+        </div>
 
-                <!-- 🔑 ID DA TURMA (EDIÇÃO) -->
-                <input type="hidden" id="turmaId" value="{{ turma.id|default:'' }}">
+        <div class="form-group short-field">
+          <label for="anoTurma">Ano *</label>
+          <input id="anoTurma" name="ano" type="number" min="1900" max="2100" required class="form-control">
+          <div class="mensagem-erro" id="erroAno"></div>
+        </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="nomeTurmaSelect">Nome da Turma *</label>
-                        <select id="nomeTurmaSelect" name="nome" class="form-control" required>
-                            <option value="">Selecione</option>
-                            {% for item in nomes_turma %}
-                                <option value="{{ item.nome }}">{{ item.nome }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="mensagem-erro" id="erroNome"></div>
-                    </div>
+        <div class="form-group short-field">
+          <label for="salaTurma">Sala *</label>
+          <input id="salaTurma" name="sala" placeholder="Ex: 202" required type="text" class="form-control">
+          <div class="mensagem-erro" id="erroSala"></div>
+        </div>
+      </div>
 
-                    <div class="form-group short-field">
-                        <label for="turnoTurma">Turno *</label>
-                        <select id="turnoTurma" name="turno" class="form-control" required>
-                            <option value="">Selecione</option>
-                            <option>Manhã</option>
-                            <option>Tarde</option>
-                            <option>Noite</option>
-                        </select>
-                        <div class="mensagem-erro" id="erroTurno"></div>
-                    </div>
+      <div class="form-row">
+        <div class="form-group" style="width: 100%">
+          <label for="descricaoTurma">Descrição (opcional)</label>
+          <textarea id="descricaoTurma" name="descricao" rows="3" class="form-control"></textarea>
+        </div>
+      </div>
 
-                    <div class="form-group short-field">
-                        <label for="anoTurma">Ano *</label>
-                        <input id="anoTurma" name="ano" type="number" min="1900" max="2100" required class="form-control">
-                        <div class="mensagem-erro" id="erroAno"></div>
-                    </div>
+      <div class="form-row">
+        <div class="form-group short-field">
+          <label for="tipoPessoa">Tipo</label>
+          <select id="tipoPessoa" onchange="atualizarCampoDisciplina()" class="form-control">
+            <option value="professor">Professor</option>
+            <option value="aluno">Aluno</option>
+          </select>
+        </div>
 
-                    <div class="form-group short-field">
-                        <label for="salaTurma">Sala *</label>
-                        <input id="salaTurma" name="sala" placeholder="Ex: 202" required type="text" class="form-control">
-                        <div class="mensagem-erro" id="erroSala"></div>
-                    </div>
-                </div>
+        <div class="form-group" style="flex: 2; position: relative;">
+          <label for="buscaPessoa">Buscar Aluno ou Professor</label>
+          <input id="buscaPessoa" type="text" placeholder="Digite o nome" autocomplete="off" class="form-control">
+          <!-- mantém aqui pro JS externo achar, mas vamos mover pro body -->
+          <ul id="sugestoes"></ul>
+        </div>
 
-                <div class="form-row">
-                    <div class="form-group" style="width: 100%">
-                        <label for="descricaoTurma">Descrição (opcional)</label>
-                        <textarea id="descricaoTurma" name="descricao" rows="3" class="form-control"></textarea>
-                    </div>
-                </div>
+        <div class="form-group short-field">
+          <label for="disciplinaSelecionada">Disciplina</label>
+          <select id="disciplinaSelecionada" name="disciplina_id" class="form-control">
+            <option value="">Selecione a disciplina</option>
+            {% for disciplina in disciplinas %}
+              <option value="{{ disciplina.id }}">{{ disciplina.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-                <div class="form-row">
-                    <div class="form-group short-field">
-                        <label for="tipoPessoa">Tipo</label>
-                        <select id="tipoPessoa" onchange="atualizarCampoDisciplina()" class="form-control">
-                            <option value="professor">Professor</option>
-                            <option value="aluno">Aluno</option>
-                        </select>
-                    </div>
+        <div class="form-group short-field">
+          <label style="color: transparent;">Add</label>
+          <button class="btn btn-primary" type="button" onclick="adicionarPessoa()">Adicionar</button>
+        </div>
+      </div>
 
-                    <div class="form-group" style="flex: 2; position: relative;">
-                        <label for="buscaPessoa">Buscar Aluno ou Professor</label>
-                        <input id="buscaPessoa" type="text" placeholder="Digite o nome" autocomplete="off" class="form-control">
-                        <ul id="sugestoes"></ul>
-                    </div>
+      <div class="form-row">
+        <div class="form-group" style="width: 100%">
+          <label>Turma Montada</label>
+          <div id="turmaMontadaTags"
+               style="width: 100%; background-color: #f9f9f9; height: 180px; padding: 10px;
+               border: 1px solid #fab982; border-radius: 4px; overflow-y: auto;">
+          </div>
 
-                    <div class="form-group short-field">
-                        <label for="disciplinaSelecionada">Disciplina</label>
-                        <select id="disciplinaSelecionada" name="disciplina_id" class="form-control">
-                            <option value="">Selecione a disciplina</option>
-                            {% for disciplina in disciplinas %}
-                                <option value="{{ disciplina.id }}">{{ disciplina.nome }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+          <input type="hidden" id="professor_id" name="professor_id">
+          <input type="hidden" id="alunos_ids" name="alunos_ids">
+        </div>
+      </div>
 
-                    <div class="form-group short-field">
-                        <label style="color: transparent;">Add</label>
-                        <button class="btn btn-primary" type="button" onclick="adicionarPessoa()">Adicionar</button>
-                    </div>
-                </div>
+      <div class="form-footer">
+        <button type="submit" class="btn btn-primary">
+          {% if turma %}Atualizar Turma{% else %}Salvar Turma{% endif %}
+        </button>
+        <button type="button" id="btnCancelar" class="btn btn-secondary"> Cancelar </button>
+      </div>
 
-                <div class="form-row">
-                    <div class="form-group" style="width: 100%">
-                        <label>Turma Montada</label>
-                        <div id="turmaMontadaTags"
-                             style="width: 100%; background-color: #f9f9f9; height: 180px; padding: 10px;
-                             border: 1px solid #fab982; border-radius: 4px; overflow-y: auto;">
-                        </div>
+    </form>
+  </section>
 
-                        <input type="hidden" id="professor_id" name="professor_id">
-                        <input type="hidden" id="alunos_ids" name="alunos_ids">
-                    </div>
-                </div>
+{% endblock content %}
 
-                <div class="form-footer">
-                    <button type="submit" class="btn btn-primary">
-                        {% if turma %}Atualizar Turma{% else %}Salvar Turma{% endif %}
-                    </button>
-                    <button type="button" id="btnCancelar" class="btn btn-secondary"> Cancelar </button>
-                </div>
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
 
-            </form>
-        </section>
-    </div>
-</section>
+    // expõe porque o HTML chama no onchange
+    window.atualizarCampoDisciplina = function() {
+      const tipo = document.getElementById("tipoPessoa").value;
+      const selectDisciplina = document.getElementById("disciplinaSelecionada");
+      selectDisciplina.disabled = (tipo !== "professor");
+      if (tipo !== "professor") selectDisciplina.value = "";
+    };
 
-{% include 'partials/_footer.html' %}
+    if (typeof window.adicionarPessoa !== "function") {
+      window.adicionarPessoa = function() {
+        console.warn("adicionarPessoa() não está definido no formulario_turma_dinamico.js");
+      };
+    }
+
+    window.atualizarCampoDisciplina();
+
+    {% if turma %}
+      document.getElementById("nomeTurmaSelect").value = "{{ turma.nome }}";
+      document.getElementById("turnoTurma").value = "{{ turma.turno }}";
+      document.getElementById("anoTurma").value = "{{ turma.ano }}";
+      document.getElementById("salaTurma").value = "{{ turma.sala }}";
+      document.getElementById("descricaoTurma").value = "{{ turma.descricao|default:'' }}";
+    {% endif %}
+  });
+</script>
 
 <script src="{% static 'home/js/formulario_turma_dinamico.js' %}"></script>
 
 <script>
-    function atualizarCampoDisciplina() {
-        const tipo = document.getElementById('tipoPessoa').value;
-        const selectDisciplina = document.getElementById('disciplinaSelecionada');
-
-        selectDisciplina.disabled = (tipo !== 'professor');
-        if (tipo !== 'professor') {
-            selectDisciplina.value = '';
-        }
+  // ✅ FIX DEFINITIVO: move #sugestoes para o BODY (portal), impossível empurrar layout
+  (function(){
+    function getSugestoes(){
+      return document.getElementById("sugestoes");
+    }
+    function getInput(){
+      return document.getElementById("buscaPessoa");
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        atualizarCampoDisciplina();
+    function ensurePortal(){
+      const ul = getSugestoes();
+      if (!ul) return null;
 
-        {% if turma %}
-            document.getElementById("nomeTurmaSelect").value = "{{ turma.nome }}";
-            document.getElementById("turnoTurma").value = "{{ turma.turno }}";
-            document.getElementById("anoTurma").value = "{{ turma.ano }}";
-            document.getElementById("salaTurma").value = "{{ turma.sala }}";
-            document.getElementById("descricaoTurma").value = "{{ turma.descricao|default:'' }}";
-        {% endif %}
+      if (ul.parentElement !== document.body){
+        document.body.appendChild(ul);
+      }
+      return ul;
+    }
+
+    function reposition(){
+      const input = getInput();
+      const ul = ensurePortal();
+      if (!input || !ul) return;
+
+      const hasItems = ul.children.length > 0;
+      if (!hasItems){
+        ul.style.display = "none";
+        return;
+      }
+
+      const r = input.getBoundingClientRect();
+      ul.style.left = r.left + "px";
+      ul.style.top = (r.bottom + 6) + "px";
+      ul.style.width = r.width + "px";
+      ul.style.display = "block";
+    }
+
+    // roda depois do JS externo ter chance de mexer no DOM
+    window.addEventListener("load", function(){
+      // garante portal
+      ensurePortal();
+      reposition();
+
+      // observa mudanças na lista e reposiciona
+      const ul = getSugestoes();
+      if (ul){
+        const obs = new MutationObserver(reposition);
+        obs.observe(ul, { childList:true, subtree:true });
+      }
     });
-</script>
 
-</body>
-</html>
+    // reposiciona em resize/scroll/input
+    document.addEventListener("DOMContentLoaded", function(){
+      const input = getInput();
+      if (input){
+        input.addEventListener("input", reposition);
+        input.addEventListener("focus", reposition);
+        input.addEventListener("blur", () => setTimeout(() => {
+          const ul = getSugestoes();
+          if (ul) ul.style.display = "none";
+        }, 150));
+      }
+      window.addEventListener("resize", reposition);
+      window.addEventListener("scroll", reposition, true);
+    });
+
+    // se alguém reanexar a UL pra dentro do form, puxa de volta pro body
+    const guard = new MutationObserver(() => ensurePortal());
+    guard.observe(document.documentElement, { childList:true, subtree:true });
+  })();
+</script>
+{% endblock extra_js %}

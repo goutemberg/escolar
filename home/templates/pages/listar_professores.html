@@ -1,115 +1,19 @@
+{% extends "layout/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="pt-br">
 
-<head>
-  {% include 'partials/_head.html' %}
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-  <!-- Bootstrap Icons -->
-  <link rel="stylesheet"
-        href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  {% with tema=user.escola.tema|default:"legacy" %}
+    {% if tema == "nucleo" %}
+      <link rel="stylesheet" href="{% static 'css/pages/professores-nucleo.css' %}">
+    {% else %}
+      <link rel="stylesheet" href="{% static 'css/pages/professores/listar.css' %}">
+    {% endif %}
+  {% endwith %}
+{% endblock extra_head %}
 
-  <!-- Fuse.js -->
-  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
-
-  <style>
-    body { background:#f7f7f7; }
-
-    .titulo-pagina{
-      background:#6c757d;
-      color:#fff;
-      font-weight:bold;
-      font-size:1.4rem;
-      padding:.85rem 1.2rem;
-      border-radius:6px;
-      margin-bottom:1.4rem;
-      box-shadow:0 2px 4px rgba(0,0,0,.1);
-    }
-
-    .dashboard-cards{
-      display:grid;
-      grid-template-columns:repeat(4,1fr);
-      gap:1rem;
-      margin-bottom:2rem;
-    }
-
-    @media(max-width:992px){
-      .dashboard-cards{grid-template-columns:repeat(2,1fr);}
-    }
-    @media(max-width:576px){
-      .dashboard-cards{grid-template-columns:1fr;}
-    }
-
-    .dash-card{
-      background:#fff;
-      padding:1.2rem;
-      border-radius:10px;
-      text-align:center;
-      border:2px solid #fab982;
-      box-shadow:0 2px 4px rgba(0,0,0,.08);
-    }
-
-    .dash-card .icone-card{
-      font-size:2rem;
-      color:#fab982;
-      margin-bottom:.4rem;
-    }
-
-    .dash-card h4{
-      font-size:1rem;
-      margin-bottom:.25rem;
-      color:#444;
-    }
-
-    .dash-card .valor{
-      font-size:1.7rem;
-      font-weight:bold;
-      color:#444;
-    }
-
-    .list-controls{
-      display:flex;
-      flex-direction:column;
-      gap:.75rem;
-      margin-bottom:1.4rem;
-    }
-
-    .list-controls input,
-    .list-controls select{
-      height:44px;
-      border:2px solid #fab982 !important;
-      border-radius:6px;
-    }
-
-    table{
-      width:100%;
-      background:#fff;
-      border-radius:8px;
-      overflow:hidden;
-      border:2px solid #fab982;
-    }
-
-    thead th{
-      padding:12px;
-      background:#fef6ef;
-      border-bottom:2px solid #fab982;
-      cursor:pointer;
-    }
-
-    tbody td{ padding:10px 12px; }
-    tbody tr:hover{ background:#fafafa; }
-
-    mark{ background:#ffe4b3; }
-  </style>
-</head>
-
-<body>
-
-{% include 'partials/_nav.html' %}
-
-<section class="py-5">
-<div class="container">
-
+{% block content %}
   <div class="titulo-pagina">Lista de Professores</div>
 
   <!-- CARDS -->
@@ -186,146 +90,160 @@
       <button class="btn btn-secondary btn-sm" onclick="irPagina(9999)">»</button>
     </div>
   </div>
+{% endblock content %}
 
-</div>
-</section>
-
+{% block extra_js %}
 <script>
-const professores = JSON.parse(
-  document.getElementById("professores-data").textContent
-);
+  function ensureFuse(cb){
+    if (window.Fuse) return cb();
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
+    s.onload = cb;
+    s.onerror = function(){
+      console.error("Falha ao carregar Fuse.js");
+      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
+    };
+    document.head.appendChild(s);
+  }
 
-const fuse = new Fuse(professores,{
-  threshold:.3,
-  keys:["nome","cpf","email","cargo","telefone"]
-});
+  document.addEventListener("DOMContentLoaded", function () {
+    ensureFuse(function() {
+      const professores = JSON.parse(
+        document.getElementById("professores-data").textContent
+      );
 
-let termo="", status="", pageSize=25, paginaAtual=1, sortKey="", sortDir="asc";
+      const fuse = new Fuse(professores,{
+        threshold:.3,
+        keys:["nome","cpf","email","cargo","telefone"]
+      });
 
-function normaliza(v){
-  return (v||"").toString().normalize("NFD")
-    .replace(/[\u0300-\u036f]/g,"").toLowerCase();
-}
+      let termo="", status="", pageSize=25, paginaAtual=1, sortKey="", sortDir="asc";
 
-function aplicarFiltros(){
-  let lista = termo
-    ? fuse.search(termo).map(r=>r.item)
-    : professores;
+      function normaliza(v){
+        return (v||"").toString().normalize("NFD")
+          .replace(/[\u0300-\u036f]/g,"").toLowerCase();
+      }
 
-  if(status==="ativo") lista = lista.filter(p=>p.ativo);
-  if(status==="inativo") lista = lista.filter(p=>!p.ativo);
+      function aplicarFiltros(){
+        let lista = termo
+          ? fuse.search(termo).map(r=>r.item)
+          : professores;
 
-  return lista;
-}
+        if(status==="ativo") lista = lista.filter(p=>p.ativo);
+        if(status==="inativo") lista = lista.filter(p=>!p.ativo);
 
-function ordenar(lista){
-  if(!sortKey) return lista;
-  return lista.sort((a,b)=>{
-    let av = normaliza(a[sortKey]);
-    let bv = normaliza(b[sortKey]);
-    return av<bv ? (sortDir==="asc"?-1:1)
-         : av>bv ? (sortDir==="asc"?1:-1) : 0;
+        return lista;
+      }
+
+      function ordenar(lista){
+        if(!sortKey) return lista;
+        return lista.sort((a,b)=>{
+          let av = normaliza(a[sortKey]);
+          let bv = normaliza(b[sortKey]);
+          return av<bv ? (sortDir==="asc"?-1:1)
+               : av>bv ? (sortDir==="asc"?1:-1) : 0;
+        });
+      }
+
+      function atualizarCards(){
+        document.getElementById("cardTotal").innerText = professores.length;
+        document.getElementById("cardAtivos").innerText = professores.filter(p=>p.ativo).length;
+        document.getElementById("cardInativos").innerText = professores.filter(p=>!p.ativo).length;
+      }
+
+      // ✅ ÚNICA ALTERAÇÃO: expõe no window pro onclick funcionar
+      window.toggleStatus = function(id){
+        fetch(`/professores/${id}/toggle-status/`,{
+          method:"POST",
+          headers:{
+            "X-CSRFToken":"{{ csrf_token }}",
+            "X-Requested-With":"XMLHttpRequest"
+          }
+        })
+        .then(r=>r.json())
+        .then(d=>{
+          if(d.success){
+            const p = professores.find(x=>x.id===id);
+            p.ativo = d.ativo;
+            renderizar(paginaAtual);
+          } else {
+            alert("Erro ao alterar status");
+          }
+        });
+      }
+
+      function renderizar(p=1){
+        let lista = ordenar(aplicarFiltros());
+        atualizarCards();
+
+        const total = lista.length;
+        const totalPag = Math.max(1,Math.ceil(total/pageSize));
+        paginaAtual = Math.min(Math.max(1,p),totalPag);
+
+        const ini = (paginaAtual-1)*pageSize;
+        const fim = ini+pageSize;
+
+        const tbody = document.getElementById("tabelaProfessoresBody");
+        tbody.innerHTML="";
+
+        lista.slice(ini,fim).forEach(p=>{
+          tbody.insertAdjacentHTML("beforeend",`
+            <tr>
+              <td>${p.nome}</td>
+              <td>${p.cpf}</td>
+              <td>${p.cargo}</td>
+              <td>${p.telefone || "-"}</td>
+              <td>${p.email}</td>
+              <td>
+                ${p.ativo
+                  ? "<span class='badge badge-success'>Ativo</span>"
+                  : "<span class='badge badge-secondary'>Inativo</span>"}
+              </td>
+              <td>
+                <a class="btn btn-info btn-sm mr-1"
+                   href="/professores/${p.id}/editar/">Editar</a>
+
+                <button class="btn btn-sm ${p.ativo?'btn-warning':'btn-success'}"
+                        onclick="toggleStatus(${p.id})">
+                  ${p.ativo?'Inativar':'Ativar'}
+                </button>
+              </td>
+            </tr>
+          `);
+        });
+
+        document.getElementById("resultsInfo").innerText =
+          total ? `Mostrando ${ini+1}–${Math.min(fim,total)} de ${total}` : "Nenhum resultado";
+
+        document.getElementById("pageIndicator").innerText =
+          `${paginaAtual} / ${totalPag}`;
+      }
+
+      function irPagina(p){ renderizar(p); }
+
+      /* EVENTOS */
+      document.getElementById("filtroProfessor").oninput = e=>{
+        termo = normaliza(e.target.value);
+        renderizar(1);
+      };
+      document.getElementById("filtroStatus").onchange = e=>{
+        status = e.target.value;
+        renderizar(1);
+      };
+      document.getElementById("pageSize").onchange = e=>{
+        pageSize = parseInt(e.target.value);
+        renderizar(1);
+      };
+      document.querySelectorAll("th[data-sort]").forEach(th=>{
+        th.onclick=()=>{
+          sortDir = sortKey===th.dataset.sort && sortDir==="asc" ? "desc":"asc";
+          sortKey = th.dataset.sort;
+          renderizar(1);
+        };
+      });
+
+      renderizar(1);
+    });
   });
-}
-
-function atualizarCards(){
-  document.getElementById("cardTotal").innerText = professores.length;
-  document.getElementById("cardAtivos").innerText = professores.filter(p=>p.ativo).length;
-  document.getElementById("cardInativos").innerText = professores.filter(p=>!p.ativo).length;
-}
-
-function toggleStatus(id){
-  fetch(`/professores/${id}/toggle-status/`,{
-    method:"POST",
-    headers:{
-      "X-CSRFToken":"{{ csrf_token }}",
-      "X-Requested-With":"XMLHttpRequest"
-    }
-  })
-  .then(r=>r.json())
-  .then(d=>{
-    if(d.success){
-      const p = professores.find(x=>x.id===id);
-      p.ativo = d.ativo;
-      renderizar(paginaAtual);
-    } else {
-      alert("Erro ao alterar status");
-    }
-  });
-}
-
-function renderizar(p=1){
-  let lista = ordenar(aplicarFiltros());
-  atualizarCards();
-
-  const total = lista.length;
-  const totalPag = Math.max(1,Math.ceil(total/pageSize));
-  paginaAtual = Math.min(Math.max(1,p),totalPag);
-
-  const ini = (paginaAtual-1)*pageSize;
-  const fim = ini+pageSize;
-
-  const tbody = document.getElementById("tabelaProfessoresBody");
-  tbody.innerHTML="";
-
-  lista.slice(ini,fim).forEach(p=>{
-    tbody.insertAdjacentHTML("beforeend",`
-      <tr>
-        <td>${p.nome}</td>
-        <td>${p.cpf}</td>
-        <td>${p.cargo}</td>
-        <td>${p.telefone || "-"}</td>
-        <td>${p.email}</td>
-        <td>
-          ${p.ativo
-            ? "<span class='badge badge-success'>Ativo</span>"
-            : "<span class='badge badge-secondary'>Inativo</span>"}
-        </td>
-        <td>
-          <a class="btn btn-info btn-sm mr-1"
-             href="/professores/${p.id}/editar/">Editar</a>
-
-          <button class="btn btn-sm ${p.ativo?'btn-warning':'btn-success'}"
-                  onclick="toggleStatus(${p.id})">
-            ${p.ativo?'Inativar':'Ativar'}
-          </button>
-        </td>
-      </tr>
-    `);
-  });
-
-  document.getElementById("resultsInfo").innerText =
-    total ? `Mostrando ${ini+1}–${Math.min(fim,total)} de ${total}` : "Nenhum resultado";
-
-  document.getElementById("pageIndicator").innerText =
-    `${paginaAtual} / ${totalPag}`;
-}
-
-function irPagina(p){ renderizar(p); }
-
-/* EVENTOS */
-document.getElementById("filtroProfessor").oninput = e=>{
-  termo = normaliza(e.target.value);
-  renderizar(1);
-};
-document.getElementById("filtroStatus").onchange = e=>{
-  status = e.target.value;
-  renderizar(1);
-};
-document.getElementById("pageSize").onchange = e=>{
-  pageSize = parseInt(e.target.value);
-  renderizar(1);
-};
-document.querySelectorAll("th[data-sort]").forEach(th=>{
-  th.onclick=()=>{
-    sortDir = sortKey===th.dataset.sort && sortDir==="asc" ? "desc":"asc";
-    sortKey = th.dataset.sort;
-    renderizar(1);
-  };
-});
-
-renderizar(1);
 </script>
-
-</body>
-</html>
+{% endblock extra_js %}

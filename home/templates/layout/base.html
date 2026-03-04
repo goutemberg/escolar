@@ -1,0 +1,88 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    {% include 'partials/_head.html' %}
+
+    <link rel="stylesheet" href="{% static 'css/design-system.css' %}">
+    <link rel="stylesheet" href="{% static 'css/layout.css' %}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body class="theme-{{ user.escola.tema|default:'legacy' }}">
+
+<div class="app-wrapper">
+
+    <!-- SIDEBAR -->
+    {% include 'layout/partials/_sidebar.html' %}
+
+    <!-- MAIN AREA -->
+    <div class="main-content">
+
+        <!-- TOPBAR -->
+        <header class="topbar">
+
+            <button class="menu-toggle" type="button" onclick="toggleSidebar()">
+                <i class="bi bi-list"></i>
+            </button>
+
+            <div class="topbar-center">
+                <span class="school-name">
+                    {{ user.escola.nome }}
+                </span>
+            </div>
+
+            <div class="topbar-right">
+                <span class="user-name">
+                    {{ user.get_full_name|default:user.username }}
+                </span>
+                <i class="bi bi-person-circle"></i>
+            </div>
+
+        </header>
+
+        <!-- PAGE CONTENT PADRÃO -->
+        <main class="page-content">
+            <div class="page-container">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+
+    </div>
+
+</div>
+
+<script>
+function toggleSidebar() {
+    const sb = document.getElementById("sidebar");
+    if (sb) sb.classList.toggle("collapsed");
+}
+
+function toggleSubmenu(id){
+    const box = document.getElementById(id);
+    if (!box) return;
+    box.classList.toggle("open");
+
+    const btn = document.querySelector(`[data-submenu="${id}"]`);
+    if (btn){
+        const expanded = box.classList.contains("open");
+        btn.setAttribute("aria-expanded", expanded ? "true" : "false");
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+    document.querySelectorAll(".submenu").forEach(function(sm){
+        if (sm.querySelector(".nav-item.active")){
+            sm.classList.add("open");
+            const btn = document.querySelector(`[data-submenu="${sm.id}"]`);
+            if (btn) btn.setAttribute("aria-expanded", "true");
+        }
+    });
+});
+</script>
+
+{% block extra_js %}{% endblock %}
+</body>
+</html>

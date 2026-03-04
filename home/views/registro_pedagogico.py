@@ -11,6 +11,8 @@ from home.models import (
     RegistroPedagogico,
     Aluno,
     Turma,
+    Docente,
+    TurmaDisciplina,
 )
 
 MAX_TEXTO = 3000  # limite seguro (pode ajustar)
@@ -19,11 +21,28 @@ MAX_TEXTO = 3000  # limite seguro (pode ajustar)
 def registro_pedagogico_view(request):
     """
     Tela principal do Registro Pedagógico
+    - Diretor/Coordenador: vê todas as turmas da escola
+    - Professor: vê apenas turmas em que está vinculado (TurmaDisciplina)
     """
     usuario = request.user
     escola = usuario.escola
 
-    turmas = Turma.objects.filter(escola=escola)
+    if usuario.role == "professor":
+        professor = Docente.objects.filter(user=usuario, escola=escola).first()
+
+        if professor:
+            turmas = (
+                Turma.objects.filter(
+                    escola=escola,
+                    turmadisciplina__professor=professor,
+                )
+                .distinct()
+                .order_by("nome")
+            )
+        else:
+            turmas = Turma.objects.none()
+    else:
+        turmas = Turma.objects.filter(escola=escola).order_by("nome")
 
     return render(
         request,
@@ -97,6 +116,21 @@ def salvar_registro_pedagogico(request):
             status=404,
         )
 
+    # 🔒 Professor só pode salvar na turma em que está vinculado
+    if usuario.role == "professor":
+        professor = Docente.objects.filter(user=usuario, escola=escola).first()
+        if not professor:
+            return JsonResponse({"status": "erro", "mensagem": "Professor inválido"}, status=403)
+
+        permitido = TurmaDisciplina.objects.filter(
+            professor=professor,
+            turma=turma,
+            turma__escola=escola
+        ).exists()
+
+        if not permitido:
+            return JsonResponse({"status": "erro", "mensagem": "Turma não permitida para este professor"}, status=403)
+
     # 🔒 Transação atômica
     with transaction.atomic():
         for trimestre, texto in registros.items():
@@ -163,6 +197,21 @@ def buscar_registros_pedagogicos(request):
         turma = Turma.objects.get(id=turma_id, escola=escola)
     except (Aluno.DoesNotExist, Turma.DoesNotExist):
         return JsonResponse({"erro": "Aluno ou turma inválidos"}, status=404)
+
+    # 🔒 Professor só pode buscar na turma em que está vinculado
+    if usuario.role == "professor":
+        professor = Docente.objects.filter(user=usuario, escola=escola).first()
+        if not professor:
+            return JsonResponse({"erro": "Professor inválido"}, status=403)
+
+        permitido = TurmaDisciplina.objects.filter(
+            professor=professor,
+            turma=turma,
+            turma__escola=escola
+        ).exists()
+
+        if not permitido:
+            return JsonResponse({"erro": "Turma não permitida para este professor"}, status=403)
 
     registros = (
         RegistroPedagogico.objects
