@@ -1,0 +1,54 @@
+
+    .input-error {
+      border: 2px solid #ff4d4d !important;
+      background-color: #ffecec !important;
+}
+   /* Borda laranja para a aba ativa E durante o foco/click */
+      .tab-buttons button.active,
+      .tab-buttons button:focus,
+      .tab-buttons button:focus-visible{
+        border: 2px solid #ff8a00 !important;
+        outline: none !important;
+      }
+      /* Suaviza o foco sem “flash” azul do bootstrap */
+      .tab-buttons button:focus{
+        box-shadow: 0 0 0 .2rem rgba(255,138,0,.25) !important;
+      }
+
+      /* Feedback CPF inválido (sem mexer no tema global) */
+      .cpf-invalido{
+        border-color:#dc3545 !important;
+        outline: none;
+      }
+
+      /* Mensagens de erro inline */
+      .field-error{
+        display:block;
+        font-size:.85rem;
+        color:#dc3545; /* vermelho bootstrap */
+        margin-top:.25rem;
+      }
+      .d-none{display:none !important;}
+
+      /* Estado desabilitado mais escuro para descrição de alergia */
+      .is-disabled-dark {
+        background: #e0e0e0 !important;  /* cinza mais escuro */
+        border-color: #bdbdbd !important;
+        color: #555 !important;
+      }
+      .is-disabled-dark::placeholder {
+        color: #6b6b6b !important;
+      }
+
+      /* Radios em linha (compacto) */
+      .radio-group{
+        display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+      }
+      .radio-inline{
+        display:flex; align-items:center; gap:6px;
+      }
+
+      /* Linha com campos lado a lado em Saúde/Transporte já existente */
+      .form-row{ display:flex; gap:12px; flex-wrap:wrap; }
+      .form-group{ flex:1 1 260px; min-width:220px; }
+      .form-group.short-field{ flex:1 1 200px; min-width:160px; }

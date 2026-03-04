@@ -1,224 +1,277 @@
+{% extends "layout/base.html" %}
 {% load static %}
 {% load custom_tags %}
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    {% include 'partials/_head.html' %}
-    <style>
-        .content {
-            max-width: 1100px;
-            margin: 20px auto;
-        }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 14px;
-        }
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-        th, td {
-            padding: 8px;
-            border: 1px solid #ddd;
-            text-align: center;
-            vertical-align: middle;
-        }
-
-        th {
-            background-color: #fab982;
-            color: #000;
-            font-weight: 600;
-        }
-
-        td:first-child {
-            text-align: left;
-            font-weight: 500;
-        }
-
-        input[type="number"] {
-            width: 70px;
-            padding: 4px;
-            text-align: center;
-        }
-
-        .form-top {
-            margin-bottom: 20px;
-        }
-
-        .form-top select {
-            padding: 6px;
-            margin-right: 10px;
-        }
-
-        .btn-salvar {
-            background-color: #fab982;
-            border: none;
-            padding: 10px 25px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 20px;
-        }
-
-        .media-cell {
-            font-weight: bold;
-            background-color: #f9f9f9;
-        }
-
-        .sem-avaliacoes {
-            margin-top: 20px;
-            color: #999;
-        }
-    </style>
-</head>
-
-<body>
-
-{% include 'partials/_nav.html' %}
-
-<div class="content">
-
-    <h2>Lançamento de Notas</h2>
-
-    <form class="form-top" method="GET">
-        <label for="turma">Turma:</label>
-        <select id="turma" name="turma" onchange="this.form.submit()">
-            <option value="">Selecione uma turma</option>
-            {% for t in turmas %}
-                <option value="{{ t.id }}"
-                    {% if request.GET.turma == t.id|stringformat:"s" %}selected{% endif %}>
-                    {{ t.nome }} - {{ t.turno }}
-                </option>
-            {% endfor %}
-        </select>
-
-        {% if disciplinas %}
-            <label for="disciplina">Disciplina:</label>
-            <select id="disciplina" name="disciplina" onchange="this.form.submit()">
-                <option value="">Selecione uma disciplina</option>
-                {% for d in disciplinas %}
-                    <option value="{{ d.id }}"
-                        {% if request.GET.disciplina == d.id|stringformat:"s" %}selected{% endif %}>
-                        {{ d.nome }}
-                    </option>
-                {% endfor %}
-            </select>
-        {% endif %}
-    </form>
-
-    {% if alunos and avaliacoes %}
-
-    <form id="notasForm">
-        <input type="hidden" name="turma_id" value="{{ turma_id }}">
-        <input type="hidden" name="disciplina_id" value="{{ disciplina_id }}">
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Aluno</th>
-
-                    {% for avaliacao in avaliacoes %}
-                        <th>
-                            {{ avaliacao.descricao }}<br>
-                            <small>({{ avaliacao.tipo.nome }})</small>
-                        </th>
-                    {% endfor %}
-
-                    <th>Média</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for aluno in alunos %}
-                <tr>
-                    <td>{{ aluno.nome }}</td>
-
-                    {% for avaliacao in avaliacoes %}
-                        <td>
-                            <input
-                                type="number"
-                                step="0.1"
-                                min="0"
-                                max="10"
-                                name="{{ avaliacao.id }}_{{ aluno.id }}"
-                                value="{{ notas|get_nota_avaliacao:aluno.id|stringformat:'s'|add:'|'|add:avaliacao.id|stringformat:'s' }}"
-                            >
-                        </td>
-                    {% endfor %}
-
-                    <td class="media-cell">
-                        {{ medias|get_item:aluno.id|default:"-" }}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <button type="button" class="btn-salvar" onclick="salvarNotas()">
-            Salvar Notas
-        </button>
-
-    </form>
-
-    {% elif turma_id and disciplina_id %}
-        <p class="sem-avaliacoes">
-            Não há avaliações cadastradas para esta disciplina.
-        </p>
+  {% with tema=user.escola.tema|default:"legacy" %}
+    {% if tema == "nucleo" %}
+      <link rel="stylesheet" href="{% static 'css/pages/NOME-DA-PAGINA-nucleo.css' %}">
     {% else %}
-        <p>Selecione uma turma e uma disciplina para lançar as notas.</p>
+      <link rel="stylesheet" href="{% static 'css/pages/notas/lancar.css' %}">
     {% endif %}
+  {% endwith %}
+{% endblock extra_head %}
+
+{% block content %}
+<div class="content">
+  <div class="titulo-pagina">Lançamento de Notas</div>
+
+  <form class="form-top" method="GET">
+    <label for="turma">Turma:</label>
+    <select id="turma" name="turma" onchange="this.form.submit()">
+      <option value="">Selecione uma turma</option>
+      {% for t in turmas %}
+        <option value="{{ t.id }}"
+          {% if request.GET.turma == t.id|stringformat:"s" %}selected{% endif %}>
+          {{ t.nome }} - {{ t.turno }}
+        </option>
+      {% endfor %}
+    </select>
+
+    {% if disciplinas %}
+      <label for="disciplina">Disciplina:</label>
+      <select id="disciplina" name="disciplina" onchange="this.form.submit()">
+        <option value="">Selecione uma disciplina</option>
+        {% for d in disciplinas %}
+          <option value="{{ d.id }}"
+            {% if request.GET.disciplina == d.id|stringformat:"s" %}selected{% endif %}>
+            {{ d.nome }}
+          </option>
+        {% endfor %}
+      </select>
+    {% endif %}
+  </form>
+
+  {% if alunos and avaliacoes %}
+
+  <form id="notasForm">
+    <input type="hidden" name="turma_id" value="{{ turma_id }}">
+    <input type="hidden" name="disciplina_id" value="{{ disciplina_id }}">
+
+    <table>
+      <thead>
+        <tr>
+          <th>Aluno</th>
+
+          {% for avaliacao in avaliacoes %}
+            <th>
+              {{ avaliacao.descricao }}<br>
+              <small>({{ avaliacao.tipo.nome }})</small>
+            </th>
+          {% endfor %}
+
+          <th>Média</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for aluno in alunos %}
+        <tr data-aluno-row="{{ aluno.id }}">
+          <td>{{ aluno.nome }}</td>
+
+          {% for avaliacao in avaliacoes %}
+            <td>
+              <div class="nota-cell">
+                {% with aluno_notas=notas|get_item:aluno.id %}
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="10"
+                    class="nota-input"
+                    data-aluno="{{ aluno.id }}"
+                    data-avaliacao="{{ avaliacao.id }}"
+                    data-peso="{{ avaliacao.tipo.peso }}"
+                    name="{{ avaliacao.id }}_{{ aluno.id }}"
+                    value="{{ aluno_notas|get_item:avaliacao.id|default:'' }}"
+                  >
+                {% endwith %}
+
+                <button type="button"
+                        class="btn-limpar"
+                        title="Limpar nota"
+                        onclick="limparNota('{{ aluno.id }}','{{ avaliacao.id }}')">
+                  🗑️
+                </button>
+              </div>
+            </td>
+          {% endfor %}
+
+          <td class="media-cell" data-media="{{ aluno.id }}">
+            {{ medias|get_item:aluno.id|default:"-" }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <button type="button" class="btn-salvar" onclick="salvarNotas()">
+      Salvar Notas
+    </button>
+
+  </form>
+
+  {% elif turma_id and disciplina_id %}
+    <p class="sem-avaliacoes">
+      Não há avaliações cadastradas para esta disciplina.
+    </p>
+  {% else %}
+    <p>Selecione uma turma e uma disciplina para lançar as notas.</p>
+  {% endif %}
 
 </div>
+{% endblock content %}
 
-{% include 'partials/_footer.html' %}
-
+{% block extra_js %}
 <script>
-function salvarNotas() {
-
-    const form = document.getElementById('notasForm');
-    const turmaId = form.querySelector('input[name="turma_id"]').value;
-    const disciplinaId = form.querySelector('input[name="disciplina_id"]').value;
-
-    const dados = {
-        turma_id: turmaId,
-        disciplina_id: disciplinaId,
-        notas: {}
+  function ensureFuse(cb){
+    if (window.Fuse) return cb();
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
+    s.onload = cb;
+    s.onerror = function(){
+      console.error("Falha ao carregar Fuse.js");
+      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
     };
+    document.head.appendChild(s);
+  }
 
-    const inputs = form.querySelectorAll('input[type="number"]');
+  document.addEventListener("DOMContentLoaded", function () {
+    ensureFuse(function() {
 
-    inputs.forEach(input => {
-        const [avaliacaoId, alunoId] = input.name.split('_');
+      // =========================
+      // HELPERS (limpar + média ao vivo PONDERADA)
+      // =========================
+      window.limparNota = function(alunoId, avaliacaoId){
+        const input = document.querySelector(
+          `input.nota-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`
+        );
+        if (!input) return;
+        input.value = "";
+        atualizarMediaAluno(alunoId);
+      }
 
-        if (!dados.notas[alunoId]) {
-            dados.notas[alunoId] = {};
+      function atualizarMediaAluno(alunoId){
+        const inputs = document.querySelectorAll(`input.nota-input[data-aluno="${alunoId}"]`);
+
+        let numerador = 0;
+        let denominador = 0;
+
+        inputs.forEach(i => {
+          const v = (i.value || "").trim();
+          if (v === "") return;
+
+          
+          const n = Number(v.replace(",", "."));
+          if (!Number.isFinite(n)) return;
+
+          
+          const pesoRaw = (i.getAttribute("data-peso") || "1").trim();
+          const peso = Number(pesoRaw.replace(",", "."));
+          if (!Number.isFinite(peso) || peso <= 0) return;
+
+          numerador += (n * peso);
+          denominador += peso;
+        });
+
+        const cell = document.querySelector(`[data-media="${alunoId}"]`);
+        if (!cell) return;
+
+        if (denominador === 0){
+          cell.textContent = "-";
+        } else {
+          cell.textContent = (numerador / denominador).toFixed(1);
+        }
+      }
+
+      document.addEventListener("input", function(e){
+        if (e.target && e.target.classList.contains("nota-input")){
+          const alunoId = e.target.getAttribute("data-aluno");
+          if (alunoId) atualizarMediaAluno(alunoId);
+        }
+      });
+
+      // =========================
+      // SALVAR (robusto)
+      // =========================
+      window.salvarNotas = async function() {
+        const form = document.getElementById('notasForm');
+        if (!form) {
+          alert("Formulário de notas não encontrado.");
+          return;
         }
 
-        dados.notas[alunoId][avaliacaoId] = input.value;
-    });
+        const btn = document.querySelector(".btn-salvar");
+        if (btn) btn.disabled = true;
 
-    fetch('{% url "lancar_notas" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}',
-        },
-        body: JSON.stringify(dados)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.mensagem) {
+        try {
+          const turmaId = form.querySelector('input[name="turma_id"]').value;
+          const disciplinaId = form.querySelector('input[name="disciplina_id"]').value;
+
+          const dados = {
+            turma_id: turmaId,
+            disciplina_id: disciplinaId,
+            notas: {}
+          };
+
+          const inputs = form.querySelectorAll('input[type="number"]');
+
+          inputs.forEach(input => {
+            const [avaliacaoId, alunoId] = input.name.split('_');
+
+            if (!dados.notas[alunoId]) {
+              dados.notas[alunoId] = {};
+            }
+
+            // ✅ proteção: só envia se tiver valor preenchido
+            const val = (input.value || "").trim();
+            if (val === "") return;
+
+            dados.notas[alunoId][avaliacaoId] = val;
+          });
+
+          console.log("PAYLOAD /lancar_notas:", dados);
+
+          const resp = await fetch('{% url "lancar_notas" %}', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': '{{ csrf_token }}',
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(dados)
+          });
+
+          const text = await resp.text();
+          let data = null;
+          try { data = JSON.parse(text); } catch(e) {}
+
+          if (!resp.ok) {
+            console.error("HTTP", resp.status, text);
+            alert((data && (data.erro || data.error)) ? (data.erro || data.error) : `Erro HTTP ${resp.status}. Veja o console.`);
+            return;
+          }
+
+          if (data && data.mensagem) {
             alert(data.mensagem);
             location.reload();
-        } else {
-            alert(data.erro || "Erro ao salvar.");
-        }
-    })
-    .catch(error => {
-        console.error("Erro na requisição:", error);
-        alert("Erro inesperado ao salvar.");
-    });
-}
-</script>
+            return;
+          }
 
-</body>
-</html>
+          console.warn("Resposta inesperada:", text);
+          alert("Resposta inesperada do servidor. Veja o console.");
+
+        } catch (error) {
+          console.error("Erro na requisição:", error);
+          alert("Erro inesperado ao salvar. Veja o console.");
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      }
+
+    });
+  });
+</script>
+{% endblock extra_js %}

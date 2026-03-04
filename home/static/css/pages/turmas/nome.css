@@ -1,0 +1,49 @@
+ /* container padrão do layout */
+    .page-container{
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* força coluna de ações a não quebrar */
+    #tabelaNomes th:last-child,
+    #tabelaNomes td:last-child{
+      white-space: nowrap !important;
+      vertical-align: middle;
+      width: 220px;
+    }
+
+    /* wrapper dos botões */
+    .acoes-inline{
+      display: inline-flex !important;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: nowrap !important;
+    }
+
+    /* se o seu .btn global deixa grande demais, isso garante tamanho de "sm" */
+    .acoes-inline .btn.btn-sm{
+      height: 36px !important;
+      padding: 0 12px !important;
+      border-radius: 10px !important;
+      font-size: .88rem !important;
+      line-height: 1 !important;
+    }
+
+    /* garante que o td não vire flex/stack por CSS global */
+    #tabelaNomes td:last-child{
+      display: table-cell !important;
+    }
+
+    @media (max-width: 520px){
+      #tabelaNomes th:last-child,
+      #tabelaNomes td:last-child{
+        width: 1%;
+      }
+      .acoes-inline{ gap: 6px; }
+      .acoes-inline .btn.btn-sm{
+        height: 34px !important;
+        padding: 0 10px !important;
+        font-size: .86rem !important;
+      }
+    }

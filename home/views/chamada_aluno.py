@@ -17,6 +17,7 @@ import csv
 from openpyxl import Workbook
 
 from home.models import Chamada
+from django.core.paginator import Paginator
 
 import io
 import json
@@ -398,11 +399,7 @@ def listar_chamadas(request):
     # =====================================================
     if professor:
 
-        base = Chamada.objects.filter(
-            diario__professor=professor,
-            diario__turma__escola=user.escola
-        )
-
+        # ✅ pega as turmas/disciplinas que esse professor leciona
         turmas = Turma.objects.filter(
             turmadisciplina__professor=professor,
             escola=user.escola
@@ -412,6 +409,21 @@ def listar_chamadas(request):
             turmadisciplina__professor=professor,
             escola=user.escola
         ).distinct().order_by("nome")
+
+        turmas_ids = list(turmas.values_list("id", flat=True))
+        disciplinas_ids = list(disciplinas.values_list("id", flat=True))
+
+        # ✅ base: histórico limitado às turmas/disciplinas dele
+        # (isso evita ficar dependente de diario__professor estar preenchido corretamente)
+        base = Chamada.objects.filter(
+            diario__turma__escola=user.escola,
+            diario__turma_id__in=turmas_ids,
+            diario__disciplina_id__in=disciplinas_ids,
+        )
+
+        # ✅ se o diário tiver professor gravado, mantém compatibilidade (não quebra)
+        # e melhora a precisão quando estiver correto
+        base = base.filter(Q(diario__professor=professor) | Q(diario__professor__isnull=True))
 
     # =====================================================
     # PERFIL DIRETOR / COORDENADOR
@@ -474,7 +486,6 @@ def listar_chamadas(request):
     # =====================================================
     # PAGINAÇÃO
     # =====================================================
-    from django.core.paginator import Paginator
     paginator = Paginator(chamadas_queryset, 20)
     pagina = request.GET.get("page")
     chamadas = paginator.get_page(pagina)
@@ -495,7 +506,6 @@ def listar_chamadas(request):
             "filtro_disciplina": filtro_disciplina or "",
         }
     )
-
 
 # ======================================================
 # 5) DETALHE DA CHAMADA

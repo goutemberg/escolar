@@ -1,204 +1,203 @@
+{% extends "layout/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="pt-br">
 
-<head>
-    {% include 'partials/_head.html' %}
-</head>
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-<body>
+  {% with tema=user.escola.tema|default:"legacy" %}
+    {% if tema == "nucleo" %}
+      <link rel="stylesheet" href="{% static 'css/pages/NOME-DA-PAGINA-nucleo.css' %}">
+    {% else %}
+      <link rel="stylesheet" href="{% static 'css/pages/turmas/nome.css' %}">
+    {% endif %}
+  {% endwith %}
 
-{% csrf_token %}
-{% include 'partials/_nav.html' %}
+{% endblock extra_head %}
 
-<section class="content-wrapper" style="margin-top: 15px;">
-    <div class="header-bar">
-        Cadastro de Nome de Turma
-    </div>
+{% block content %}
+  <div class="page-container">
+
+    <div class="titulo-pagina">Cadastro de Nome de Turma</div>
 
     <div class="box" style="margin-bottom: 20px;">
-        <label for="nome_turma"><strong>Nome da Turma</strong></label>
-        <input id="nome_turma" type="text" class="form-control" placeholder="Ex.: 5º A, Infantil II, 7º B">
-        <small id="erro_nome" class="text-danger d-none"></small>
+      <label for="nome_turma"><strong>Nome da Turma</strong></label>
+      <input id="nome_turma" type="text" class="form-control" placeholder="Ex.: 5º A, Infantil II, 7º B">
+      <small id="erro_nome" class="text-danger d-none"></small>
 
-        <button id="btnSalvar" class="btn btn-primary" style="margin-top: 10px;">
-            Salvar
-        </button>
+      <button id="btnSalvar" class="btn btn-primary" style="margin-top: 10px;">
+        Salvar
+      </button>
     </div>
 
     <h4>Turmas cadastradas</h4>
 
     <table class="table table-striped" id="tabelaNomes">
-        <thead>
-            <tr>
-                <th>Nome</th>
-                <th style="width:160px;">Ações</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th style="width:160px;">Ações</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
     </table>
 
-</section>
+  </div>
+{% endblock content %}
 
-{% include 'partials/_footer.html' %}
-
+{% block extra_js %}
 <script>
-document.addEventListener("DOMContentLoaded", () => {
+  function ensureFuse(cb){
+    if (window.Fuse) return cb();
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
+    s.onload = cb;
+    s.onerror = function(){
+      console.error("Falha ao carregar Fuse.js");
+      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
+    };
+    document.head.appendChild(s);
+  }
 
-    // Função CSRF correta
-    function csrf() {
-        const el = document.querySelector("[name=csrfmiddlewaretoken]");
-        return el ? el.value : "";
-    }
+  document.addEventListener("DOMContentLoaded", function () {
+    ensureFuse(function() {
 
-    //----------------------------
-    // LISTAR NOMES AO CARREGAR
-    //----------------------------
-    function carregarLista() {
+      function csrf() {
+        const name = "csrftoken=";
+        const parts = document.cookie.split(";");
+        for (let p of parts) {
+          p = p.trim();
+          if (p.startsWith(name)) return decodeURIComponent(p.slice(name.length));
+        }
+        return "";
+      }
+
+      function carregarLista() {
         fetch("/turmas/nome/listar/")
-            .then(res => res.json())
-            .then(data => {
-                const tbody = document.querySelector("#tabelaNomes tbody");
-                tbody.innerHTML = "";
+          .then(res => res.json())
+          .then(data => {
+            const tbody = document.querySelector("#tabelaNomes tbody");
+            tbody.innerHTML = "";
 
-                data.nomes.forEach(item => {
-                    const tr = document.createElement("tr");
-                    tr.innerHTML = `
-                        <td>
-                            <input type="text" 
-                                   class="form-control form-control-sm nome-editavel" 
-                                   value="${item.nome}"
-                                   data-id="${item.id}"
-                                   disabled>
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-warning editar" data-id="${item.id}">
-                                Editar
-                            </button>
-                            <button class="btn btn-sm btn-success salvar d-none" data-id="${item.id}">
-                                Salvar
-                            </button>
-                            <button class="btn btn-sm btn-danger excluir" data-id="${item.id}">
-                                Excluir
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+            (data.nomes || []).forEach(item => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>
+                  <input type="text"
+                         class="form-control form-control-sm nome-editavel"
+                         value="${item.nome}"
+                         data-id="${item.id}"
+                         disabled>
+                </td>
+                <td>
+                  <div class="acoes-inline">
+                    <button class="btn btn-sm btn-warning editar" data-id="${item.id}">
+                      Editar
+                    </button>
+                    <button class="btn btn-sm btn-success salvar d-none" data-id="${item.id}">
+                      Salvar
+                    </button>
+                    <button class="btn btn-sm btn-danger excluir" data-id="${item.id}">
+                      Excluir
+                    </button>
+                  </div>
+                </td>
+              `;
+              tbody.appendChild(tr);
             });
-    }
+          });
+      }
 
-    carregarLista();
+      carregarLista();
 
-
-    //----------------------------
-    // SALVAR NOVO NOME
-    //----------------------------
-    document.querySelector("#btnSalvar").addEventListener("click", () => {
+      document.querySelector("#btnSalvar").addEventListener("click", () => {
         const nome = document.querySelector("#nome_turma").value.trim();
         const erro = document.querySelector("#erro_nome");
 
         erro.classList.add("d-none");
 
         if (!nome) {
-            erro.textContent = "Informe um nome.";
-            erro.classList.remove("d-none");
-            return;
+          erro.textContent = "Informe um nome.";
+          erro.classList.remove("d-none");
+          return;
         }
 
         fetch("/turmas/nome/cadastrar/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": csrf(),
-                "X-Requested-With": "XMLHttpRequest"
-            },
-            body: JSON.stringify({ nome })
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": csrf(),
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          body: JSON.stringify({ nome })
         })
         .then(res => res.json())
         .then(data => {
-            if (data.success) {
-                document.querySelector("#nome_turma").value = "";
-                carregarLista();
-            } else {
-                erro.textContent = data.error || "Erro ao salvar.";
-                erro.classList.remove("d-none");
-            }
+          if (data.success) {
+            document.querySelector("#nome_turma").value = "";
+            carregarLista();
+          } else {
+            erro.textContent = data.error || "Erro ao salvar.";
+            erro.classList.remove("d-none");
+          }
         });
-    });
+      });
 
-
-    //------------------------------------
-    // EVENTOS DA TABELA
-    //------------------------------------
-    document.querySelector("#tabelaNomes").addEventListener("click", (e) => {
+      document.querySelector("#tabelaNomes").addEventListener("click", (e) => {
         const id = e.target.dataset.id;
+        if (!id) return;
 
-        //----------------------------------
-        // EDITAR → habilita input e mostra salvar
-        //----------------------------------
         if (e.target.classList.contains("editar")) {
-            const input = document.querySelector(`input[data-id='${id}']`);
-            const botaoSalvar = document.querySelector(`.salvar[data-id='${id}']`);
-            const botaoEditar = e.target;
+          const input = document.querySelector(`input[data-id='${id}']`);
+          const botaoSalvar = document.querySelector(`.salvar[data-id='${id}']`);
+          const botaoEditar = e.target;
 
-            input.disabled = false;
-            input.focus();
+          input.disabled = false;
+          input.focus();
 
-            botaoEditar.classList.add("d-none");
-            botaoSalvar.classList.remove("d-none");
+          botaoEditar.classList.add("d-none");
+          botaoSalvar.classList.remove("d-none");
         }
 
-        //----------------------------------
-        // SALVAR EDIÇÃO
-        //----------------------------------
         if (e.target.classList.contains("salvar")) {
-            const input = document.querySelector(`input[data-id='${id}']`);
-            const nome = input.value.trim();
+          const input = document.querySelector(`input[data-id='${id}']`);
+          const nome = input.value.trim();
 
-            fetch("/turmas/nome/editar/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrf(),
-                    "X-Requested-With": "XMLHttpRequest"
-                },
-                body: JSON.stringify({ id, nome })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (!data.success) {
-                    alert("Erro ao editar.");
-                }
-                carregarLista();
-            });
+          fetch("/turmas/nome/editar/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrf(),
+              "X-Requested-With": "XMLHttpRequest"
+            },
+            body: JSON.stringify({ id, nome })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (!data.success) {
+              alert("Erro ao editar.");
+            }
+            carregarLista();
+          });
         }
 
-        //----------------------------------
-        // EXCLUIR
-        //----------------------------------
         if (e.target.classList.contains("excluir")) {
-            if (!confirm("Tem certeza que deseja excluir?")) return;
+          if (!confirm("Tem certeza que deseja excluir?")) return;
 
-            fetch("/turmas/nome/excluir/", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrf(),
-                    "X-Requested-With": "XMLHttpRequest"
-                },
-                body: JSON.stringify({ id })
-            })
-            .then(res => res.json())
-            .then(() => {
-                carregarLista();
-            });
+          fetch("/turmas/nome/excluir/", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": csrf(),
+              "X-Requested-With": "XMLHttpRequest"
+            },
+            body: JSON.stringify({ id })
+          })
+          .then(res => res.json())
+          .then(() => carregarLista());
         }
+      });
 
     });
-
-});
+  });
 </script>
-
-</body>
-</html>
+{% endblock extra_js %}

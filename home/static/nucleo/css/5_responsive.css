@@ -1,0 +1,17 @@
+@media (max-width: 768px) {
+
+  .sidebar {
+    position: fixed;
+    height: 100%;
+    z-index: 1000;
+    left: -100%;
+  }
+
+  .sidebar.active {
+    left: 0;
+  }
+
+  .main {
+    width: 100%;
+  }
+}

@@ -1,81 +1,25 @@
-<!DOCTYPE html>
-<html lang="pt-br">
- <head>
-  {% include 'partials/_head.html' %}
-  <style>
-    .input-error {
-      border: 2px solid #ff4d4d !important;
-      background-color: #ffecec !important;
-}
-   /* Borda laranja para a aba ativa E durante o foco/click */
-      .tab-buttons button.active,
-      .tab-buttons button:focus,
-      .tab-buttons button:focus-visible{
-        border: 2px solid #ff8a00 !important;
-        outline: none !important;
-      }
-      /* Suaviza o foco sem “flash” azul do bootstrap */
-      .tab-buttons button:focus{
-        box-shadow: 0 0 0 .2rem rgba(255,138,0,.25) !important;
-      }
+{% extends "layout/base.html" %}
+{% load static %}
 
-      /* Feedback CPF inválido (sem mexer no tema global) */
-      .cpf-invalido{
-        border-color:#dc3545 !important;
-        outline: none;
-      }
+{% block extra_head %}
 
-      /* Mensagens de erro inline */
-      .field-error{
-        display:block;
-        font-size:.85rem;
-        color:#dc3545; /* vermelho bootstrap */
-        margin-top:.25rem;
-      }
-      .d-none{display:none !important;}
+{% if user.escola.tema == "nucleo" %}
+<link rel="stylesheet" href="{% static 'css/pages/alunos/registrar-nucleo.css' %}">
+{% else %}
+<link rel="stylesheet" href="{% static 'css/pages/alunos/registrar-legacy.css' %}">
+{% endif %}
 
-      /* Botões do rodapé (Voltar / Cancelar / Salvar) laranja com texto branco */
-      .content-wrapper .form-footer .btn{
-        background:#ff8a00 !important;
-        border-color:#ff8a00 !important;
-        color:#fff !important;
-      }
-      .content-wrapper .form-footer .btn:hover{
-        background:#e67a00 !important;
-        border-color:#e67a00 !important;
-        color:#fff !important;
-      }
+{% endblock extra_head %}
 
-      /* Estado desabilitado mais escuro para descrição de alergia */
-      .is-disabled-dark {
-        background: #e0e0e0 !important;  /* cinza mais escuro */
-        border-color: #bdbdbd !important;
-        color: #555 !important;
-      }
-      .is-disabled-dark::placeholder {
-        color: #6b6b6b !important;
-      }
+{% block content %}
 
-      /* Radios em linha (compacto) */
-      .radio-group{
-        display:flex; gap:12px; align-items:center; flex-wrap:wrap;
-      }
-      .radio-inline{
-        display:flex; align-items:center; gap:6px;
-      }
-
-      /* Linha com campos lado a lado em Saúde/Transporte já existente */
-      .form-row{ display:flex; gap:12px; flex-wrap:wrap; }
-      .form-group{ flex:1 1 260px; min-width:220px; }
-      .form-group.short-field{ flex:1 1 200px; min-width:160px; }
-  </style>
- </head>
- <body>
-    {% include 'partials/_nav.html' %}
-  <section class="content-wrapper" style="margin-top: 15px;">
-   <div class="header-bar">
+  <div class="titulo-pagina">
+  {% if modo == "edit" %}
+    Editar Aluno
+  {% else %}
     Matricular Aluno
-   </div>
+  {% endif %}
+  </div>
    <div class="tab-buttons" style="padding-top: 1 !important; margin-top: 0 !important;">
     <button data-tab="0" onclick="showTab(0)" type="button">
      Informações Acadêmicas
@@ -922,11 +866,11 @@
      </button>
     </div>
    </form>
-  </section>
-  <footer>
-   {% include 'partials/_footer.html' %}
-  </footer>
-   </form>
+</section>
+{% endblock content %}
+
+{% block extra_js %}
+
   <script>
 /* =========================
    TABS
@@ -1284,7 +1228,5 @@ document.addEventListener('DOMContentLoaded', function () {
     btnEditar.style.display = 'none';
   }
 })();
-
 </script>
- </body>
-</html>
+{% endblock extra_js %}

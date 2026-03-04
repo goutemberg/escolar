@@ -16,6 +16,8 @@ class EscolaAdmin(admin.ModelAdmin):
     list_display = ('nome', 'cnpj', 'cidade', 'estado')
     search_fields = ('nome', 'cnpj')
     ordering = ('nome',)
+    list_display = ("nome", "tema")
+    list_editable = ("tema",)
 
 
 # ============================

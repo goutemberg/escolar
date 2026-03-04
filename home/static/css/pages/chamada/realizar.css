@@ -1,0 +1,135 @@
+        /* ================================
+           BLOCO PADRÃO DO SISTEMA
+        =================================*/
+        .box-padrao {
+            background: #ffffff;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            overflow: hidden;
+            max-width: 1100px;
+            margin: 1px auto 30px auto;
+        }
+
+        .box-header {
+            background: #6c757d;
+            color: #ffffff;
+            padding: 10px 18px; /* menos altura */
+            font-weight: 600;
+            font-size: 17px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .box-body {
+            padding: 12px 18px 16px 18px; /* tudo mais compacto */
+        }
+
+        /* ================================
+           FORMULÁRIO
+        =================================*/
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .form-control,
+        select,
+        input[type="date"],
+        input[type="text"] {
+            height: 40px !important;
+            border-radius: 6px !important;
+        }
+
+        /* ================================
+           TABELA
+        =================================*/
+        table.chamada-table {
+            width: 100%;
+            background: #fff;
+            border-collapse: collapse;
+            margin-top: 8px; /* menos distância */
+        }
+
+        table.chamada-table th,
+        table.chamada-table td {
+            padding: 9px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table.chamada-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        tr.erro-linha {
+            background-color: #ffe2e2 !important;
+        }
+
+        /* ================================
+           SWITCH
+        =================================*/
+        .switch-presenca {
+            width: 46px;
+            height: 24px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .switch-presenca input {
+            display: none;
+        }
+
+        .switch-presenca span {
+            position: absolute;
+            inset: 0;
+            background: #ccc;
+            border-radius: 24px;
+            cursor: pointer;
+            transition: .3s;
+        }
+
+        .switch-presenca span:before {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            left: 2px;
+            top: 2px;
+            background: #fff;
+            border-radius: 50%;
+            transition: .3s;
+        }
+
+        .switch-presenca input:checked + span {
+            background: #28a745;
+        }
+
+        .switch-presenca input:checked + span:before {
+            transform: translateX(22px);
+        }
+
+        /* ================================
+           RESUMO / LOADER
+        =================================*/
+        .resumo-box {
+            margin-top: 10px;
+            background: #fafafa;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid #eee;
+            font-weight: 500;
+        }
+
+        .erro-msg {
+            color: #c00;
+            font-size: .85rem;
+            margin-top: 3px;
+            display: none;
+        }
+
+        .loader {
+            display: none;
+            margin-left: 10px;
+        }

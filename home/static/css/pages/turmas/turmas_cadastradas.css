@@ -1,0 +1,181 @@
+/* =========================
+   NOVO LAYOUT (mais leve)
+   - menos laranja “gritando”
+   - laranja só como accent
+   - sombras neutras
+========================= */
+
+.box-padrao{
+  background: var(--bg-white, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  /* sombra neutra (mais leve) */
+  box-shadow: 0 10px 26px rgba(0,0,0,.06);
+  overflow: hidden;
+}
+
+/* header mais clean: laranja bem sutil */
+.box-header{
+  background: rgba(255,138,0,.06);
+  color: var(--text-dark, #1e293b);
+  padding: 14px 18px;
+  font-weight: 800;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  /* linha accent discreta */
+  box-shadow: inset 0 3px 0 rgba(255,138,0,.45);
+}
+
+.box-body{
+  padding: 16px 18px 18px;
+}
+
+.section-title{
+  font-size: 13.5px;
+  font-weight: 800;
+  margin-bottom: 10px;
+  color: var(--text-dark, #1e293b);
+  letter-spacing: .2px;
+}
+
+/* sub-box estilo “surface” (sem laranja) */
+.box-sub{
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  background: var(--bg-light, #f8fafc);
+}
+
+/* chips mais suaves */
+.badge-professor{
+  background: rgba(255,138,0,.10);
+  border: 1px solid rgba(255,138,0,.22);
+  color: var(--text-dark, #1e293b);
+  margin-right: 6px;
+  margin-bottom: 6px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+/* botão remover (chip) */
+.btn-remove{
+  background: transparent;
+  border: none;
+  color: #ff8a00;
+  font-weight: 900;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+.btn-remove:hover{
+  color: #e67a00;
+}
+
+/* remover linha (tabela) */
+.btn-remove-row{
+  background: rgba(220,53,69,.10);
+  border: 1px solid rgba(220,53,69,.18);
+  color: #dc3545;
+  font-weight: 900;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 6px 10px;
+  transition: var(--transition, all .25s ease);
+}
+.btn-remove-row:hover{
+  background: rgba(220,53,69,.16);
+  border-color: rgba(220,53,69,.28);
+  transform: translateY(-1px);
+}
+
+.empty-state{
+  padding: 16px 0 6px;
+  color: var(--text-light, #64748b);
+  font-size: 14px;
+}
+
+/* =========================
+   Bootstrap outline primary (laranja fixo)
+   - remove duplicidade: fica só UM bloco
+========================= */
+.btn-outline-primary{
+  color: #ff8a00 !important;
+  border-color: #ff8a00 !important;
+  background: transparent !important;
+}
+.btn-outline-primary:hover,
+.btn-outline-primary:focus{
+  color: #fff !important;
+  background: #ff8a00 !important;
+  border-color: #ff8a00 !important;
+}
+.btn-outline-primary:active{
+  background: #e67a00 !important;
+  border-color: #e67a00 !important;
+}
+
+/* =========================
+   TABELA (mais leve, com laranja só no “accent”)
+========================= */
+
+/* container da tabela: borda neutra + linha accent */
+table,
+.table{
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-white, #fff);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 12px;
+  overflow: hidden;
+  /* linha superior laranja (accent) */
+  box-shadow: inset 0 3px 0 rgba(255,138,0,.55);
+}
+
+/* header suave */
+table thead th,
+.table thead th{
+  background: rgba(255,138,0,.06);
+  color: var(--text-dark, #1e293b);
+  font-weight: 800;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+/* células */
+table tbody td,
+.table tbody td{
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+/* última linha sem borda inferior */
+table tbody tr:last-child td,
+.table tbody tr:last-child td{
+  border-bottom: none;
+}
+
+/* hover bem sutil */
+table tbody tr:hover,
+.table tbody tr:hover{
+  background: rgba(255,138,0,.03);
+}
+
+.btn-acao{
+  color: #ff8a00 !important;
+  border-color: #ff8a00 !important;
+  background: rgba(255,138,0,.06) !important;
+}
+.btn-acao:hover{
+  color: #fff !important;
+  background: #ff8a00 !important;
+  border-color: #ff8a00 !important;
+}
