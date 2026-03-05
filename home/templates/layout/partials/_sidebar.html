@@ -51,214 +51,241 @@
 }
 </style>
 
+{% with current_view=request.resolver_match.view_name|default:'' current_url=request.get_full_path %}
 <aside class="sidebar" id="sidebar">
 
   <div class="sidebar-brand">
-  {% with tema=user.escola.tema|default:"legacy"|lower %}
-    <img
-      src="{% static 'themes/' %}{{ tema }}/logo.png"
-      alt="Logo"
-      class="sidebar-logo"
-    >
-  {% endwith %}
+    {% with tema=user.escola.tema|default:"legacy"|lower %}
+      <img
+        src="{% static 'themes/' %}{{ tema }}/logo.png"
+        alt="Logo"
+        class="sidebar-logo"
+      >
+    {% endwith %}
+    <span class="brand-name">Núcleo Escolar</span>
+  </div>
 
-  {% comment %} <span class="brand-name">{{ user.escola.nome|default:"Núcleo Escolar" }}</span> {% endcomment %}
-  <span class="brand-name">{{ "Núcleo Escolar" }}</span>
-</div>
-    <nav class="sidebar-nav">
+  <nav class="sidebar-nav">
 
-        <!-- Dashboard -->
-        <a href="{% url 'index' %}"
-           class="nav-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
-            <i class="bi bi-speedometer2"></i>
-            <span>Dashboard</span>
-        </a>
+    <!-- Dashboard -->
+    <a href="{% url 'index' %}"
+       class="nav-item {% if current_view == 'index' %}active{% endif %}">
+      <i class="bi bi-speedometer2"></i>
+      <span>Dashboard</span>
+    </a>
 
-        {% if user|has_role:'diretor,coordenador,professor' %}
-        <!-- Gestão Acadêmica -->
-        <a class="nav-item submenu-toggle"
-           data-submenu="sm-academica"
-           aria-expanded="false"
-           onclick="toggleSubmenu('sm-academica')">
-            <span class="left">
-                <i class="bi bi-mortarboard"></i>
-                <span>Gestão Acadêmica</span>
-            </span>
-            <i class="bi bi-chevron-down chev"></i>
-        </a>
+    {% if user|has_role:'diretor,coordenador,professor' %}
+    <!-- Gestão Acadêmica -->
+    <a class="nav-item submenu-toggle"
+       data-submenu="sm-academica"
+       aria-expanded="false"
+       onclick="toggleSubmenu('sm-academica')">
+      <span class="left">
+        <i class="bi bi-mortarboard"></i>
+        <span>Gestão Acadêmica</span>
+      </span>
+      <i class="bi bi-chevron-down chev"></i>
+    </a>
 
-        <div class="submenu" id="sm-academica">
+    <div class="submenu" id="sm-academica">
 
-            {% if user|has_role:'diretor,coordenador' %}
-            <a href="{% url 'cadastro_professor' %}"
-               class="nav-item {% if request.resolver_match.url_name == 'cadastro_professor' %}active{% endif %}">
-                <i class="bi bi-person-plus"></i>
-                <span>Cadastrar Professor</span>
-            </a>
+      {% if user|has_role:'diretor,coordenador' %}
+      <a href="{% url 'cadastro_professor' %}"
+         class="nav-item {% if current_view == 'cadastro_professor' %}active{% endif %}">
+        <i class="bi bi-person-plus"></i>
+        <span>Cadastrar Professor</span>
+      </a>
 
-            <a href="{% url 'listar_professores' %}"
-               class="nav-item {% if request.resolver_match.url_name == 'listar_professores' %}active{% endif %}">
-                <i class="bi bi-card-list"></i>
-                <span>Listar Professores</span>
-            </a>
+      <a href="{% url 'listar_professores' %}"
+         class="nav-item {% if current_view == 'listar_professores' %}active{% endif %}">
+        <i class="bi bi-card-list"></i>
+        <span>Listar Professores</span>
+      </a>
 
-            <a href="{% url 'avaliacoes:tipos_avaliacao' %}" class="nav-item">
-                <i class="bi bi-tags"></i>
-                <span>Tipos de Avaliação</span>
-            </a>
+      <a href="{% url 'avaliacoes:tipos_avaliacao' %}"
+         class="nav-item {% if current_view == 'tipos_avaliacao' or current_view == 'avaliacoes:tipos_avaliacao' %}active{% endif %}">
+        <i class="bi bi-tags"></i>
+        <span>Tipos de Avaliação</span>
+      </a>
 
-            <a href="{% url 'avaliacoes:avaliacoes' %}" class="nav-item">
-                <i class="bi bi-plus-circle"></i>
-                <span>Cadastrar Avaliação</span>
-            </a>
-            {% endif %}
+      <a href="{% url 'avaliacoes:avaliacoes' %}"
+         class="nav-item {% if current_view == 'avaliacoes' or current_view == 'avaliacoes:avaliacoes' %}active{% endif %}">
+        <i class="bi bi-plus-circle"></i>
+        <span>Cadastrar Avaliação</span>
+      </a>
+      {% endif %}
 
-            {% if user|has_role:'professor,diretor,coordenador' %}
-            <a href="{% url 'registrar_notas' %}"
-               class="nav-item {% if request.resolver_match.url_name == 'registrar_notas' %}active{% endif %}">
-                <i class="bi bi-pencil-square"></i>
-                <span>Lançar Notas</span>
-            </a>
+      {% if user|has_role:'professor,diretor,coordenador' %}
+      <a href="{% url 'registrar_notas' %}"
+         class="nav-item {% if current_view == 'registrar_notas' %}active{% endif %}">
+        <i class="bi bi-pencil-square"></i>
+        <span>Lançar Notas</span>
+      </a>
 
-            <a href="{% url 'chamada:registrar_chamada' %}" class="nav-item">
-                <i class="bi bi-check2-square"></i>
-                <span>Registrar Chamada</span>
-            </a>
+      {% if user|has_role:'diretor,coordenador' %}
+      <a href="{% url 'listar_turmas_boletim' %}"
+         class="nav-item {% if current_view == 'listar_turmas_boletim' and '?tipo=turma' not in current_url %}active{% endif %}">
+        <i class="bi bi-file-earmark-text"></i>
+        <span>Ver Boletim</span>
+      </a>
 
-            <a href="{% url 'chamada:listar_chamadas' %}" class="nav-item">
-                <i class="bi bi-clock-history"></i>
-                <span>Histórico de Chamadas</span>
-            </a>
+      <a href="{% url 'pagina_cadastrar_disciplina' %}"
+         class="nav-item {% if current_view == 'pagina_cadastrar_disciplina' %}active{% endif %}">
+        <i class="bi bi-journal-text"></i>
+        <span>Cadastrar Disciplinas</span>
+      </a>
+      {% endif %}
 
-            <a href="{% url 'diario_classe' %}"
-               class="nav-item {% if request.resolver_match.url_name == 'diario_classe' %}active{% endif %}">
-                <i class="bi bi-journal-text"></i>
-                <span>Diário de Classe</span>
-            </a>
+      <a href="{% url 'chamada:registrar_chamada' %}"
+         class="nav-item {% if current_view == 'registrar_chamada' or current_view == 'chamada:registrar_chamada' %}active{% endif %}">
+        <i class="bi bi-check2-square"></i>
+        <span>Registrar Chamada</span>
+      </a>
 
-            <a href="{% url 'registro_pedagogico:registro_pedagogico' %}" class="nav-item">
-                <i class="bi bi-journal-bookmark"></i>
-                <span>Registro Pedagógico</span>
-            </a>
-            {% endif %}
+      <a href="{% url 'chamada:listar_chamadas' %}"
+         class="nav-item {% if current_view == 'listar_chamadas' or current_view == 'chamada:listar_chamadas' %}active{% endif %}">
+        <i class="bi bi-clock-history"></i>
+        <span>Histórico de Chamadas</span>
+      </a>
 
-        </div>
-        {% endif %}
+      <a href="{% url 'diario_classe' %}"
+         class="nav-item {% if current_view == 'diario_classe' %}active{% endif %}">
+        <i class="bi bi-journal-text"></i>
+        <span>Diário de Classe</span>
+      </a>
 
-        {% if user|has_role:'diretor,coordenador' %}
-        <!-- Alunos -->
-        <a class="nav-item submenu-toggle"
-           data-submenu="sm-alunos"
-           aria-expanded="false"
-           onclick="toggleSubmenu('sm-alunos')">
-            <span class="left">
-                <i class="bi bi-people"></i>
-                <span>Alunos</span>
-            </span>
-            <i class="bi bi-chevron-down chev"></i>
-        </a>
+      <a href="{% url 'registro_pedagogico:registro_pedagogico' %}"
+         class="nav-item {% if current_view == 'registro_pedagogico' or current_view == 'registro_pedagogico:registro_pedagogico' %}active{% endif %}">
+        <i class="bi bi-journal-bookmark"></i>
+        <span>Registro Pedagógico</span>
+      </a>
+      {% endif %}
 
-        <div class="submenu" id="sm-alunos">
+    </div>
+    {% endif %}
 
-            <a href="{% url 'cadastro_aluno' %}"
-               class="nav-item {% if request.resolver_match.url_name == 'cadastro_aluno' %}active{% endif %}">
-                <i class="bi bi-person-check"></i>
-                <span>Matrícula Individual</span>
-            </a>
+    {% if user|has_role:'diretor,coordenador' %}
+    <!-- Alunos -->
+    <a class="nav-item submenu-toggle"
+       data-submenu="sm-alunos"
+       aria-expanded="false"
+       onclick="toggleSubmenu('sm-alunos')">
+      <span class="left">
+        <i class="bi bi-people"></i>
+        <span>Alunos</span>
+      </span>
+      <i class="bi bi-chevron-down chev"></i>
+    </a>
 
-            <a href="javascript:void(0)" class="nav-item nav-disabled">
-                <i class="bi bi-people-fill"></i>
-                <span>Matrícula em Lote</span>
-            </a>
+    <div class="submenu" id="sm-alunos">
 
-            <a href="{% url 'listar_aluno' %}"
-               class="nav-item {% if request.resolver_match.url_name == 'listar_aluno' %}active{% endif %}">
-                <i class="bi bi-list-ul"></i>
-                <span>Listar Alunos</span>
-            </a>
+      <a href="{% url 'cadastro_aluno' %}"
+         class="nav-item {% if current_view == 'cadastro_aluno' %}active{% endif %}">
+        <i class="bi bi-person-check"></i>
+        <span>Matrícula Individual</span>
+      </a>
 
-            <a href="{% url 'listar_turmas_boletim' %}" class="nav-item">
-                <i class="bi bi-file-earmark-text"></i>
-                <span>Boletim Individual</span>
-            </a>
+      <a href="javascript:void(0)" class="nav-item nav-disabled">
+        <i class="bi bi-people-fill"></i>
+        <span>Matrícula em Lote</span>
+      </a>
 
-            <a href="{% url 'listar_turmas_boletim' %}?tipo=turma" class="nav-item">
-                <i class="bi bi-files"></i>
-                <span>Boletim por Turma</span>
-            </a>
+      <a href="{% url 'listar_aluno' %}"
+         class="nav-item {% if current_view == 'listar_aluno' %}active{% endif %}">
+        <i class="bi bi-list-ul"></i>
+        <span>Listar Alunos</span>
+      </a>
 
-            <a href="{% url 'chamada:relatorio_resumo_mensal' %}" class="nav-item">
-                <i class="bi bi-graph-up"></i>
-                <span>Resumo Presença (Mensal)</span>
-            </a>
+      <a href="{% url 'listar_turmas_boletim' %}"
+         class="nav-item {% if current_view == 'listar_turmas_boletim' and '?tipo=turma' not in current_url %}active{% endif %}">
+        <i class="bi bi-file-earmark-text"></i>
+        <span>Boletim Individual</span>
+      </a>
 
-            <a href="{% url 'chamada:relatorio_anual_chamadas' %}" class="nav-item">
-                <i class="bi bi-pie-chart"></i>
-                <span>Resumo Presença (Anual)</span>
-            </a>
+      <a href="{% url 'listar_turmas_boletim' %}?tipo=turma"
+         class="nav-item {% if current_view == 'listar_turmas_boletim' and '?tipo=turma' in current_url %}active{% endif %}">
+        <i class="bi bi-files"></i>
+        <span>Boletim por Turma</span>
+      </a>
 
-            <a href="{% url 'relatorios:presenca_aluno_mensal' %}" class="nav-item">
-                <i class="bi bi-person-check"></i>
-                <span>Presença por Aluno</span>
-            </a>
+      <a href="{% url 'chamada:relatorio_resumo_mensal' %}"
+         class="nav-item {% if current_view == 'relatorio_resumo_mensal' or current_view == 'chamada:relatorio_resumo_mensal' %}active{% endif %}">
+        <i class="bi bi-graph-up"></i>
+        <span>Resumo Presença (Mensal)</span>
+      </a>
 
-            <a href="javascript:void(0)" class="nav-item nav-disabled">
-                <i class="bi bi-filetype-pdf"></i>
-                <span>Histórico do Aluno</span>
-            </a>
-        </div>
-        {% endif %}
+      <a href="{% url 'chamada:relatorio_anual_chamadas' %}"
+         class="nav-item {% if current_view == 'relatorio_anual_chamadas' or current_view == 'chamada:relatorio_anual_chamadas' %}active{% endif %}">
+        <i class="bi bi-pie-chart"></i>
+        <span>Resumo Presença (Anual)</span>
+      </a>
 
-        {% if user|has_role:'diretor,coordenador' %}
-        <!-- Gestão Geral -->
-        <a class="nav-item submenu-toggle"
-           data-submenu="sm-geral"
-           aria-expanded="false"
-           onclick="toggleSubmenu('sm-geral')">
-            <span class="left">
-                <i class="bi bi-gear"></i>
-                <span>Gestão Geral</span>
-            </span>
-            <i class="bi bi-chevron-down chev"></i>
-        </a>
+      <a href="{% url 'relatorios:presenca_aluno_mensal' %}"
+         class="nav-item {% if current_view == 'presenca_aluno_mensal' or current_view == 'relatorios:presenca_aluno_mensal' %}active{% endif %}">
+        <i class="bi bi-person-check"></i>
+        <span>Presença por Aluno</span>
+      </a>
 
-        <div class="submenu" id="sm-geral">
-            <a href="{% url 'minha_escola' %}"
-               class="nav-item {% if request.resolver_match.url_name == 'minha_escola' %}active{% endif %}">
-                <i class="bi bi-building"></i>
-                <span>Minha Escola</span>
-            </a>
+      <a href="javascript:void(0)" class="nav-item nav-disabled">
+        <i class="bi bi-filetype-pdf"></i>
+        <span>Histórico do Aluno</span>
+      </a>
+    </div>
+    {% endif %}
 
-            <a href="{% url 'turmas:pagina_nome' %}" class="nav-item">
-                <i class="bi bi-tag"></i>
-                <span>Nome das Turmas</span>
-            </a>
+    {% if user|has_role:'diretor,coordenador' %}
+    <!-- Gestão Geral -->
+    <a class="nav-item submenu-toggle"
+       data-submenu="sm-geral"
+       aria-expanded="false"
+       onclick="toggleSubmenu('sm-geral')">
+      <span class="left">
+        <i class="bi bi-gear"></i>
+        <span>Gestão Geral</span>
+      </span>
+      <i class="bi bi-chevron-down chev"></i>
+    </a>
 
-            <a href="{% url 'turmas:cadastrar' %}" class="nav-item">
-                <i class="bi bi-plus-circle"></i>
-                <span>Criar Turma</span>
-            </a>
+    <div class="submenu" id="sm-geral">
+      <a href="{% url 'minha_escola' %}"
+         class="nav-item {% if current_view == 'minha_escola' %}active{% endif %}">
+        <i class="bi bi-building"></i>
+        <span>Minha Escola</span>
+      </a>
 
-            <a href="{% url 'turmas:listar' %}" class="nav-item">
-                <i class="bi bi-card-list"></i>
-                <span>Listar Turmas</span>
-            </a>
-        </div>
-        {% endif %}
+      <a href="{% url 'turmas:pagina_nome' %}"
+         class="nav-item {% if current_view == 'pagina_nome' or current_view == 'turmas:pagina_nome' %}active{% endif %}">
+        <i class="bi bi-tag"></i>
+        <span>Nome das Turmas</span>
+      </a>
 
-        <!-- Logout/Login -->
-        {% if user.is_authenticated %}
-        <a href="{% url 'logout' %}" class="nav-item">
-            <i class="bi bi-box-arrow-right"></i>
-            <span>Sair</span>
-        </a>
-        {% else %}
-        <a href="{% url 'login' %}" class="nav-item">
-            <i class="bi bi-box-arrow-in-right"></i>
-            <span>Login</span>
-        </a>
-        {% endif %}
+      <a href="{% url 'turmas:cadastrar' %}"
+         class="nav-item {% if current_view == 'cadastrar' or current_view == 'turmas:cadastrar' %}active{% endif %}">
+        <i class="bi bi-plus-circle"></i>
+        <span>Criar Turma</span>
+      </a>
 
-    </nav>
+      <a href="{% url 'turmas:listar' %}"
+         class="nav-item {% if current_view == 'listar' or current_view == 'turmas:listar' %}active{% endif %}">
+        <i class="bi bi-card-list"></i>
+        <span>Listar Turmas</span>
+      </a>
+    </div>
+    {% endif %}
 
+    <!-- Logout/Login -->
+    {% if user.is_authenticated %}
+    <a href="{% url 'logout' %}" class="nav-item">
+      <i class="bi bi-box-arrow-right"></i>
+      <span>Sair</span>
+    </a>
+    {% else %}
+    <a href="{% url 'login' %}" class="nav-item">
+      <i class="bi bi-box-arrow-in-right"></i>
+      <span>Login</span>
+    </a>
+    {% endif %}
+
+  </nav>
 </aside>
+{% endwith %}
