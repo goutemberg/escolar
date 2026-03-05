@@ -154,9 +154,15 @@
         <span>Diário de Classe</span>
       </a>
 
+      <a href="{% url 'relatorio_individual:relatorio_individual' %}"
+         class="nav-item {% if current_view == 'relatorio_individual' or current_view == 'relatorio_individual:relatorio_individual' %}active{% endif %}">
+        <i class="bi bi-journal-bookmark"></i>
+        <span>Relatório Individual</span>
+      </a>
+
       <a href="{% url 'registro_pedagogico:registro_pedagogico' %}"
          class="nav-item {% if current_view == 'registro_pedagogico' or current_view == 'registro_pedagogico:registro_pedagogico' %}active{% endif %}">
-        <i class="bi bi-journal-bookmark"></i>
+        <i class="bi bi-journal-richtext"></i>
         <span>Registro Pedagógico</span>
       </a>
       {% endif %}

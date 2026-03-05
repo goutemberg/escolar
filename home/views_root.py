@@ -67,7 +67,6 @@ from .models import (
     TurmaDisciplina,
     Presenca,
     Chamada,
-    RegistroPedagogico,
     Nota,
 )
 from home.decorators import role_required

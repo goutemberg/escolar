@@ -4,14 +4,14 @@
   /* ===============================
      CONFIG
   =============================== */
-  const URL_SALVAR = "/registro-pedagogico/salvar/";
-  const URL_DISCIPLINAS_POR_TURMA = "/api/disciplinas-por-turma/";
-  const URL_BUSCAR_REGISTROS = "/api/registro-pedagogico/";
+  const URL_SALVAR = "/relatorio-individual/salvar/";
+  const URL_ALUNOS_POR_TURMA = "/api/alunos-por-turma/";
+  const URL_BUSCAR_REGISTROS = "/api/relatorio-individual/";
 
   const btnSalvar = document.getElementById("btnSalvar");
   const btnNovo = document.getElementById("btnNovo"); // <- novo botão
   const selectTurma = document.getElementById("turma");
-  const selectDisciplina = document.getElementById("disciplina");
+  const selectAluno = document.getElementById("aluno");
   const inputAno = document.getElementById("ano_letivo");
 
   const bimestres = {
@@ -43,12 +43,6 @@
     alert(msg);
   }
 
-  function limparCamposBimestrais(campos) {
-    Object.values(campos).forEach((textarea) => {
-      if (textarea) textarea.value = "";
-    });
-  }
-
   function resetBimestres() {
     Object.values(bimestres).forEach((textarea) => {
       if (!textarea) return;
@@ -70,8 +64,8 @@
       return false;
     }
 
-    if (!selectDisciplina.value) {
-      showAlert("Selecione uma disciplina.");
+    if (!selectAluno.value) {
+      showAlert("Selecione um aluno.");
       return false;
     }
 
@@ -87,37 +81,33 @@
   /* ===============================
      NOVO REGISTRO
      - Mantém TURMA e ANO
-     - Limpa DISCIPLINA
+     - Limpa ALUNO
      - Limpa Bimestres e DESABILITA
   =============================== */
-
   function novoRegistro() {
-    // limpa os textos e desabilita
     resetBimestres();
 
-    // limpa disciplina (mantém turma/ano)
-    if (selectDisciplina) {
-      selectDisciplina.value = "";
-      // garante que qualquer lógica de "change" rode
-      selectDisciplina.dispatchEvent(new Event("change"));
+    if (selectAluno) {
+      selectAluno.value = "";
+      selectAluno.dispatchEvent(new Event("change"));
     }
   }
 
   /* ===============================
-     BUSCAR DISCIPLINAS POR TURMA
+     BUSCAR ALUNOS POR TURMA
   =============================== */
 
-  async function carregarDisciplinas(turmaId) {
+  async function carregarAlunos(turmaId) {
     resetBimestres();
-    selectDisciplina.innerHTML = `<option value="">Carregando disciplinas...</option>`;
+    selectAluno.innerHTML = `<option value="">Carregando alunos...</option>`;
 
     try {
-      const response = await fetch(`${URL_DISCIPLINAS_POR_TURMA}?turma=${turmaId}`, {
+      const response = await fetch(`${URL_ALUNOS_POR_TURMA}?turma=${turmaId}`, {
         credentials: "same-origin",
       });
 
       if (!response.ok) {
-        throw new Error("Falha ao buscar disciplinas");
+        throw new Error("Falha ao buscar alunos");
       }
 
       const data = await response.json();
@@ -126,19 +116,19 @@
         throw new Error("Resposta inválida");
       }
 
-      selectDisciplina.innerHTML = `<option value="">Selecione a disciplina</option>`;
+      selectAluno.innerHTML = `<option value="">Selecione o aluno</option>`;
 
-      data.forEach((disciplina) => {
+      data.forEach((aluno) => {
         const opt = document.createElement("option");
-        opt.value = disciplina.id;
-        opt.textContent = disciplina.nome;
-        selectDisciplina.appendChild(opt);
+        opt.value = aluno.id;
+        opt.textContent = aluno.nome;
+        selectAluno.appendChild(opt);
       });
 
     } catch (err) {
       console.error(err);
-      selectDisciplina.innerHTML = `<option value="">Erro ao carregar disciplinas</option>`;
-      showAlert("Erro ao carregar disciplinas da turma.");
+      selectAluno.innerHTML = `<option value="">Erro ao carregar alunos</option>`;
+      showAlert("Erro ao carregar alunos da turma.");
     }
   }
 
@@ -147,14 +137,14 @@
   =============================== */
 
   async function carregarRegistros() {
-    if (!selectTurma.value || !selectDisciplina.value || !inputAno.value) {
+    if (!selectTurma.value || !selectAluno.value || !inputAno.value) {
       return;
     }
 
     try {
       const params = new URLSearchParams({
         turma: selectTurma.value,
-        disciplina: selectDisciplina.value,
+        aluno: selectAluno.value,
         ano_letivo: inputAno.value,
       });
 
@@ -175,15 +165,15 @@
 
     } catch (err) {
       console.error(err);
-      showAlert("Erro ao carregar Registro Pedagógico.");
+      showAlert("Erro ao carregar Relatório Individual.");
     }
   }
 
   /* ===============================
-     SALVAR REGISTRO
+     SALVAR RELATÓRIO
   =============================== */
 
-  async function salvarRegistroPedagogico() {
+  async function salvarRelatorioIndividual() {
     if (isSaving) return;
     if (!validarContexto()) return;
 
@@ -193,7 +183,7 @@
 
     const payload = {
       turma: selectTurma.value,
-      disciplina: selectDisciplina.value,
+      aluno: selectAluno.value,
       ano_letivo: parseInt(inputAno.value, 10),
       registros: {},
     };
@@ -219,18 +209,18 @@
         throw new Error(data.mensagem || "Erro ao salvar");
       }
 
-      showAlert("Registro Pedagógico salvo com sucesso.");
+      showAlert("Relatório Individual salvo com sucesso.");
 
       // mantém tudo na tela e garante que reflete o banco
       await carregarRegistros();
 
     } catch (err) {
       console.error(err);
-      showAlert(err.message || "Erro ao salvar Registro Pedagógico.");
+      showAlert(err.message || "Erro ao salvar Relatório Individual.");
     } finally {
       isSaving = false;
       btnSalvar.disabled = false;
-      btnSalvar.textContent = "Salvar Registro";
+      btnSalvar.textContent = "Salvar Relatório";
     }
   }
 
@@ -240,15 +230,15 @@
 
   selectTurma.addEventListener("change", () => {
     if (!selectTurma.value) {
-      selectDisciplina.innerHTML = `<option value="">Selecione a disciplina</option>`;
+      selectAluno.innerHTML = `<option value="">Selecione o aluno</option>`;
       resetBimestres();
       return;
     }
-    carregarDisciplinas(selectTurma.value);
+    carregarAlunos(selectTurma.value);
   });
 
-  selectDisciplina.addEventListener("change", () => {
-    if (!selectDisciplina.value) {
+  selectAluno.addEventListener("change", () => {
+    if (!selectAluno.value) {
       resetBimestres();
       return;
     }
@@ -257,14 +247,13 @@
   });
 
   inputAno.addEventListener("change", () => {
-    if (selectDisciplina.value) {
+    if (selectAluno.value) {
       carregarRegistros();
     }
   });
 
-  btnSalvar.addEventListener("click", salvarRegistroPedagogico);
+  btnSalvar.addEventListener("click", salvarRelatorioIndividual);
 
-  // botão novo registro (se existir no HTML)
   if (btnNovo) {
     btnNovo.addEventListener("click", novoRegistro);
   }
