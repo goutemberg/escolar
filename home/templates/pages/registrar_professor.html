@@ -6,9 +6,9 @@
 
   {% with tema=user.escola.tema|default:"legacy" %}
     {% if tema == "nucleo" %}
-      <link rel="stylesheet" href="{% static 'css/pages/NOME-DA-PAGINA-nucleo.css' %}">
+      <link rel="stylesheet" href="{% static 'css/pages/professores/registar.css' %}">
     {% else %}
-      <link rel="stylesheet" href="{% static 'css/pages/NOME-DA-PAGINA/arquivo.css' %}">
+      <link rel="stylesheet" href="{% static 'css/pages/professores/registar.css' %}">
     {% endif %}
   {% endwith %}
 {% endblock extra_head %}
