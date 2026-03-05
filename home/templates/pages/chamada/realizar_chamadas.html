@@ -11,6 +11,50 @@
       <link rel="stylesheet" href="{% static 'css/pages/arquivo.css' %}">
     {% endif %}
   {% endwith %}
+
+  <style>
+    /* grupo de status (presente/falta/justificada) */
+    .status-presenca{
+      display:flex;
+      justify-content:center;
+      gap:.5rem;
+      flex-wrap:wrap;
+    }
+    .status-presenca .btn{
+      padding: .25rem .5rem;
+      font-size: .85rem;
+      line-height: 1.2;
+    }
+    .status-presenca input{
+      position:absolute;
+      opacity:0;
+      pointer-events:none;
+    }
+
+    /* ✅ destaque quando selecionado (sem mudar o JS nem a estrutura) */
+    .status-presenca input:checked + label{
+      color:#fff !important;
+    }
+
+    /* Presente (verde) */
+    .status-presenca input[value="P"]:checked + label{
+      background:#198754 !important;   /* bootstrap success */
+      border-color:#198754 !important;
+    }
+
+    /* Falta (vermelho) */
+    .status-presenca input[value="F"]:checked + label{
+      background:#dc3545 !important;   /* bootstrap danger */
+      border-color:#dc3545 !important;
+    }
+
+    /* Justificada (amarelo/laranja) */
+    .status-presenca input[value="J"]:checked + label{
+      background:#ffc107 !important;   /* bootstrap warning */
+      border-color:#ffc107 !important;
+      color:#111 !important;           /* warning fica melhor com texto escuro */
+    }
+  </style>
 {% endblock extra_head %}
 
 {% block content %}
@@ -52,8 +96,8 @@
       <thead>
         <tr>
           <th>Aluno</th>
-          <th style="width:120px; text-align:center;">Presente?</th>
-          <th>Observação</th>
+          <th style="width:260px; text-align:center;">Status</th>
+          <th>Observação / Justificativa</th>
           <th style="width:40px;"></th>
         </tr>
       </thead>
@@ -63,11 +107,12 @@
     <div class="resumo-box">
       Presentes: <span id="countP">0</span> |
       Faltas: <span id="countF">0</span> |
+      Justificadas: <span id="countJ">0</span> |
       Presença: <span id="percentP">0%</span>
     </div>
 
     <div class="mt-2">
-      <button class="btn btn-success" id="salvarChamadaBtn">
+      <button class="btn btn-success" id="salvarChamadaBtn" type="button">
         Salvar Chamada
       </button>
       <span class="loader" id="loader" style="display:none;">⏳ Salvando...</span>
@@ -103,7 +148,7 @@
     ensureFuse(function() {
 
       /* ============================================================
-         5) DISCIPLINAS POR TURMA  (✅ sem DOMContentLoaded duplicado)
+         5) DISCIPLINAS POR TURMA
       ============================================================ */
       const turmaSelect = document.getElementById("turma_id");
       const disciplinaSelect = document.getElementById("disciplina_id");
@@ -155,13 +200,27 @@
       ============================================================ */
       document.getElementById("carregarButton").addEventListener("click", function () {
         const turma = document.getElementById("turma_id").value;
+        const disciplina = document.getElementById("disciplina_id").value;
+        const dataAula = document.getElementById("data_aula").value;
 
         if (!turma) {
           alert("Selecione uma turma.");
           return;
         }
 
-        const urlCarregar = "{% url 'chamada:api_carregar_alunos' 0 %}".replace("0", turma);
+        if (!disciplina) {
+          alert("Selecione uma disciplina.");
+          return;
+        }
+
+        if (!dataAula) {
+          alert("Selecione a data da aula.");
+          return;
+        }
+
+        const urlCarregar = "{% url 'chamada:api_carregar_alunos' 0 %}"
+          .replace("0", turma)
+          + `?data=${encodeURIComponent(dataAula)}&disciplina=${encodeURIComponent(disciplina)}`;
 
         fetch(urlCarregar)
           .then(res => res.json())
@@ -176,17 +235,33 @@
             tbody.innerHTML = "";
 
             data.alunos.forEach(a => {
+              // ✅ aplica o status vindo do backend (fallback P)
+              const st = (a.status || "P").toUpperCase();
+              const obs = (a.observacao || "").replace(/"/g, "&quot;");
+
+              const checkedP = st === "P" ? "checked" : "";
+              const checkedF = st === "F" ? "checked" : "";
+              const checkedJ = st === "J" ? "checked" : "";
+
               tbody.innerHTML += `
                 <tr data-id="${a.id}">
                   <td>${a.nome}</td>
+
                   <td style="text-align:center;">
-                    <label class="switch-presenca">
-                      <input type="checkbox" class="presenca-switch">
-                      <span></span>
-                    </label>
+                    <div class="status-presenca" role="group" aria-label="Status de presença">
+                      <input type="radio" name="status_${a.id}" id="p_${a.id}" class="status-radio" value="P" ${checkedP}>
+                      <label class="btn btn-outline-success" for="p_${a.id}" title="Presente">P</label>
+
+                      <input type="radio" name="status_${a.id}" id="f_${a.id}" class="status-radio" value="F" ${checkedF}>
+                      <label class="btn btn-outline-danger" for="f_${a.id}" title="Falta">F</label>
+
+                      <input type="radio" name="status_${a.id}" id="j_${a.id}" class="status-radio" value="J" ${checkedJ}>
+                      <label class="btn btn-outline-warning" for="j_${a.id}" title="Falta Justificada">J</label>
+                    </div>
                   </td>
+
                   <td>
-                    <input type="text" class="form-control obs-input" placeholder="Observação (opcional)">
+                    <input type="text" class="form-control obs-input" placeholder="Observação ou justificativa (opcional)" value="${obs}">
                     <div class="erro-msg"></div>
                   </td>
                   <td></td>
@@ -203,26 +278,34 @@
       /* ============================================================
          2) RESUMO
       ============================================================ */
+      function getStatusRow(row){
+        const checked = row.querySelector(".status-radio:checked");
+        return checked ? checked.value : "F";
+      }
+
       function atualizarResumo() {
         const rows = document.querySelectorAll("#tbodyChamada tr");
-        let p = 0, f = 0;
+        let p = 0, f = 0, j = 0;
 
         rows.forEach(r => {
-          const checked = r.querySelector(".presenca-switch").checked;
-          checked ? p++ : f++;
+          const st = getStatusRow(r);
+          if (st === "P") p++;
+          else if (st === "J") j++;
+          else f++;
         });
 
-        const total = p + f;
+        const total = p + f + j;
         const perc = total === 0 ? 0 : Math.round((p / total) * 100);
 
         document.getElementById("countP").textContent = p;
         document.getElementById("countF").textContent = f;
+        document.getElementById("countJ").textContent = j;
         document.getElementById("percentP").textContent = perc + "%";
       }
 
       function bindEventosTabela() {
-        document.querySelectorAll(".presenca-switch").forEach(sw => {
-          sw.addEventListener("change", atualizarResumo);
+        document.querySelectorAll(".status-radio").forEach(r => {
+          r.addEventListener("change", atualizarResumo);
         });
       }
 
@@ -237,9 +320,13 @@
         const lista = [];
 
         document.querySelectorAll("#tbodyChamada tr").forEach(row => {
+          const status = getStatusRow(row);
+          const presenteBool = (status === "P");
+
           lista.push({
             aluno_id: row.dataset.id,
-            presente: row.querySelector(".presenca-switch").checked,
+            status: status,         // P / F / J
+            presente: presenteBool, // compat
             observacao: row.querySelector(".obs-input").value.trim()
           });
         });
@@ -317,6 +404,7 @@
 
         document.getElementById("countP").textContent = "0";
         document.getElementById("countF").textContent = "0";
+        document.getElementById("countJ").textContent = "0";
         document.getElementById("percentP").textContent = "0%";
       }
 

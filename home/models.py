@@ -476,16 +476,53 @@ class Chamada(models.Model):
 
 
 class Presenca(models.Model):
-    chamada = models.ForeignKey(Chamada, on_delete=models.CASCADE)
-    aluno = models.ForeignKey(Aluno, on_delete=models.CASCADE)
+    STATUS_CHOICES = (
+        ("P", "Presente"),
+        ("F", "Falta"),
+        ("J", "Falta Justificada"),
+    )
+
+    chamada = models.ForeignKey(Chamada, on_delete=models.CASCADE, related_name="presencas")
+    aluno = models.ForeignKey(Aluno, on_delete=models.CASCADE, related_name="presencas")
+
+    # ✅ novo: status real
+    status = models.CharField(
+        max_length=1,
+        choices=STATUS_CHOICES,
+        default="P",
+        db_index=True,
+        verbose_name="Status",
+    )
+
+    # ✅ mantém por compat (PDF antigo, relatórios, etc.)
+    # regra: presente = True somente quando status == "P"
     presente = models.BooleanField(default=True)
+
     observacao = models.TextField(blank=True)
 
     class Meta:
-        unique_together = ('chamada', 'aluno')
+        constraints = [
+            models.UniqueConstraint(
+                fields=["chamada", "aluno"],
+                name="unique_presenca_chamada_aluno",
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        # ✅ garante consistência: presente sempre acompanha o status
+        self.presente = (self.status == "P")
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.aluno.nome} - {self.chamada.data} - {'Presente' if self.presente else 'Ausente'}"
+        # tenta pegar data do diário (se existir) sem quebrar
+        data_str = "-"
+        try:
+            if hasattr(self.chamada, "diario") and self.chamada.diario and getattr(self.chamada.diario, "data_ministrada", None):
+                data_str = self.chamada.diario.data_ministrada.strftime("%d/%m/%Y")
+        except Exception:
+            pass
+
+        return f"{self.aluno.nome} - {data_str} - {self.get_status_display()}"
 
    
 class NomeTurma(models.Model):
