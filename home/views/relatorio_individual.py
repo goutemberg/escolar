@@ -8,20 +8,20 @@ from django.views.decorators.http import require_GET, require_POST
 from django.db import transaction
 
 from home.models import (
-    RegistroPedagogico,
+    RelatorioIndividual,
+    Aluno,
     Turma,
     Docente,
     TurmaDisciplina,
-    Disciplina,
 )
 
 MAX_TEXTO = 3000  # limite seguro (pode ajustar)
 
 
 @login_required
-def registro_pedagogico_view(request):
+def relatorio_individual_view(request):
     """
-    Tela principal do Registro Pedagógico
+    Tela principal do Relatório Individual
     - Diretor/Coordenador: vê todas as turmas da escola
     - Professor: vê apenas turmas em que está vinculado (TurmaDisciplina)
     """
@@ -47,7 +47,7 @@ def registro_pedagogico_view(request):
 
     return render(
         request,
-        "pages/registro_pedagogico.html",
+        "pages/relatorio_individual.html",
         {
             "turmas": turmas,
             "ano_atual": date.today().year,
@@ -56,50 +56,9 @@ def registro_pedagogico_view(request):
 
 
 @login_required
-@require_GET
-def buscar_disciplinas_por_turma(request):
-    usuario = request.user
-    escola = usuario.escola
-    turma_id = request.GET.get("turma")
-
-    if not turma_id:
-        return JsonResponse([], safe=False)
-
-    try:
-        turma = Turma.objects.get(id=turma_id, escola=escola)
-    except Turma.DoesNotExist:
-        return JsonResponse([], safe=False)
-
-    if usuario.role == "professor":
-        professor = Docente.objects.filter(user=usuario, escola=escola).first()
-        if not professor:
-            return JsonResponse([], safe=False)
-
-        disciplinas = (
-            Disciplina.objects.filter(
-                turmadisciplina__turma=turma,
-                turmadisciplina__professor=professor,
-            )
-            .distinct()
-            .order_by("nome")
-        )
-    else:
-        disciplinas = (
-            Disciplina.objects.filter(
-                turmadisciplina__turma=turma
-            )
-            .distinct()
-            .order_by("nome")
-        )
-
-    data = [{"id": d.id, "nome": d.nome} for d in disciplinas]
-    return JsonResponse(data, safe=False)
-
-
-@login_required
 @require_POST
 @transaction.atomic
-def salvar_registro_pedagogico(request):
+def salvar_relatorio_individual(request):
     usuario = request.user
     escola = usuario.escola
 
@@ -114,12 +73,12 @@ def salvar_registro_pedagogico(request):
             status=400,
         )
 
+    aluno_id = payload.get("aluno")
     turma_id = payload.get("turma")
-    disciplina_id = payload.get("disciplina")
     ano_letivo = payload.get("ano_letivo")
     registros = payload.get("registros")
 
-    if not all([turma_id, disciplina_id, ano_letivo, registros]):
+    if not all([aluno_id, turma_id, ano_letivo, registros]):
         return JsonResponse(
             {"status": "erro", "mensagem": "Dados obrigatórios ausentes"},
             status=400,
@@ -146,28 +105,14 @@ def salvar_registro_pedagogico(request):
         )
 
     try:
+        aluno = Aluno.objects.get(id=aluno_id, escola=escola)
         turma = Turma.objects.get(id=turma_id, escola=escola)
-        disciplina = Disciplina.objects.get(id=disciplina_id)
-    except (Turma.DoesNotExist, Disciplina.DoesNotExist):
+    except (Aluno.DoesNotExist, Turma.DoesNotExist):
         return JsonResponse(
-            {"status": "erro", "mensagem": "Turma ou disciplina inválida"},
+            {"status": "erro", "mensagem": "Aluno ou turma inválidos"},
             status=404,
         )
 
-    # Garante que a disciplina pertence à turma
-    disciplina_na_turma = TurmaDisciplina.objects.filter(
-        turma=turma,
-        disciplina=disciplina,
-        turma__escola=escola,
-    ).exists()
-
-    if not disciplina_na_turma:
-        return JsonResponse(
-            {"status": "erro", "mensagem": "Disciplina não vinculada a esta turma"},
-            status=403,
-        )
-
-    # Professor só pode salvar nas turmas/disciplinas em que está vinculado
     if usuario.role == "professor":
         professor = Docente.objects.filter(user=usuario, escola=escola).first()
         if not professor:
@@ -176,14 +121,13 @@ def salvar_registro_pedagogico(request):
         permitido = TurmaDisciplina.objects.filter(
             professor=professor,
             turma=turma,
-            disciplina=disciplina,
             turma__escola=escola,
         ).exists()
 
         if not permitido:
             return JsonResponse(
-                {"status": "erro", "mensagem": "Registro não permitido para este professor"},
-                status=403,
+                {"status": "erro", "mensagem": "Turma não permitida para este professor"},
+                status=403
             )
 
     with transaction.atomic():
@@ -207,9 +151,9 @@ def salvar_registro_pedagogico(request):
             if len(texto) > MAX_TEXTO:
                 texto = texto[:MAX_TEXTO]
 
-            RegistroPedagogico.objects.update_or_create(
+            RelatorioIndividual.objects.update_or_create(
+                aluno=aluno,
                 turma=turma,
-                disciplina=disciplina,
                 ano_letivo=ano_letivo,
                 bimestre=bimestre,
                 defaults={
@@ -219,43 +163,34 @@ def salvar_registro_pedagogico(request):
             )
 
     return JsonResponse(
-        {"status": "ok", "mensagem": "Registro pedagógico salvo com sucesso"}
+        {"status": "ok", "mensagem": "Relatório individual salvo com sucesso"}
     )
 
 
 @login_required
 @require_GET
-def buscar_registro_pedagogico(request):
+def buscar_relatorio_individual(request):
     usuario = request.user
     escola = usuario.escola
 
     if usuario.role not in ["professor", "coordenador", "diretor"]:
         return JsonResponse({"erro": "Acesso negado"}, status=403)
 
+    aluno_id = request.GET.get("aluno")
     turma_id = request.GET.get("turma")
-    disciplina_id = request.GET.get("disciplina")
     ano_letivo = request.GET.get("ano_letivo")
 
-    if not all([turma_id, disciplina_id, ano_letivo]):
+    if not all([aluno_id, turma_id, ano_letivo]):
         return JsonResponse(
-            {"erro": "Parâmetros obrigatórios: turma, disciplina, ano_letivo"},
+            {"erro": "Parâmetros obrigatórios: aluno, turma, ano_letivo"},
             status=400
         )
 
     try:
+        aluno = Aluno.objects.get(id=aluno_id, escola=escola)
         turma = Turma.objects.get(id=turma_id, escola=escola)
-        disciplina = Disciplina.objects.get(id=disciplina_id)
-    except (Turma.DoesNotExist, Disciplina.DoesNotExist):
-        return JsonResponse({"erro": "Turma ou disciplina inválida"}, status=404)
-
-    disciplina_na_turma = TurmaDisciplina.objects.filter(
-        turma=turma,
-        disciplina=disciplina,
-        turma__escola=escola,
-    ).exists()
-
-    if not disciplina_na_turma:
-        return JsonResponse({"erro": "Disciplina não vinculada a esta turma"}, status=403)
+    except (Aluno.DoesNotExist, Turma.DoesNotExist):
+        return JsonResponse({"erro": "Aluno ou turma inválidos"}, status=404)
 
     if usuario.role == "professor":
         professor = Docente.objects.filter(user=usuario, escola=escola).first()
@@ -265,18 +200,17 @@ def buscar_registro_pedagogico(request):
         permitido = TurmaDisciplina.objects.filter(
             professor=professor,
             turma=turma,
-            disciplina=disciplina,
             turma__escola=escola,
         ).exists()
 
         if not permitido:
-            return JsonResponse({"erro": "Registro não permitido para este professor"}, status=403)
+            return JsonResponse({"erro": "Turma não permitida para este professor"}, status=403)
 
     registros = (
-        RegistroPedagogico.objects
+        RelatorioIndividual.objects
         .filter(
+            aluno=aluno,
             turma=turma,
-            disciplina=disciplina,
             ano_letivo=int(ano_letivo),
             escola=escola,
         )

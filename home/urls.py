@@ -123,18 +123,12 @@ urlpatterns = [
     path("chamada/", include(("home.routes.chamada", "chamada"), namespace="chamada")),
     path("turmas/", include(("home.routes.turmas", "turmas"), namespace="turmas")),
     path("", include(("home.routes.matricula_em_lote", "matricula_lote"), namespace="matricula_lote")),
-    path("", include(("home.routes.registro_pedagogico", "registro_pedagogico"), namespace="registro_pedagogico")),
+    path("",include(("home.routes.relatorio_individual", "relatorio_individual"), namespace="relatorio_individual")),
     path("", include(("home.routes.api_alunos_por_turma", "api_alunos_por_turma"), namespace="api_alunos_por_turma")),
-
-
     path("diario-classe/", include(("home.routes.diario", "diario_classe"), namespace="diario_classe")),
-
-
+    path("",include(("home.routes.registro_pedagogico", "registro_pedagogico"), namespace="registro_pedagogico")),
     path("relatorios/", include(("home.routes.relatorios", "relatorios"), namespace="relatorios")),
-
-
     path("avaliacoes/", include(("home.routes.avaliacoes", "avaliacoes"), namespace="avaliacoes")),
-
     path("boletim/", include(("home.routes.boletim", "boletim"), namespace="boletim")),
 
     

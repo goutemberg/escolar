@@ -496,23 +496,94 @@ class NomeTurma(models.Model):
         return self.nome
     
 
-#===================================================================
-# Registro Pedagogico
-#===================================================================
+# ===================================================================
+# Relatório Individual
+# ===================================================================
 
-class RegistroPedagogico(models.Model):
-    TRIMESTRES = (
-        (1, "I Trimestre"),
-        (2, "II Trimestre"),
-        (3, "III Trimestre"),
-        (4, "IV Trimestre"),
+class RelatorioIndividual(models.Model):
+    BIMESTRES = (
+        (1, "I Bimestre"),
+        (2, "II Bimestre"),
+        (3, "III Bimestre"),
+        (4, "IV Bimestre"),
     )
 
     aluno = models.ForeignKey(
         "Aluno",
         on_delete=models.CASCADE,
-        related_name="registros_pedagogicos",
+        related_name="relatorios_individuais",
         verbose_name="Aluno",
+    )
+
+    turma = models.ForeignKey(
+        "Turma",
+        on_delete=models.CASCADE,
+        related_name="relatorios_individuais",
+        verbose_name="Turma",
+    )
+
+    ano_letivo = models.PositiveIntegerField(
+        verbose_name="Ano Letivo"
+    )
+
+    bimestre = models.PositiveSmallIntegerField(
+        choices=BIMESTRES,
+        verbose_name="Bimestre",
+    )
+
+    observacoes = models.TextField(
+        blank=True,
+        verbose_name="Observações Pedagógicas",
+        help_text="Registro descritivo do desenvolvimento do aluno no bimestre",
+    )
+
+    escola = models.ForeignKey(
+        "Escola",
+        on_delete=models.CASCADE,
+        related_name="relatorios_individuais",
+        verbose_name="Escola",
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Criado em",
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Atualizado em",
+    )
+
+    class Meta:
+        verbose_name = "Relatório Individual"
+        verbose_name_plural = "Relatórios Individuais"
+        ordering = ["aluno", "ano_letivo", "bimestre"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["aluno", "turma", "ano_letivo", "bimestre"],
+                name="unique_relatorio_individual_bimestre",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.aluno} - {self.get_bimestre_display()} ({self.ano_letivo})"
+
+    def __str__(self):
+        return (
+            f"{self.aluno} - {self.get_trimestre_display()} "
+            f"({self.ano_letivo})"
+        )
+
+# ===================================================================
+# Registro Pedagógico
+# ===================================================================
+
+class RegistroPedagogico(models.Model):
+    BIMESTRES = (
+        (1, "I Bimestre"),
+        (2, "II Bimestre"),
+        (3, "III Bimestre"),
+        (4, "IV Bimestre"),
     )
 
     turma = models.ForeignKey(
@@ -522,19 +593,26 @@ class RegistroPedagogico(models.Model):
         verbose_name="Turma",
     )
 
+    disciplina = models.ForeignKey(
+        "Disciplina",
+        on_delete=models.CASCADE,
+        related_name="registros_pedagogicos",
+        verbose_name="Disciplina",
+    )
+
     ano_letivo = models.PositiveIntegerField(
         verbose_name="Ano Letivo"
     )
 
-    trimestre = models.PositiveSmallIntegerField(
-        choices=TRIMESTRES,
-        verbose_name="Trimestre",
+    bimestre = models.PositiveSmallIntegerField(
+        choices=BIMESTRES,
+        verbose_name="Bimestre",
     )
 
     observacoes = models.TextField(
         blank=True,
         verbose_name="Observações Pedagógicas",
-        help_text="Registro descritivo do desenvolvimento do aluno no trimestre",
+        help_text="Registro pedagógico da turma por disciplina no bimestre",
     )
 
     escola = models.ForeignKey(
@@ -557,19 +635,16 @@ class RegistroPedagogico(models.Model):
     class Meta:
         verbose_name = "Registro Pedagógico"
         verbose_name_plural = "Registros Pedagógicos"
-        ordering = ["aluno", "ano_letivo", "trimestre"]
+        ordering = ["turma", "disciplina", "ano_letivo", "bimestre"]
         constraints = [
             models.UniqueConstraint(
-                fields=["aluno", "turma", "ano_letivo", "trimestre"],
-                name="unique_registro_pedagogico_trimestre",
+                fields=["turma", "disciplina", "ano_letivo", "bimestre"],
+                name="unique_registro_pedagogico_bimestre",
             )
         ]
 
     def __str__(self):
-        return (
-            f"{self.aluno} - {self.get_trimestre_display()} "
-            f"({self.ano_letivo})"
-        )
+        return f"{self.turma} - {self.disciplina} - {self.get_bimestre_display()} ({self.ano_letivo})"
 
 ###########################################################################
 # notas
