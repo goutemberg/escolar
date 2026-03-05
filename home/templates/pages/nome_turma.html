@@ -6,7 +6,7 @@
 
   {% with tema=user.escola.tema|default:"legacy" %}
     {% if tema == "nucleo" %}
-      <link rel="stylesheet" href="{% static 'css/pages/NOME-DA-PAGINA-nucleo.css' %}">
+      <link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
     {% else %}
       <link rel="stylesheet" href="{% static 'css/pages/turmas/nome.css' %}">
     {% endif %}
