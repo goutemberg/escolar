@@ -1,81 +1,21 @@
+{% extends "layout/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    {% include 'partials/_head.html' %}
-    <style>
-        .content {
-            max-width: 1100px;
-            margin: 30px auto;
-        }
 
-        .header-bar {
-            background-color: #6c757d;
-            color: #fff;
-            padding: 18px;
-            font-weight: bold;
-            font-size: 20px;
-            border-radius: 8px;
-        }
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-        .card-custom {
-            border: 1px solid #eee;
-            padding: 25px;
-            margin-top: 20px;
-            border-radius: 6px;
-            background-color: #fff;
-        }
-
-        .btn-primary-custom {
-            background-color: #fab982 !important;
-            border: none !important;
-            font-weight: bold;
-            color: #000;
-        }
-
-        .btn-primary-custom:hover {
-            background-color: #f4a261 !important;
-        }
-
-        .btn-danger-custom {
-            background-color: #d9534f;
-            color: white;
-            border: none;
-            font-weight: bold;
-        }
-
-        table th {
-            background-color: #fab982;
-            text-align: center;
-        }
-
-        table td {
-            vertical-align: middle;
-        }
-
-        .form-control {
-            margin-bottom: 12px;
-        }
-
-        h5 {
-            margin-bottom: 20px;
-        }
-    </style>
-</head>
-<body>
-
-{% include 'partials/_nav.html' %}
-
-<div class="content">
-
-    <div class="header-bar">
-        Cadastro de Avaliações
-    </div>
-
+  {% with tema=user.escola.tema|default:"legacy" %}
+    {% if tema == "nucleo" %}
+      <link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
+    {% else %}
+      <link rel="stylesheet" href="{% static 'css/pages/avaliacoes/avaliacoes.css' %}">
+    {% endif %}
+  {% endwith %}
+{% endblock extra_head %}
+{% block content %}
+    <div class="titulo-pagina">Cadastro de Avaliações</div>
     <div class="card-custom">
-
-        <h5>Nova Avaliação</h5>
-
+       <h5>Nova Avaliação</h5>
         <select id="disciplina" class="form-control">
             <option value="">Selecione a Disciplina</option>
             {% for d in disciplinas %}
@@ -166,12 +106,23 @@
                 {% endfor %}
             </tbody>
         </table>
-
     </div>
+<div id="toast"></div>
+{% endblock content %}
 
-</div>
-
+{% block extra_js %}
 <script>
+  function ensureFuse(cb){
+    if (window.Fuse) return cb();
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
+    s.onload = cb;
+    s.onerror = function(){
+      console.error("Falha ao carregar Fuse.js");
+      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
+    };
+    document.head.appendChild(s);
+  }
 document.addEventListener("DOMContentLoaded", function () {
 
     const btnCadastrar = document.getElementById("btnCadastrar");
@@ -292,8 +243,4 @@ if (!campoData.value) {
 
 });
 </script>
-
-{% include 'partials/_footer.html' %}
-
-</body>
-</html>
+{% endblock extra_js %}
