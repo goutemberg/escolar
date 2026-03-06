@@ -25,34 +25,99 @@ from home.models import (
 def listar_tipos_avaliacao(request):
     pass
 
+
 @login_required
+@require_http_methods(["GET", "POST", "PUT", "DELETE"])
 def tipos_avaliacao(request):
     escola = request.user.escola
 
-    if request.method == "POST":
+    # =========================
+    # GET: listar
+    # =========================
+    if request.method == "GET":
+        tipos = TipoAvaliacao.objects.filter(escola=escola, ativo=True).order_by("nome")
+        return render(request, "avaliacoes/tipos_avaliacao.html", {"tipos": tipos})
+
+    # =========================
+    # JSON body (POST/PUT/DELETE)
+    # =========================
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"erro": "JSON inválido."}, status=400)
+
+    # normaliza
+    def _peso_to_float(v):
         try:
-            data = json.loads(request.body)
+            return float(str(v).replace(",", "."))
+        except Exception:
+            return None
 
-            nome = data.get("nome")
-            peso = data.get("peso", 1)
+    # =========================
+    # POST: criar
+    # =========================
+    if request.method == "POST":
+        nome = (data.get("nome") or "").strip()
+        peso = _peso_to_float(data.get("peso", 1))
 
-            TipoAvaliacao.objects.create(
-                nome=nome,
-                peso=peso,
-                escola=escola
-            )
+        if not nome:
+            return JsonResponse({"erro": "Nome é obrigatório."}, status=400)
+        if peso is None:
+            return JsonResponse({"erro": "Peso inválido."}, status=400)
 
-            return JsonResponse({"mensagem": "Tipo de avaliação criado com sucesso!"})
+        TipoAvaliacao.objects.create(
+            nome=nome,
+            peso=peso,
+            escola=escola,
+            ativo=True
+        )
+        return JsonResponse({"mensagem": "Tipo de avaliação criado com sucesso!"})
 
-        except Exception as e:
-            return JsonResponse({"erro": str(e)}, status=400)
+    # =========================
+    # PUT: editar
+    # =========================
+    if request.method == "PUT":
+        tipo_id = data.get("id")
+        nome = (data.get("nome") or "").strip()
+        peso = _peso_to_float(data.get("peso"))
 
-    tipos = TipoAvaliacao.objects.filter(escola=escola, ativo=True).order_by("nome")
+        if not tipo_id:
+            return JsonResponse({"erro": "ID é obrigatório."}, status=400)
+        if not nome:
+            return JsonResponse({"erro": "Nome é obrigatório."}, status=400)
+        if peso is None:
+            return JsonResponse({"erro": "Peso inválido."}, status=400)
 
-    return render(request, "avaliacoes/tipos_avaliacao.html", {
-        "tipos": tipos
-    })
+        tipo = get_object_or_404(TipoAvaliacao, id=tipo_id, escola=escola)
+        tipo.nome = nome
+        tipo.peso = peso
+        if hasattr(tipo, "ativo") and tipo.ativo is False:
+            tipo.ativo = True  # caso esteja reativando sem querer
+        tipo.save()
 
+        return JsonResponse({"mensagem": "Tipo de avaliação atualizado com sucesso!"})
+
+    # =========================
+    # DELETE: excluir (soft delete)
+    # =========================
+    if request.method == "DELETE":
+        tipo_id = data.get("id")
+        if not tipo_id:
+            return JsonResponse({"erro": "ID é obrigatório."}, status=400)
+
+        tipo = get_object_or_404(TipoAvaliacao, id=tipo_id, escola=escola)
+
+        # soft delete
+        if hasattr(tipo, "ativo"):
+            tipo.ativo = False
+            tipo.save(update_fields=["ativo"])
+        else:
+            # fallback: delete real se não existir 'ativo'
+            tipo.delete()
+
+        return JsonResponse({"mensagem": "Tipo de avaliação excluído com sucesso!"})
+
+    return JsonResponse({"erro": "Método não suportado."}, status=405)
 # =========================
 # AVALIAÇÕES
 # =========================
