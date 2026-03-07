@@ -82,6 +82,7 @@
         </div>
 
     </div>
+
 <!-- MODAL EDITAR TURMA -->
 <div class="modal fade" id="modalEditarTurma" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -111,6 +112,15 @@
                         <div class="form-group col-md-2">
                             <label>Turno</label>
                             <input id="editTurno" class="form-control">
+                        </div>
+
+                        <!-- ✅ NOVO: Sistema de Avaliação -->
+                        <div class="form-group col-md-2">
+                            <label>Sist. Aval.</label>
+                            <select id="editSistemaAvaliacao" class="form-control">
+                                <option value="NUM">Nota</option>
+                                <option value="CON">Conceito</option>
+                            </select>
                         </div>
                     </div>
 
@@ -342,6 +352,7 @@ document.querySelectorAll("th[data-sort]").forEach(th => {
 ============================================================ */
 function editarTurma(id) {
     const t = turmas.find(x => x.id === id);
+    console.log("EDITAR TURMA:", t?.id, t?.nome, t?.sistema_avaliacao);
     if (!t) return alert("Turma não encontrada!");
 
     document.getElementById("editId").value = t.id;
@@ -350,6 +361,10 @@ function editarTurma(id) {
     document.getElementById("editAno").value = t.ano;
     document.getElementById("editTurno").value = t.turno;
     document.getElementById("editDescricao").value = t.descricao;
+
+    // ✅ novo: preencher sistema de avaliação (fallback NUM)
+    const sel = document.getElementById("editSistemaAvaliacao");
+    if (sel) sel.value = (t.sistema_avaliacao || "NUM");
 
     $("#modalEditarTurma").modal("show");
 }
@@ -371,12 +386,15 @@ document.getElementById("formEditarTurma").onsubmit = function(e) {
             ano: document.getElementById("editAno").value,
             turno: document.getElementById("editTurno").value,
             descricao: document.getElementById("editDescricao").value,
+
+            // ✅ novo: enviar sistema de avaliação
+            sistema_avaliacao: document.getElementById("editSistemaAvaliacao").value
         })
     })
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else alert("Erro ao salvar: " + d.error);
+        else alert("Erro ao salvar: " + (d.error || d.mensagem || "Erro"));
     })
     .catch(() => alert("Erro inesperado."));
 };

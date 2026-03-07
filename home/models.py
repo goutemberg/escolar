@@ -329,11 +329,23 @@ class Autorizacoes(models.Model):
 #  TURMA
 # ================================================
 class Turma(models.Model):
+    AVALIACAO_CHOICES = [
+        ("NUM", "Numérica (nota)"),
+        ("CON", "Conceito (E/O/B)"),
+    ]
+
     nome = models.CharField(max_length=100)
     turno = models.CharField(max_length=20)
     ano = models.IntegerField()
     sala = models.CharField(max_length=20)
     descricao = models.TextField(blank=True)
+
+    # ✅ novo: define se a turma usa nota numérica ou conceito
+    sistema_avaliacao = models.CharField(
+        max_length=3,
+        choices=AVALIACAO_CHOICES,
+        default="NUM",
+    )
 
     alunos = models.ManyToManyField(
         Aluno,
@@ -757,6 +769,12 @@ class Avaliacao(models.Model):
 
 
 class Nota(models.Model):
+    CONCEITO_CHOICES = [
+        ("E", "Evolução"),
+        ("O", "Ótimo"),
+        ("B", "Bom"),
+    ]
+
     aluno = models.ForeignKey(
         'Aluno',
         on_delete=models.CASCADE,
@@ -769,9 +787,18 @@ class Nota(models.Model):
         related_name='notas'
     )
 
+    # ✅ numérico (fundamental)
     valor = models.DecimalField(
         max_digits=5,
         decimal_places=2,
+        null=True,
+        blank=True
+    )
+
+    # ✅ conceito (infantil)
+    conceito = models.CharField(
+        max_length=1,
+        choices=CONCEITO_CHOICES,
         null=True,
         blank=True
     )
@@ -788,8 +815,21 @@ class Nota(models.Model):
     class Meta:
         unique_together = ('aluno', 'avaliacao')
 
+    def clean(self):
+        # Não pode preencher os dois
+        if self.valor is not None and self.conceito:
+            raise ValidationError("Preencha apenas valor OU conceito.")
+
+        # Deve preencher pelo menos um
+        if self.valor is None and not self.conceito:
+            raise ValidationError("Informe um valor (nota) ou um conceito.")
+
+    def save(self, *args, **kwargs):
+        # garante validação sempre
+        self.full_clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.aluno.nome} - {self.avaliacao.descricao}"
-
-
-
+        if self.conceito:
+            return f"{self.aluno.nome} - {self.avaliacao.descricao} - {self.get_conceito_display()}"
+        return f"{self.aluno.nome} - {self.avaliacao.descricao} - {self.valor}"

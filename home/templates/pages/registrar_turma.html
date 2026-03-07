@@ -12,25 +12,55 @@
     {% endif %}
   {% endwith %}
 
+  <style>
+    /* ✅ Linha 1: tudo lado a lado */
+    .form-row.first-row{
+      display: grid;
+      grid-template-columns: 2.2fr 1.1fr 0.8fr 0.8fr 1.4fr;
+      gap: 12px;
+      align-items: start; /* ✅ não “cola” pelo fundo */
+    }
+
+    /* ✅ padroniza altura do label e do help pra alinhar inputs */
+    .form-row.first-row .form-group label{
+      display:block;
+      margin-bottom: 6px;
+      min-height: 22px; /* garante linha do label */
+    }
+    .form-row.first-row .help-inline{
+      display:block;
+      min-height: 18px;   /* reserva espaço pra help (mesmo vazio) */
+      margin-top: 4px;
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    @media (max-width: 1100px){
+      .form-row.first-row{ grid-template-columns: 1.6fr 1fr 1fr; }
+    }
+    @media (max-width: 720px){
+      .form-row.first-row{ grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 520px){
+      .form-row.first-row{ grid-template-columns: 1fr; }
+    }
+  </style>
 {% endblock extra_head %}
 
 {% block content %}
 
   <div class="titulo-pagina" id="tituloPagina">
-    {% if modo == "edit" %}
-      Editar Turma
-    {% else %}
-      Criar Turma
-    {% endif %}
+    {% if modo == "edit" %}Editar Turma{% else %}Criar Turma{% endif %}
   </div>
 
   <section class="content-wrapper" style="margin-top: 15px;">
     <form id="turmaForm" method="post">
       {% csrf_token %}
-
       <input type="hidden" id="turmaId" value="{{ turma.id|default:'' }}">
 
-      <div class="form-row">
+      <!-- ✅ Linha 1: Nome, Turno, Ano, Sala, Sistema de Avaliação -->
+      <div class="form-row first-row">
+
         <div class="form-group">
           <label for="nomeTurmaSelect">Nome da Turma *</label>
           <select id="nomeTurmaSelect" name="nome" class="form-control" required>
@@ -39,10 +69,11 @@
               <option value="{{ item.nome }}">{{ item.nome }}</option>
             {% endfor %}
           </select>
+          <span class="help-inline"></span>
           <div class="mensagem-erro" id="erroNome"></div>
         </div>
 
-        <div class="form-group short-field">
+        <div class="form-group">
           <label for="turnoTurma">Turno *</label>
           <select id="turnoTurma" name="turno" class="form-control" required>
             <option value="">Selecione</option>
@@ -50,20 +81,33 @@
             <option>Tarde</option>
             <option>Noite</option>
           </select>
+          <span class="help-inline"></span>
           <div class="mensagem-erro" id="erroTurno"></div>
         </div>
 
-        <div class="form-group short-field">
+        <div class="form-group">
           <label for="anoTurma">Ano *</label>
           <input id="anoTurma" name="ano" type="number" min="1900" max="2100" required class="form-control">
+          <span class="help-inline"></span>
           <div class="mensagem-erro" id="erroAno"></div>
         </div>
 
-        <div class="form-group short-field">
+        <div class="form-group">
           <label for="salaTurma">Sala *</label>
           <input id="salaTurma" name="sala" placeholder="Ex: 202" required type="text" class="form-control">
+          <span class="help-inline"></span>
           <div class="mensagem-erro" id="erroSala"></div>
         </div>
+
+        <div class="form-group">
+          <label for="sistemaAvaliacao">Sistema de Avaliação *</label>
+          <select id="sistemaAvaliacao" name="sistema_avaliacao" class="form-control" required>
+            <option value="NUM">Numérica (nota)</option>
+            <option value="CON">Conceito (E/O/B)</option>
+          </select>
+          <span class="help-inline">Infantil: Conceito · Fundamental: Nota</span>
+        </div>
+
       </div>
 
       <div class="form-row">
@@ -85,7 +129,6 @@
         <div class="form-group" style="flex: 2; position: relative;">
           <label for="buscaPessoa">Buscar Aluno ou Professor</label>
           <input id="buscaPessoa" type="text" placeholder="Digite o nome" autocomplete="off" class="form-control">
-          <!-- mantém aqui pro JS externo achar, mas vamos mover pro body -->
           <ul id="sugestoes"></ul>
         </div>
 
@@ -134,7 +177,12 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
 
-    // expõe porque o HTML chama no onchange
+    // ✅ Ano atual por padrão (somente se NÃO estiver em modo edit ou se estiver vazio)
+    const anoInput = document.getElementById("anoTurma");
+    if (anoInput && !anoInput.value){
+      anoInput.value = new Date().getFullYear();
+    }
+
     window.atualizarCampoDisciplina = function() {
       const tipo = document.getElementById("tipoPessoa").value;
       const selectDisciplina = document.getElementById("disciplinaSelecionada");
@@ -156,6 +204,10 @@
       document.getElementById("anoTurma").value = "{{ turma.ano }}";
       document.getElementById("salaTurma").value = "{{ turma.sala }}";
       document.getElementById("descricaoTurma").value = "{{ turma.descricao|default:'' }}";
+
+      {% if turma.sistema_avaliacao %}
+        document.getElementById("sistemaAvaliacao").value = "{{ turma.sistema_avaliacao }}";
+      {% endif %}
     {% endif %}
   });
 </script>
@@ -163,22 +215,14 @@
 <script src="{% static 'home/js/formulario_turma_dinamico.js' %}"></script>
 
 <script>
-  // ✅ FIX DEFINITIVO: move #sugestoes para o BODY (portal), impossível empurrar layout
   (function(){
-    function getSugestoes(){
-      return document.getElementById("sugestoes");
-    }
-    function getInput(){
-      return document.getElementById("buscaPessoa");
-    }
+    function getSugestoes(){ return document.getElementById("sugestoes"); }
+    function getInput(){ return document.getElementById("buscaPessoa"); }
 
     function ensurePortal(){
       const ul = getSugestoes();
       if (!ul) return null;
-
-      if (ul.parentElement !== document.body){
-        document.body.appendChild(ul);
-      }
+      if (ul.parentElement !== document.body){ document.body.appendChild(ul); }
       return ul;
     }
 
@@ -188,10 +232,7 @@
       if (!input || !ul) return;
 
       const hasItems = ul.children.length > 0;
-      if (!hasItems){
-        ul.style.display = "none";
-        return;
-      }
+      if (!hasItems){ ul.style.display = "none"; return; }
 
       const r = input.getBoundingClientRect();
       ul.style.left = r.left + "px";
@@ -200,13 +241,9 @@
       ul.style.display = "block";
     }
 
-    // roda depois do JS externo ter chance de mexer no DOM
     window.addEventListener("load", function(){
-      // garante portal
       ensurePortal();
       reposition();
-
-      // observa mudanças na lista e reposiciona
       const ul = getSugestoes();
       if (ul){
         const obs = new MutationObserver(reposition);
@@ -214,7 +251,6 @@
       }
     });
 
-    // reposiciona em resize/scroll/input
     document.addEventListener("DOMContentLoaded", function(){
       const input = getInput();
       if (input){
@@ -229,7 +265,6 @@
       window.addEventListener("scroll", reposition, true);
     });
 
-    // se alguém reanexar a UL pra dentro do form, puxa de volta pro body
     const guard = new MutationObserver(() => ensurePortal());
     guard.observe(document.documentElement, { childList:true, subtree:true });
   })();
