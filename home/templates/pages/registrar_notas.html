@@ -50,6 +50,9 @@
     <input type="hidden" name="turma_id" value="{{ turma_id }}">
     <input type="hidden" name="disciplina_id" value="{{ disciplina_id }}">
 
+    <!-- ✅ envia pro JS qual sistema a turma usa -->
+    <input type="hidden" id="sistema_avaliacao" value="{{ turma_sistema_avaliacao|default:'NUM' }}">
+
     <table>
       <thead>
         <tr>
@@ -75,23 +78,43 @@
             <td>
               <div class="nota-cell">
                 {% with aluno_notas=notas|get_item:aluno.id %}
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="10"
-                    class="nota-input"
-                    data-aluno="{{ aluno.id }}"
-                    data-avaliacao="{{ avaliacao.id }}"
-                    data-peso="{{ avaliacao.tipo.peso }}"
-                    name="{{ avaliacao.id }}_{{ aluno.id }}"
-                    value="{{ aluno_notas|get_item:avaliacao.id|default:'' }}"
-                  >
+
+                  {% if turma_sistema_avaliacao == "CON" %}
+                    <!-- ✅ INFANTIL / CONCEITO (salva como 3/2/1 no banco) -->
+                    <select
+                      class="conceito-input"
+                      data-aluno="{{ aluno.id }}"
+                      data-avaliacao="{{ avaliacao.id }}"
+                      name="{{ avaliacao.id }}_{{ aluno.id }}"
+                    >
+                      {% with v=aluno_notas|get_item:avaliacao.id|default:'' %}
+                        <option value="" {% if v == "" %}selected{% endif %}>—</option>
+                        <option value="3" {% if v|stringformat:"s" == "3" %}selected{% endif %}>E (Evolução)</option>
+                        <option value="2" {% if v|stringformat:"s" == "2" %}selected{% endif %}>O (Ótimo)</option>
+                        <option value="1" {% if v|stringformat:"s" == "1" %}selected{% endif %}>B (Bom)</option>
+                      {% endwith %}
+                    </select>
+                  {% else %}
+                    <!-- ✅ FUNDAMENTAL / NUMÉRICO -->
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="10"
+                      class="nota-input"
+                      data-aluno="{{ aluno.id }}"
+                      data-avaliacao="{{ avaliacao.id }}"
+                      data-peso="{{ avaliacao.tipo.peso }}"
+                      name="{{ avaliacao.id }}_{{ aluno.id }}"
+                      value="{{ aluno_notas|get_item:avaliacao.id|default:'' }}"
+                    >
+                  {% endif %}
+
                 {% endwith %}
 
                 <button type="button"
                         class="btn-limpar"
-                        title="Limpar nota"
+                        title="Limpar"
                         onclick="limparNota('{{ aluno.id }}','{{ avaliacao.id }}')">
                   🗑️
                 </button>
@@ -100,7 +123,11 @@
           {% endfor %}
 
           <td class="media-cell" data-media="{{ aluno.id }}">
-            {{ medias|get_item:aluno.id|default:"-" }}
+            {% if turma_sistema_avaliacao == "CON" %}
+              -
+            {% else %}
+              {{ medias|get_item:aluno.id|default:"-" }}
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -108,7 +135,7 @@
     </table>
 
     <button type="button" class="btn-salvar" onclick="salvarNotas()">
-      Salvar Notas
+      Salvar
     </button>
 
   </form>
@@ -118,7 +145,7 @@
       Não há avaliações cadastradas para esta disciplina.
     </p>
   {% else %}
-    <p>Selecione uma turma e uma disciplina para lançar as notas.</p>
+    <p>Selecione uma turma e uma disciplina para lançar.</p>
   {% endif %}
 
 </div>
@@ -141,19 +168,37 @@
   document.addEventListener("DOMContentLoaded", function () {
     ensureFuse(function() {
 
+      const sistema = (document.getElementById("sistema_avaliacao")?.value || "NUM").toUpperCase();
+
       // =========================
       // HELPERS (limpar + média ao vivo PONDERADA)
       // =========================
       window.limparNota = function(alunoId, avaliacaoId){
-        const input = document.querySelector(
-          `input.nota-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`
-        );
-        if (!input) return;
-        input.value = "";
-        atualizarMediaAluno(alunoId);
+        const sel = document.querySelector(`select.conceito-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`);
+        if (sel){
+          sel.value = "";
+          atualizarMediaAluno(alunoId);
+          return;
+        }
+
+        const input = document.querySelector(`input.nota-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`);
+        if (input){
+          input.value = "";
+          atualizarMediaAluno(alunoId);
+          return;
+        }
       }
 
       function atualizarMediaAluno(alunoId){
+        const cell = document.querySelector(`[data-media="${alunoId}"]`);
+        if (!cell) return;
+
+        // ✅ CONCEITO não tem média
+        if (sistema === "CON"){
+          cell.textContent = "-";
+          return;
+        }
+
         const inputs = document.querySelectorAll(`input.nota-input[data-aluno="${alunoId}"]`);
 
         let numerador = 0;
@@ -163,11 +208,9 @@
           const v = (i.value || "").trim();
           if (v === "") return;
 
-          
           const n = Number(v.replace(",", "."));
           if (!Number.isFinite(n)) return;
 
-          
           const pesoRaw = (i.getAttribute("data-peso") || "1").trim();
           const peso = Number(pesoRaw.replace(",", "."));
           if (!Number.isFinite(peso) || peso <= 0) return;
@@ -175,9 +218,6 @@
           numerador += (n * peso);
           denominador += peso;
         });
-
-        const cell = document.querySelector(`[data-media="${alunoId}"]`);
-        if (!cell) return;
 
         if (denominador === 0){
           cell.textContent = "-";
@@ -193,13 +233,20 @@
         }
       });
 
+      document.addEventListener("change", function(e){
+        if (e.target && e.target.classList.contains("conceito-input")){
+          const alunoId = e.target.getAttribute("data-aluno");
+          if (alunoId) atualizarMediaAluno(alunoId);
+        }
+      });
+
       // =========================
       // SALVAR (robusto)
       // =========================
       window.salvarNotas = async function() {
         const form = document.getElementById('notasForm');
         if (!form) {
-          alert("Formulário de notas não encontrado.");
+          alert("Formulário não encontrado.");
           return;
         }
 
@@ -216,21 +263,32 @@
             notas: {}
           };
 
-          const inputs = form.querySelectorAll('input[type="number"]');
+          if (sistema === "CON"){
+            // ✅ conceitos (manda 3/2/1)
+            const selects = form.querySelectorAll('select.conceito-input');
 
-          inputs.forEach(input => {
-            const [avaliacaoId, alunoId] = input.name.split('_');
+            selects.forEach(sel => {
+              const [avaliacaoId, alunoId] = sel.name.split('_');
+              const val = (sel.value || "").trim(); // 3/2/1 ou ""
+              if (val === "") return;
 
-            if (!dados.notas[alunoId]) {
-              dados.notas[alunoId] = {};
-            }
+              if (!dados.notas[alunoId]) dados.notas[alunoId] = {};
+              dados.notas[alunoId][avaliacaoId] = val; // manda 3/2/1
+            });
 
-            // ✅ proteção: só envia se tiver valor preenchido
-            const val = (input.value || "").trim();
-            if (val === "") return;
+          } else {
+            // ✅ numérico
+            const inputs = form.querySelectorAll('input.nota-input');
 
-            dados.notas[alunoId][avaliacaoId] = val;
-          });
+            inputs.forEach(input => {
+              const [avaliacaoId, alunoId] = input.name.split('_');
+              const val = (input.value || "").trim();
+              if (val === "") return;
+
+              if (!dados.notas[alunoId]) dados.notas[alunoId] = {};
+              dados.notas[alunoId][avaliacaoId] = val;
+            });
+          }
 
           console.log("PAYLOAD /lancar_notas:", dados);
 
@@ -254,8 +312,8 @@
             return;
           }
 
-          if (data && data.mensagem) {
-            alert(data.mensagem);
+          if (data && (data.mensagem || data.status === "sucesso")) {
+            alert(data.mensagem || "Salvo com sucesso!");
             location.reload();
             return;
           }
@@ -270,6 +328,12 @@
           if (btn) btn.disabled = false;
         }
       }
+
+      // inicializa médias (caso já venha preenchido)
+      document.querySelectorAll("tr[data-aluno-row]").forEach(tr => {
+        const alunoId = tr.getAttribute("data-aluno-row");
+        if (alunoId) atualizarMediaAluno(alunoId);
+      });
 
     });
   });

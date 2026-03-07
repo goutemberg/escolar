@@ -6,13 +6,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const campoTags = document.getElementById('turmaMontadaTags');
     const form = document.getElementById('turmaForm');
 
+    // ✅ pega o select uma vez
+    const sistemaSelect = document.getElementById('sistemaAvaliacao');
+
     // ===============================
     // MODELO DA TURMA
     // ===============================
     const turma = {
-        id: null,              // usado na edição
-        professores: [],       // [{ professor_id, nome, disciplina_id, disciplina_nome }]
-        alunos: []             // [{ id, nome }]
+        id: null,
+        professores: [],
+        alunos: []
     };
 
     // ===============================
@@ -24,11 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (turmaId) {
         turma.id = turmaId;
 
-        // 🔁 muda texto do botão
         const botaoSalvar = document.querySelector('#turmaForm button[type="submit"]');
-        if (botaoSalvar) {
-            botaoSalvar.textContent = 'Salvar Edição';
-        }
+        if (botaoSalvar) botaoSalvar.textContent = 'Salvar Edição';
 
         carregarTurma(turmaId);
     }
@@ -59,6 +59,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('salaTurma').value = data.sala;
                 document.getElementById('descricaoTurma').value = data.descricao || '';
 
+                // ✅ sistema de avaliação (se existir no retorno)
+                if (sistemaSelect && data.sistema_avaliacao) {
+                    sistemaSelect.value = data.sistema_avaliacao;
+                }
+
                 turma.alunos = data.alunos || [];
                 turma.professores = data.professores || [];
 
@@ -82,7 +87,6 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        // -------- PROFESSOR --------
         if (tipo === 'professor') {
             const disciplinaId = disciplinaSelect.value;
             const disciplinaNome = disciplinaSelect.options[disciplinaSelect.selectedIndex]?.text;
@@ -108,7 +112,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 disciplina_nome: disciplinaNome
             });
 
-        // -------- ALUNO --------
         } else {
             if (!turma.alunos.some(a => a.id === pessoa.id)) {
                 turma.alunos.push({ id: pessoa.id, nome: pessoa.nome });
@@ -224,6 +227,20 @@ document.addEventListener('DOMContentLoaded', function () {
     form.addEventListener('submit', function (e) {
         e.preventDefault();
 
+        // ✅ garante leitura correta do select
+        if (!sistemaSelect) {
+            console.warn("Select #sistemaAvaliacao não encontrado. Enviando NUM por padrão.");
+        }
+
+        const sistemaSelectAtual = document.getElementById("sistemaAvaliacao");
+        let sistemaVal = sistemaSelectAtual ? sistemaSelectAtual.value : "NUM";
+
+        sistemaVal = sistemaVal.toString().trim().toUpperCase();    
+
+        if (!["NUM", "CON"].includes(sistemaVal)) {
+            sistemaVal = "NUM";
+        }
+        console.log("SELECT sistema_avaliacao:", sistemaVal);
         const payload = {
             turma_id: turma.id,
             nome: document.getElementById('nomeTurmaSelect').value.trim(),
@@ -231,11 +248,16 @@ document.addEventListener('DOMContentLoaded', function () {
             ano: document.getElementById('anoTurma').value.trim(),
             sala: document.getElementById('salaTurma').value.trim(),
             descricao: document.getElementById('descricaoTurma').value.trim(),
+
+            // ✅ sistema de avaliação garantido
+            sistema_avaliacao: sistemaVal,
+
             professores: turma.professores,
             alunos_ids: turma.alunos.map(a => a.id)
         };
-
+    
         fetch('/turmas/cadastrar/', {
+
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -267,22 +289,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         return cookieValue;
     }
+
     // ===============================
-// CANCELAR (CREATE / EDIT)
-// ===============================
-const btnCancelar = document.getElementById('btnCancelar');
+    // CANCELAR (CREATE / EDIT)
+    // ===============================
+    const btnCancelar = document.getElementById('btnCancelar');
 
-if (btnCancelar) {
-    btnCancelar.addEventListener('click', function () {
+    if (btnCancelar) {
+        btnCancelar.addEventListener('click', function () {
+            if (turma.id) {
+                window.location.href = `/turmas/${turma.id}/`;
+            } else {
+                window.location.href = `/turmas/listar/`;
+            }
+        });
+    }
 
-        // edição → volta para detalhe
-        if (turma.id) {
-            window.location.href = `/turmas/${turma.id}/`;
-        }
-        // cadastro → volta para listagem
-        else {
-            window.location.href = `/turmas/listar/`;
-        }
-    });
-}
 });

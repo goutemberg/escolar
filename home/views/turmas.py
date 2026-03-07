@@ -20,7 +20,6 @@ from home.decorators import role_required
 
 @login_required
 def listar_turmas(request):
-
     turmas_qs = (
         Turma.objects
         .filter(escola=request.user.escola)
@@ -29,6 +28,7 @@ def listar_turmas(request):
     )
 
     turmas = []
+    turmas_json = []
 
     for turma in turmas_qs:
         professores = (
@@ -44,13 +44,24 @@ def listar_turmas(request):
             "professores": list(professores),
         })
 
+        turmas_json.append({
+            "id": turma.id,
+            "nome": turma.nome,
+            "sala": turma.sala,
+            "ano": turma.ano,
+            "turno": turma.turno,
+            "descricao": turma.descricao or "",
+            "sistema_avaliacao": turma.sistema_avaliacao or "NUM",
+        })
+
     return render(
         request,
         "pages/turmas/listar_turmas.html",
-        {"turmas": turmas}
+        {
+            "turmas": turmas,
+            "turmas_json": json.dumps(turmas_json, ensure_ascii=False),
+        }
     )
-
-
 # ======================================================
 # DETALHE DA TURMA
 # ======================================================
@@ -188,14 +199,11 @@ def excluir_nome_turma(request):
 def cadastro_turma(request):
     escola = request.user.escola
 
-    # ======================================================
-    # POST → CRIAR ou EDITAR TURMA (API JSON)
-    # ======================================================
     if request.method == "POST":
         try:
             data = json.loads(request.body)
 
-            turma_id = data.get("turma_id")  # 🔑 se existir → edição
+            turma_id = data.get("turma_id")
 
             nome = data.get('nome')
             turno = data.get('turno')
@@ -204,27 +212,21 @@ def cadastro_turma(request):
             alunos_ids = data.get('alunos_ids', [])
             professores = data.get('professores', [])
 
-            # ano precisa ser inteiro
+            # ✅ sistema de avaliação
+            sistema_avaliacao = (data.get("sistema_avaliacao") or "NUM").strip().upper()
+            if sistema_avaliacao not in ("NUM", "CON"):
+                sistema_avaliacao = "NUM"
+
             try:
                 ano = int(data.get('ano'))
             except (TypeError, ValueError):
-                return JsonResponse({
-                    'success': False,
-                    'mensagem': 'Ano inválido.'
-                }, status=400)
+                return JsonResponse({'success': False, 'mensagem': 'Ano inválido.'}, status=400)
 
-            # validação mínima
             if not all([nome, turno, ano, sala]):
-                return JsonResponse({
-                    'success': False,
-                    'mensagem': 'Preencha os dados básicos da turma.'
-                }, status=400)
+                return JsonResponse({'success': False, 'mensagem': 'Preencha os dados básicos da turma.'}, status=400)
 
             with transaction.atomic():
 
-                # ==================================================
-                # CREATE
-                # ==================================================
                 if not turma_id:
                     turma = Turma.objects.create(
                         nome=nome,
@@ -232,43 +234,27 @@ def cadastro_turma(request):
                         ano=ano,
                         sala=sala,
                         descricao=descricao,
-                        escola=escola
+                        escola=escola,
+                        sistema_avaliacao=sistema_avaliacao,
                     )
 
-                # ==================================================
-                # UPDATE
-                # ==================================================
                 else:
-                    turma = get_object_or_404(
-                        Turma,
-                        id=turma_id,
-                        escola=escola
-                    )
+                    turma = get_object_or_404(Turma, id=turma_id, escola=escola)
 
                     turma.nome = nome
                     turma.turno = turno
                     turma.ano = ano
                     turma.sala = sala
                     turma.descricao = descricao
+                    turma.sistema_avaliacao = sistema_avaliacao
                     turma.save()
 
-                    # limpa vínculos antigos de alunos
                     turma.alunos.clear()
 
-                    # 🔑 PATCH: limpa turma_principal antiga
-                    Aluno.objects.filter(
-                        turma_principal=turma
-                    ).update(turma_principal=None)
+                    Aluno.objects.filter(turma_principal=turma).update(turma_principal=None)
 
-                    # 🔑 PATCH: limpa professores + disciplinas antigos
-                    TurmaDisciplina.objects.filter(
-                        turma=turma,
-                        escola=escola
-                    ).delete()
+                    TurmaDisciplina.objects.filter(turma=turma, escola=escola).delete()
 
-                # ==================================================
-                # ALUNOS (opcional)
-                # ==================================================
                 if alunos_ids:
                     alunos = Aluno.objects.filter(
                         id__in=alunos_ids,
@@ -281,9 +267,6 @@ def cadastro_turma(request):
                         aluno.turma_principal = turma
                         aluno.save(update_fields=["turma_principal"])
 
-                # ==================================================
-                # PROFESSORES + DISCIPLINAS (opcional / múltiplos)
-                # ==================================================
                 for item in professores:
                     TurmaDisciplina.objects.create(
                         turma=turma,
@@ -292,10 +275,18 @@ def cadastro_turma(request):
                         escola=escola
                     )
 
+            # ✅ prova do que ficou no banco
+            turma.refresh_from_db()
+
             return JsonResponse({
                 'success': True,
                 'mensagem': 'Turma salva com sucesso.',
-                'turma_id': turma.id
+                'turma_id': turma.id,
+
+                # ✅ DEBUG (temporário)
+                'debug_sa_recebido': data.get("sistema_avaliacao"),
+                'debug_sa_normalizado': sistema_avaliacao,
+                'debug_sa_salvo': turma.sistema_avaliacao,
             })
 
         except Exception as e:
@@ -304,19 +295,13 @@ def cadastro_turma(request):
                 'mensagem': f'Erro ao salvar turma: {str(e)}'
             }, status=500)
 
-    # ======================================================
-    # GET → RENDERIZAR TELA (CREATE)
-    # ======================================================
     disciplinas = Disciplina.objects.filter(escola=escola).order_by('nome')
     nomes_turma = NomeTurma.objects.filter(escola=escola).order_by('nome')
 
-    context = {
+    return render(request, 'pages/registrar_turma.html', {
         'disciplinas': disciplinas,
         'nomes_turma': nomes_turma
-    }
-
-    return render(request, 'pages/registrar_turma.html', context)
-
+    })
 
 # ======================================================
     # Remover aluno da turma
@@ -447,7 +432,11 @@ def atualizar_turma(request, turma_id):
         alunos_ids = data.get("alunos_ids", [])
         professores = data.get("professores", [])
 
-        # ano precisa ser inteiro
+        # ✅ sistema de avaliação
+        sistema_avaliacao = (data.get("sistema_avaliacao") or "NUM").strip().upper()
+        if sistema_avaliacao not in ("NUM", "CON"):
+            sistema_avaliacao = "NUM"
+
         try:
             ano = int(data.get("ano"))
         except (TypeError, ValueError):
@@ -474,6 +463,7 @@ def atualizar_turma(request, turma_id):
         turma.ano = ano
         turma.sala = sala
         turma.descricao = descricao
+        turma.sistema_avaliacao = sistema_avaliacao  # ✅ AQUI
         turma.save()
 
         # 2️⃣ Sincroniza alunos (estado final)
@@ -484,7 +474,6 @@ def atualizar_turma(request, turma_id):
         )
         turma.alunos.set(alunos)
 
-# 🔑 PATCH: sincroniza turma principal
         Aluno.objects.filter(
             turma_principal=turma
         ).exclude(id__in=alunos).update(turma_principal=None)
@@ -492,6 +481,12 @@ def atualizar_turma(request, turma_id):
         for aluno in alunos:
             aluno.turma_principal = turma
             aluno.save(update_fields=["turma_principal"])
+
+        # ⚠️ opcionalmente limpar vínculos antigos antes de recriar
+        TurmaDisciplina.objects.filter(
+            turma=turma,
+            escola=escola
+        ).delete()
 
         for item in professores:
             TurmaDisciplina.objects.create(
@@ -512,6 +507,7 @@ def atualizar_turma(request, turma_id):
             {"success": False, "mensagem": str(e)},
             status=500
         )
+    
 
 @login_required
 def api_detalhe_turma(request, turma_id):
@@ -538,7 +534,6 @@ def api_detalhe_turma(request, turma_id):
             "disciplina__nome"
         )
     )
-
     return JsonResponse({
         "id": turma.id,
         "nome": turma.nome,
@@ -546,6 +541,7 @@ def api_detalhe_turma(request, turma_id):
         "ano": turma.ano,
         "sala": turma.sala,
         "descricao": turma.descricao,
+        "sistema_avaliacao": turma.sistema_avaliacao,
         "alunos": alunos,
         "professores": [
             {

@@ -1315,7 +1315,7 @@ def relatorio_anual_chamadas_excel(request):
     ]
 
     ws.append(headers)
-
+    from openpyxl.styles import Font, Alignment
     # ESTILO DO CABEÇALHO
     for col in range(1, len(headers) + 1):
         cell = ws.cell(row=1, column=col)
