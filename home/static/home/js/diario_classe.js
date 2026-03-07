@@ -207,21 +207,32 @@ function criarLinha(dados = {}, index = 0) {
     const hojeISO = new Date().toISOString().split("T")[0];
 
     setTimeout(() => {
-    const agora = new Date();
+  const agora = new Date();
 
-    const horaInicioAtual = agora.toTimeString().slice(0, 5);
+  const horaInicioAtual = agora.toTimeString().slice(0, 5);
+  const fim = new Date(agora.getTime() + 50 * 60000);
+  const horaFimAtual = fim.toTimeString().slice(0, 5);
 
-    const fim = new Date(agora.getTime() + 50 * 60000);
-    const horaFimAtual = fim.toTimeString().slice(0, 5);
+  const dataEl = tr.querySelector(".data");
+  const dataMinEl = tr.querySelector(".data-min");
+  const inicioEl = tr.querySelector(".inicio");
+  const fimEl = tr.querySelector(".fim");
 
-    tr.querySelector(".data").value = dados.data_ministrada || hojeISO;
-    tr.querySelector(".data-min").value = dados.data_ministrada || hojeISO;
+  dataEl.value = dados.data_ministrada || hojeISO;
+  dataMinEl.value = dados.data_ministrada || hojeISO;
 
-    tr.querySelector(".inicio").value =
-        dados.hora_inicio || horaInicioAtual;
+  inicioEl.value = dados.hora_inicio || horaInicioAtual;
+  fimEl.value = dados.hora_fim || horaFimAtual;
 
-    tr.querySelector(".fim").value =
-        dados.hora_fim || horaFimAtual;
+  
+  dataEl.addEventListener("change", () => {
+    dataMinEl.value = dataEl.value;
+  });
+
+  dataMinEl.addEventListener("change", () => {
+    dataEl.value = dataMinEl.value;
+  });
+
 }, 0);
 
 
