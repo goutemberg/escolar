@@ -42,7 +42,10 @@ document.addEventListener('DOMContentLoaded', function () {
     return turma.alunos.some(a => String(a.id) === String(id));
   }
 
-  function professorJaNaTurma(professorId, disciplinaId) {
+  // ✅ REGRA CERTA:
+  // bloqueia SOMENTE professor + disciplina repetidos
+  // permite mesmo professor em disciplinas diferentes
+  function professorJaNaDisciplina(professorId, disciplinaId) {
     return turma.professores.some(p =>
       String(p.professor_id) === String(professorId) &&
       String(p.disciplina_id) === String(disciplinaId)
@@ -87,6 +90,12 @@ document.addEventListener('DOMContentLoaded', function () {
     renderSugestoesAtuais();
   }
 
+  // ✅ se mudar a disciplina, precisa re-renderizar sugestões
+  // para aplicar corretamente o "já vinculado nessa disciplina"
+  if (disciplinaSelect) {
+    disciplinaSelect.addEventListener("change", renderSugestoesAtuais);
+  }
+
   // ===============================
   // CARREGAR TURMA (EDIÇÃO)
   // ===============================
@@ -108,6 +117,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // ✅ ordena alfabeticamente ao carregar
         turma.alunos = sortPorNome(data.alunos || []);
+
         turma.professores = sortPorNome((data.professores || []).map(p => ({
           professor_id: p.professor_id,
           nome: p.nome,
@@ -138,7 +148,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    // ✅ bloqueia adicionar se já estiver na turma (evita duplicar)
+    // ✅ bloqueia aluno repetido
     if (tipo === 'aluno' && alunoJaNaTurma(pessoa.id)) {
       alert("Este aluno já está na turma.");
       return;
@@ -153,11 +163,13 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
 
-      if (professorJaNaTurma(pessoa.id, disciplinaId)) {
+      // ✅ BLOQUEIA SÓ SE FOR A MESMA DISCIPLINA
+      if (professorJaNaDisciplina(pessoa.id, disciplinaId)) {
         alert("Este professor já está vinculado a essa disciplina.");
         return;
       }
 
+      // ✅ PERMITE MESMO PROFESSOR EM OUTRA DISCIPLINA
       turma.professores.push({
         professor_id: pessoa.id,
         nome: pessoa.nome,
@@ -165,13 +177,10 @@ document.addEventListener('DOMContentLoaded', function () {
         disciplina_nome: disciplinaNome
       });
 
-      // ✅ mantém ordem alfabética sempre
       turma.professores = sortPorNome(turma.professores);
 
     } else {
       turma.alunos.push({ id: pessoa.id, nome: pessoa.nome });
-
-      // ✅ mantém ordem alfabética sempre
       turma.alunos = sortPorNome(turma.alunos);
     }
 
@@ -187,18 +196,19 @@ document.addEventListener('DOMContentLoaded', function () {
   function atualizarTags() {
     campoTags.innerHTML = '';
 
-    // ✅ garante que sempre renderiza ordenado
     const profs = sortPorNome(turma.professores);
     const alunos = sortPorNome(turma.alunos);
 
-    profs.forEach((p, indexReal) => {
-      // indexReal pode ser diferente do array original se estiver ordenando
-      // então removemos pelo match do objeto
+    profs.forEach((p) => {
       const tag = criarTag(
         `👨‍🏫 ${p.nome} – ${p.disciplina_nome}`,
         () => {
+          // remove pelo par professor+disciplina
           turma.professores = turma.professores.filter(x =>
-            !(String(x.professor_id) === String(p.professor_id) && String(x.disciplina_id) === String(p.disciplina_id))
+            !(
+              String(x.professor_id) === String(p.professor_id) &&
+              String(x.disciplina_id) === String(p.disciplina_id)
+            )
           );
           atualizarTags();
           renderSugestoesAtuais();
@@ -207,7 +217,7 @@ document.addEventListener('DOMContentLoaded', function () {
       campoTags.appendChild(tag);
     });
 
-    alunos.forEach((a, indexReal) => {
+    alunos.forEach((a) => {
       const tag = criarTag(
         `👦 ${a.nome}`,
         () => {
@@ -247,7 +257,7 @@ document.addEventListener('DOMContentLoaded', function () {
       .then(res => res.json())
       .then(data => {
         let lista = Array.isArray(data) ? data : (data.resultados || []);
-        lista = sortPorNome(lista); // ✅ ordem alfabética na lista
+        lista = sortPorNome(lista);
         lastLista = lista;
         mostrarSugestoes(lista);
       })
@@ -294,7 +304,6 @@ document.addEventListener('DOMContentLoaded', function () {
     lista.forEach(p => {
       const li = document.createElement('li');
 
-      // ✅ item inteiro clicável e fácil de selecionar
       li.style.cssText = `
         padding:10px 12px;
         cursor:pointer;
@@ -304,14 +313,16 @@ document.addEventListener('DOMContentLoaded', function () {
       `;
       li.textContent = p.nome;
 
-      // ✅ desabilita quem já está na turma
       let disabled = false;
 
       if (tipo === "aluno") {
-        if (alunoJaNaTurma(p.id)) disabled = true;
+        disabled = alunoJaNaTurma(p.id);
       } else {
-        // professor: só dá pra "travar" certo se disciplina selecionada
-        if (disciplinaIdAtual && professorJaNaTurma(p.id, disciplinaIdAtual)) disabled = true;
+        // ✅ professor só fica "bloqueado" se já estiver NESSA disciplina
+        // e só quando disciplina estiver selecionada
+        if (disciplinaIdAtual && professorJaNaDisciplina(p.id, disciplinaIdAtual)) {
+          disabled = true;
+        }
       }
 
       if (disabled) {
@@ -320,9 +331,8 @@ document.addEventListener('DOMContentLoaded', function () {
         li.style.pointerEvents = "none";
         li.title = "Já adicionado na turma";
       } else {
-        // ✅ mousedown evita perder foco/blur antes de aplicar o valor
         li.addEventListener("mousedown", function (ev) {
-          ev.preventDefault(); // mantém foco no input
+          ev.preventDefault();
           inputBusca.value = p.nome;
           ul.innerHTML = '';
         });
@@ -343,7 +353,6 @@ document.addEventListener('DOMContentLoaded', function () {
   form.addEventListener('submit', function (e) {
     e.preventDefault();
 
-    // ✅ garante leitura correta do select
     if (!sistemaSelect) {
       console.warn("Select #sistemaAvaliacao não encontrado. Enviando NUM por padrão.");
     }
@@ -356,7 +365,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!["NUM", "CON"].includes(sistemaVal)) {
       sistemaVal = "NUM";
     }
-    console.log("SELECT sistema_avaliacao:", sistemaVal);
 
     const payload = {
       turma_id: turma.id,
@@ -365,10 +373,7 @@ document.addEventListener('DOMContentLoaded', function () {
       ano: document.getElementById('anoTurma').value.trim(),
       sala: document.getElementById('salaTurma').value.trim(),
       descricao: document.getElementById('descricaoTurma').value.trim(),
-
-      // ✅ sistema de avaliação garantido
       sistema_avaliacao: sistemaVal,
-
       professores: turma.professores,
       alunos_ids: turma.alunos.map(a => a.id)
     };
