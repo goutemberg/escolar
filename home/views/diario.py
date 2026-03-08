@@ -447,3 +447,64 @@ def diario_classe_pdf(request):
             f"Erro ao gerar PDF: {str(e)}",
             status=500
         )
+
+
+@login_required
+def excluir_diario_classe(request, registro_id):
+    if request.method != "DELETE":
+        return JsonResponse(
+            {"error": "Método não permitido."},
+            status=405
+        )
+
+    try:
+        diario = get_object_or_404(
+            DiarioDeClasse,
+            id=registro_id,
+            escola=request.user.escola
+        )
+
+        # =========================
+        # CONTROLE DE PERMISSÃO
+        # =========================
+        if request.user.role == "professor":
+            try:
+                professor_obj = request.user.docente
+            except Docente.DoesNotExist:
+                return JsonResponse(
+                    {"error": "Professor sem vínculo com docente."},
+                    status=403
+                )
+
+            if diario.professor != professor_obj:
+                return JsonResponse(
+                    {"error": "Você não tem permissão para excluir este registro."},
+                    status=403
+                )
+
+            if diario.data_ministrada < date.today():
+                return JsonResponse(
+                    {
+                        "error": (
+                            "Aulas de datas anteriores não podem ser "
+                            "excluídas por professores."
+                        )
+                    },
+                    status=403
+                )
+
+        diario.delete()
+
+        return JsonResponse(
+            {"success": True, "message": "Registro excluído com sucesso."},
+            status=200
+        )
+
+    except Exception as e:
+        return JsonResponse(
+            {
+                "error": "Erro interno ao excluir diário.",
+                "detail": str(e)
+            },
+            status=500
+        )

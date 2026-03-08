@@ -500,7 +500,7 @@ async function excluirRegistro(tr) {
 
     try {
         const resp = await fetch(
-            `/diario/excluir/${id}/`,
+            `/diario-classe/excluir/${id}/`,
             {
                 method: "DELETE",
                 headers: {
