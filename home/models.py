@@ -4,6 +4,13 @@ from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 import uuid
 from .utils import gerar_matricula_unica
+import random
+import string
+
+
+def gerar_codigo_cliente():
+    caracteres = string.ascii_uppercase + string.digits
+    return 'ESC-' + ''.join(random.choices(caracteres, k=6))
 
 
 # ================================================
@@ -15,6 +22,14 @@ class Escola(models.Model):
         ("legacy", "Escola Pequeno Aprendiz"),
         ("nucleo", "Padrão Núcleo Escolar"),
     ]
+
+    codigo_cliente = models.CharField(
+        max_length=10,
+        unique=True,
+        blank=True,
+        null=True,
+        editable=False
+    )
 
     nome = models.CharField(max_length=255, unique=True)
 
@@ -50,7 +65,6 @@ class Escola(models.Model):
     site = models.CharField(max_length=200, blank=True, null=True)
     cep = models.CharField(max_length=9, default='00000000')
 
-    # 🔵 Novo campo para controle de layout
     tema = models.CharField(
         max_length=20,
         choices=TEMA_CHOICES,
@@ -64,8 +78,18 @@ class Escola(models.Model):
         if Escola.objects.filter(cnpj=self.cnpj).exclude(id=self.id).exists():
             raise ValidationError("Este CNPJ já está cadastrado no sistema.")
 
+    def save(self, *args, **kwargs):
+        if not self.codigo_cliente:
+            while True:
+                codigo = gerar_codigo_cliente()
+                if not Escola.objects.filter(codigo_cliente=codigo).exists():
+                    self.codigo_cliente = codigo
+                    break
+
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return self.nome
+        return f"{self.nome} ({self.codigo_cliente})"
 
 
 # ================================================

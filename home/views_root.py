@@ -127,52 +127,20 @@ def index(request):
     )
 
 
+@login_required
 def cadastro_escola(request):
-    form = EscolaForm()
-    return render(request, 'pages/cadastrar_escola.html', {'form': form})
+    escola = getattr(request.user, 'escola', None)
+    return render(request, 'pages/cadastrar_escola.html', {
+        'escola': escola
+    })
 
 
+@login_required
 def cadastrar_escola_banco(request):
-    if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        try:
-            data = json.loads(request.body)
-
-            nome = data.get('schoolName')
-            cnpj = data.get('schoolCnpj')
-            telefone = data.get('schoolPhone')
-            email = data.get('schoolEmail')
-            endereco = data.get('schoolStreet')
-            numero = data.get('schoolNumber')
-            complemento = data.get('schoolComplement')
-            bairro = data.get('schoolNeighborhood')
-            cidade = data.get('schoolCity')
-            estado = data.get('schoolState')
-            site = data.get('schoolWebsite')
-            cep = data.get('schoolCep')
-
-            if Escola.objects.filter(cnpj=cnpj, escola=request.user.escola).exists():
-                return JsonResponse({'success': False, 'error': 'CNPJ já cadastrado.'})
-
-            Escola.objects.create(
-                nome=nome,
-                cnpj=cnpj,
-                telefone=telefone,
-                email=email,
-                endereco=endereco,
-                numero=numero,
-                complemento=complemento,
-                bairro=bairro,
-                cidade=cidade,
-                estado=estado,
-                site=site,
-                cep=cep
-            )
-
-            return JsonResponse({'success': True})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': f'Erro interno: {str(e)}'})
-
-    return JsonResponse({'success': False, 'error': 'Método não permitido'})
+    return JsonResponse({
+        'success': False,
+        'error': 'Cadastro de escola disponível apenas pelo Django Admin.'
+    }, status=403)
 
 @login_required
 @role_required(['diretor', 'coordenador'])
