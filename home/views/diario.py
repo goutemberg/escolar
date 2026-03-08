@@ -117,7 +117,6 @@ def api_listar_diario(request):
     return JsonResponse(data, safe=False)
 
 
-
 @login_required
 @require_POST
 def salvar_diario_classe(request):
@@ -130,7 +129,7 @@ def salvar_diario_classe(request):
         data_ministrada = payload.get("data_ministrada")
         hora_inicio = payload.get("hora_inicio")
         hora_fim = payload.get("hora_fim")
-        resumo_conteudo = payload.get("resumo_conteudo", "").strip()
+        resumo_conteudo = (payload.get("resumo_conteudo") or "").strip()
 
         if not all([turma_id, disciplina_id, data_ministrada, resumo_conteudo]):
             return JsonResponse(
@@ -139,25 +138,37 @@ def salvar_diario_classe(request):
             )
 
         # converte data
-        data_ministrada_date = date.fromisoformat(data_ministrada)
+        try:
+            data_ministrada_date = date.fromisoformat(data_ministrada)
+        except ValueError:
+            return JsonResponse(
+                {"error": "Data ministrada inválida."},
+                status=400
+            )
 
         turma = Turma.objects.get(
             id=turma_id,
             escola=request.user.escola
         )
 
-        disciplina = Disciplina.objects.get(id=disciplina_id)
+        # ✅ blindagem: disciplina sempre da mesma escola
+        disciplina = Disciplina.objects.get(
+            id=disciplina_id,
+            escola=request.user.escola
+        )
 
         # =========================
         # CONTROLE DE PERMISSÃO
         # =========================
-
         professor_obj = None
 
         if request.user.role == "professor":
-            try:
-                professor_obj = request.user.docente
-            except Docente.DoesNotExist:
+            professor_obj = Docente.objects.filter(
+                user=request.user,
+                escola=request.user.escola
+            ).first()
+
+            if not professor_obj:
                 return JsonResponse(
                     {"error": "Professor sem vínculo com docente."},
                     status=403
@@ -166,29 +177,26 @@ def salvar_diario_classe(request):
             # garante que o professor leciona a turma/disciplina
             if not turma.turmadisciplina_set.filter(
                 professor=professor_obj,
-                disciplina=disciplina
+                disciplina=disciplina,
+                escola=request.user.escola
             ).exists():
                 return JsonResponse(
                     {"error": "Acesso não autorizado para esta turma/disciplina."},
                     status=403
                 )
 
-            # 🔒 REGRA PEDAGÓGICA
-            if data_ministrada_date < date.today():
-                return JsonResponse(
-                    {
-                        "error": (
-                            "Aulas de datas anteriores não podem ser "
-                            "editadas por professores."
-                        )
-                    },
-                    status=403
-                )
+            # ✅ REMOVIDO: bloqueio retroativo para professor
+            # (agora professor pode salvar/editar datas anteriores)
+
+        elif request.user.role not in ["diretor", "coordenador"]:
+            return JsonResponse(
+                {"error": "Acesso negado."},
+                status=403
+            )
 
         # =========================
         # CREATE ou UPDATE
         # =========================
-
         if diario_id:
             diario = DiarioDeClasse.objects.get(
                 id=diario_id,
@@ -212,35 +220,23 @@ def salvar_diario_classe(request):
 
         diario.save()
 
-        return JsonResponse(
-            {"id": diario.id},
-            status=200
-        )
+        return JsonResponse({"id": diario.id}, status=200)
 
     except Turma.DoesNotExist:
-        return JsonResponse(
-            {"error": "Turma inválida."},
-            status=404
-        )
+        return JsonResponse({"error": "Turma inválida."}, status=404)
 
     except Disciplina.DoesNotExist:
-        return JsonResponse(
-            {"error": "Disciplina inválida."},
-            status=404
-        )
+        return JsonResponse({"error": "Disciplina inválida."}, status=404)
 
     except DiarioDeClasse.DoesNotExist:
-        return JsonResponse(
-            {"error": "Registro não encontrado."},
-            status=404
-        )
+        return JsonResponse({"error": "Registro não encontrado."}, status=404)
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido."}, status=400)
 
     except Exception as e:
         return JsonResponse(
-            {
-                "error": "Erro interno ao salvar diário.",
-                "detail": str(e)
-            },
+            {"error": "Erro interno ao salvar diário.", "detail": str(e)},
             status=500
         )
     
@@ -468,30 +464,36 @@ def excluir_diario_classe(request, registro_id):
         # CONTROLE DE PERMISSÃO
         # =========================
         if request.user.role == "professor":
-            try:
-                professor_obj = request.user.docente
-            except Docente.DoesNotExist:
+            professor_obj = Docente.objects.filter(
+                user=request.user,
+                escola=request.user.escola
+            ).first()
+
+            if not professor_obj:
                 return JsonResponse(
                     {"error": "Professor sem vínculo com docente."},
                     status=403
                 )
 
-            if diario.professor != professor_obj:
+            # ✅ garante que o professor está vinculado à turma/disciplina do diário
+            permitido = TurmaDisciplina.objects.filter(
+                turma=diario.turma,
+                disciplina=diario.disciplina,
+                professor=professor_obj,
+                escola=request.user.escola
+            ).exists()
+
+            if not permitido:
                 return JsonResponse(
                     {"error": "Você não tem permissão para excluir este registro."},
                     status=403
                 )
 
-            if diario.data_ministrada < date.today():
-                return JsonResponse(
-                    {
-                        "error": (
-                            "Aulas de datas anteriores não podem ser "
-                            "excluídas por professores."
-                        )
-                    },
-                    status=403
-                )
+            # ✅ REMOVIDO: bloqueio retroativo para professor
+            # (agora pode excluir datas anteriores)
+
+        elif request.user.role not in ["diretor", "coordenador"]:
+            return JsonResponse({"error": "Acesso negado."}, status=403)
 
         diario.delete()
 
@@ -502,9 +504,6 @@ def excluir_diario_classe(request, registro_id):
 
     except Exception as e:
         return JsonResponse(
-            {
-                "error": "Erro interno ao excluir diário.",
-                "detail": str(e)
-            },
+            {"error": "Erro interno ao excluir diário.", "detail": str(e)},
             status=500
         )
