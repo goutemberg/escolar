@@ -219,8 +219,11 @@ def validar_cnpj(cnpj):
 
 
 @csrf_exempt
+@login_required
+@role_required(['diretor', 'coordenador'])
 @transaction.atomic
 def cadastrar_professor_banco(request):
+
     if request.method != 'POST':
         return JsonResponse(
             {'success': False, 'error': 'Método não permitido'},
@@ -233,7 +236,7 @@ def cadastrar_professor_banco(request):
         # =========================
         # Normalização / leitura
         # =========================
-        professor_id = data.get('id')  # 👈 DEFINE CREATE vs EDIT
+        professor_id = data.get('id')
 
         cpf = data.get('doctorCpf', '')
         cpf = ''.join(filter(str.isdigit, cpf))
@@ -259,6 +262,7 @@ def cadastrar_professor_banco(request):
         senha = data.get('senha')
 
         escola = getattr(request.user, 'escola', None)
+
         if not escola:
             return JsonResponse(
                 {'success': False, 'error': 'Usuário não vinculado a escola.'},
@@ -275,6 +279,7 @@ def cadastrar_professor_banco(request):
         # ===================== EDIÇÃO =====================
         # ==================================================
         if professor_id:
+
             professor = get_object_or_404(
                 Docente,
                 id=professor_id,
@@ -303,6 +308,13 @@ def cadastrar_professor_banco(request):
 
             professor.save()
 
+            # =========================
+            # sincroniza acesso login
+            # =========================
+            if professor.user:
+                professor.user.is_active = ativo
+                professor.user.save(update_fields=["is_active"])
+
             return JsonResponse({'success': True})
 
         # ==================================================
@@ -323,7 +335,6 @@ def cadastrar_professor_banco(request):
             )
 
         # 2️⃣ Docente já existe?
-        # (mantém a validação, mas a correção real está no get_or_create abaixo)
         if Docente.objects.filter(cpf=cpf, escola=escola).exists():
             return JsonResponse(
                 {'success': False, 'error': 'Professor já cadastrado com este CPF.'},
@@ -344,17 +355,16 @@ def cadastrar_professor_banco(request):
             first_name=first,
             last_name=last,
             role=cargo,
-            is_active=True,
+            is_active=ativo,   # ✅ sincroniza com docente
             escola=escola,
             senha_temporaria=True
         )
+
         usuario.set_password(senha)
         usuario.save()
 
         # =========================
-        # Criação do docente (✅ correção)
-        # - evita erro de chave duplicada se algo no projeto tentar criar o Docente
-        #   mais de uma vez dentro da mesma requisição/transação
+        # Criação do docente
         # =========================
         docente, created = Docente.objects.get_or_create(
             cpf=cpf,
@@ -383,8 +393,7 @@ def cadastrar_professor_banco(request):
         )
 
         if not created:
-            # Se já existia, atualiza os dados e garante vínculo com o usuário criado agora
-            # (mantém o comportamento de "salvar", mas sem quebrar por duplicidade)
+
             docente.user = usuario
             docente.nome = nome
             docente.nascimento = nascimento
@@ -404,6 +413,7 @@ def cadastrar_professor_banco(request):
             docente.experiencia = experiencia
             docente.sexo = sexo
             docente.ativo = ativo
+
             docente.save()
 
         return JsonResponse({
@@ -412,18 +422,23 @@ def cadastrar_professor_banco(request):
         })
 
     except IntegrityError:
+
         transaction.set_rollback(True)
+
         return JsonResponse(
             {'success': False, 'error': 'Erro de integridade ao salvar professor.'},
             status=400
         )
 
     except Exception as e:
+
         transaction.set_rollback(True)
+
         return JsonResponse(
             {'success': False, 'error': f'Erro interno: {str(e)}'},
             status=500
         )
+    
 
 @login_required
 @role_required(['diretor', 'coordenador'])
@@ -460,6 +475,7 @@ def listar_professores(request):
 @login_required
 @role_required(['diretor', 'coordenador'])
 def toggle_status_professor(request, id):
+
     if request.method != "POST":
         return JsonResponse({"success": False}, status=405)
 
@@ -471,6 +487,11 @@ def toggle_status_professor(request, id):
 
     professor.ativo = not professor.ativo
     professor.save(update_fields=["ativo"])
+
+    # controla login
+    if professor.user:
+        professor.user.is_active = professor.ativo
+        professor.user.save(update_fields=["is_active"])
 
     return JsonResponse({
         "success": True,
@@ -544,26 +565,49 @@ def editar_professor(request, prof_id):
             return JsonResponse({'success': True})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
+        
 
 @csrf_exempt
 @login_required
 def alternar_status_professor(request, prof_id):
     if request.method == 'POST':
         try:
-            professor = Docente.objects.get(id=prof_id, escola=request.user.escola)
+            professor = Docente.objects.get(
+                id=prof_id,
+                escola=request.user.escola
+            )
 
+            # alterna status
             professor.ativo = not professor.ativo
             professor.save()
 
-            return JsonResponse({'success': True, 'novo_status': professor.ativo})
+            # controla acesso ao sistema
+            if professor.user:
+                professor.user.is_active = professor.ativo
+                professor.user.save(update_fields=["is_active"])
+
+            return JsonResponse({
+                'success': True,
+                'novo_status': professor.ativo
+            })
 
         except Docente.DoesNotExist:
-            return JsonResponse({'success': False, 'error': 'Professor não encontrado ou sem permissão'}, status=404)
+            return JsonResponse({
+                'success': False,
+                'error': 'Professor não encontrado ou sem permissão'
+            }, status=404)
 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
 
-    return JsonResponse({'success': False, 'error': 'Método inválido'}, status=405)
+    return JsonResponse({
+        'success': False,
+        'error': 'Método inválido'
+    }, status=405)
+
 
 @csrf_exempt
 def to_bool(value):

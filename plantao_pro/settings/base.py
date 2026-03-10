@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 import dj_database_url
+from datetime import timedelta
 
 AUTH_USER_MODEL = "home.User"
 
@@ -19,6 +20,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "home",
     "django_extensions",
+    "api",
+    "rest_framework",
 ]
 
 MIDDLEWARE = [
@@ -57,4 +60,22 @@ DATABASES = {
     "default": dj_database_url.parse(
         os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")
     )
+}
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
