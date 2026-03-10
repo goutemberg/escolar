@@ -12,6 +12,9 @@ DATABASES = {
 
 CSRF_TRUSTED_ORIGINS = [
     "https://*.onrender.com",
+    "https://nucleoescolar.com.br",
+    "https://www.nucleoescolar.com.br",
+    
 ]
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
