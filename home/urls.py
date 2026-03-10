@@ -131,6 +131,12 @@ urlpatterns = [
     path("avaliacoes/", include(("home.routes.avaliacoes", "avaliacoes"), namespace="avaliacoes")),
     path("boletim/", include(("home.routes.boletim", "boletim"), namespace="boletim")),
 
+
+    #######################################
+    #         API
+    #######################################
+     path('api/', include('api.urls')),
+
     
 
 ]
