@@ -1,0 +1,112 @@
+
+        body {
+            background-color: #f5f6fa;
+        }
+
+        .boletim-container {
+            max-width: 1200px;
+            margin: 40px auto;
+        }
+
+        .boletim-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 35px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+        }
+
+        .boletim-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 35px;
+        }
+
+        .boletim-header img {
+            height: 70px;
+        }
+
+        .boletim-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .info-box strong {
+            display: block;
+            font-size: 13px;
+            color: #6c757d;
+        }
+
+        .info-box span {
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        table thead {
+            background-color: #fab982;
+            color: #000;
+        }
+
+        table th {
+            text-align: center;
+            font-weight: 600;
+        }
+
+        table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .badge-aprovado {
+            background-color: #28a745;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .badge-reprovado {
+            background-color: #dc3545;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .btn-print {
+            border: 1px solid #fab982;
+            color: #fab982;
+        }
+
+        .btn-print:hover {
+            background-color: #fab982;
+            color: #000;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            body {
+                background: #fff;
+            }
+
+            .boletim-card {
+                box-shadow: none;
+            }
+        }

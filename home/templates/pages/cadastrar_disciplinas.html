@@ -1,181 +1,328 @@
+{% extends "layout/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="pt-br">
- <head>
-  {% include 'partials/_head.html' %}
- </head>
- <body>
-  <div class="flex-wrapper">
-   {% include 'partials/_nav.html' %}
-   <section class="form-container">
-    <div class="container">
-     <div class="header-bar">
-      Cadastrar Disciplina
-     </div>
-     <!-- FORMULÁRIO -->
-     <section class="content-wrapper" style="margin-top: 15px; margin-bottom: 0;">
-      <form id="formDisciplina">
-       {% csrf_token %}
-       <div class="form-row">
-        <div class="form-group">
-         <label for="nome">
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+{% with tema=user.escola.tema|default:"legacy" %}
+  {% if tema == "nucleo" %}
+    <link rel="stylesheet" href="{% static 'css/pages/alunos-nucleo.css' %}">
+  {% else %}
+    <link rel="stylesheet" href="{% static 'css/pages/alunos/listar.css' %}">
+  {% endif %}
+{% endwith %}
+{% endblock extra_head %}
+
+{% block content %}
+
+<div class="pagina-disciplina">
+
+  <div class="titulo-pagina">Cadastrar Disciplina</div>
+
+  <form id="formDisciplina">
+    {% csrf_token %}
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="nome">
           Nome da Disciplina
-         </label>
-         <input class="form-control" id="nome" name="nome" required="" type="text"/>
-        </div>
-       </div>
-       <div class="form-footer">
-        <button class="btn btn-primary" type="submit">
-         Cadastrar
-        </button>
-        <button class="btn btn-secondary" onclick="window.location.href='{% url 'index' %}'" type="button">
-         Cancelar
-        </button>
-       </div>
-      </form>
-     </section>
-     <!-- CRUD DISCIPLINAS COM SECTION PRÓPRIA -->
-     <section class="content-wrapper" style="margin-top: -100px;">
-      <h4 style="margin-bottom: 15px;">
-       Disciplinas Cadastradas
-      </h4>
-      <table class="table" id="tabelaDisciplinas">
-       <thead>
-        <tr>
-         <th>
-          Nome
-         </th>
-         <th style="width: 150px;">
-          Ações
-         </th>
-        </tr>
-       </thead>
-       <tbody>
-        <!-- Disciplinas serão carregadas via JS -->
-       </tbody>
-      </table>
-     </section>
+        </label>
+
+        <input
+          class="form-control"
+          id="nome"
+          name="nome"
+          required=""
+          type="text"
+        />
+      </div>
     </div>
-   </section>
-   <footer>
-    {% include 'partials/_footer.html' %}
-   </footer>
-  </div>
-  <script>
-   // CADASTRO EXISTENTE
-    document.getElementById('formDisciplina').addEventListener('submit', function(event) {
-      event.preventDefault();
-      const nome = document.getElementById('nome').value.trim();
-      fetch("{% url 'cadastrar_disciplina' %}", {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify({ nome: nome })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert("✅ Disciplina cadastrada com sucesso!");
-          document.getElementById('formDisciplina').reset();
-          carregarDisciplinas(); // Recarrega lista após cadastro
-        } else {
-          alert("❌ Erro: " + (data.error || "Erro ao cadastrar"));
-        }
-      })
-      .catch(error => {
-        console.error("Erro:", error);
-        alert("❌ Erro ao enviar dados.");
+
+    <div class="form-footer">
+
+      <button class="btn btn-primary" type="submit">
+        Cadastrar
+      </button>
+
+      <button
+        class="btn btn-secondary"
+        onclick="window.location.href='{% url 'index' %}'"
+        type="button"
+      >
+        Cancelar
+      </button>
+
+    </div>
+
+  </form>
+
+</div>
+
+
+<!-- CRUD DISCIPLINAS -->
+
+<div class="lista-disciplinas" style="margin-top:30px;">
+
+  <h4 style="margin-bottom: 15px;">
+    Disciplinas Cadastradas
+  </h4>
+
+  <table class="table" id="tabelaDisciplinas">
+
+    <thead>
+      <tr>
+
+        <th>
+          Nome
+        </th>
+
+        <th style="width: 150px;">
+          Ações
+        </th>
+
+      </tr>
+    </thead>
+
+    <tbody>
+      <!-- Disciplinas serão carregadas via JS -->
+    </tbody>
+
+  </table>
+
+</div>
+
+{% endblock content %}
+
+
+{% block extra_js %}
+
+<script>
+
+function ensureFuse(cb){
+  if (window.Fuse) return cb();
+  var s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
+  s.onload = cb;
+  s.onerror = function(){
+    console.error("Falha ao carregar Fuse.js");
+    alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
+  };
+  document.head.appendChild(s);
+}
+
+
+// CADASTRO EXISTENTE
+
+document.getElementById('formDisciplina').addEventListener('submit', function(event) {
+
+  event.preventDefault();
+
+  const nome = document.getElementById('nome').value.trim();
+
+  fetch("{% url 'cadastrar_disciplina' %}", {
+
+    method: 'POST',
+
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token }}'
+    },
+
+    body: JSON.stringify({ nome: nome })
+
+  })
+
+  .then(res => res.json())
+
+  .then(data => {
+
+    if (data.success) {
+
+      alert("✅ Disciplina cadastrada com sucesso!");
+      document.getElementById('formDisciplina').reset();
+
+      carregarDisciplinas(); // Recarrega lista após cadastro
+
+    } else {
+
+      alert("❌ Erro: " + (data.error || "Erro ao cadastrar"));
+
+    }
+
+  })
+
+  .catch(error => {
+
+    console.error("Erro:", error);
+    alert("❌ Erro ao enviar dados.");
+
+  });
+
+});
+
+
+
+// CRUD DISCIPLINAS
+
+function carregarDisciplinas() {
+
+  fetch("{% url 'listar_disciplinas' %}")
+
+    .then(res => res.json())
+
+    .then(data => {
+
+      const tbody = document.querySelector("#tabelaDisciplinas tbody");
+
+      tbody.innerHTML = "";
+
+      data.disciplinas.forEach(disciplina => {
+
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+          <td>
+            <input type="text" value="${disciplina.nome}" data-id="${disciplina.id}" class="form-control input-nome" disabled>
+          </td>
+
+          <td>
+            <div style="text-align: right;">
+              <button class="btn btn-sm btn-warning btn-editar">✏️</button>
+              <button class="btn btn-sm btn-danger btn-excluir">🗑️</button>
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(row);
+
       });
+
+      adicionarEventos();
+
     });
-    // CRUD DISCIPLINAS
-    function carregarDisciplinas() {
-      fetch("{% url 'listar_disciplinas' %}")
+
+}
+
+
+
+function adicionarEventos() {
+
+  document.querySelectorAll(".btn-editar").forEach(btn => {
+
+    btn.addEventListener("click", function() {
+
+      const row = this.closest("tr");
+
+      const input = row.querySelector(".input-nome");
+
+      const id = input.dataset.id;
+
+      if (input.disabled) {
+
+        input.disabled = false;
+
+        this.textContent = "💾";
+
+        this.classList.replace("btn-warning", "btn-success");
+
+      }
+
+      else {
+
+        const novoNome = input.value.trim();
+
+        fetch("{% url 'editar_disciplina' %}", {
+
+          method: 'POST',
+
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+
+          body: JSON.stringify({ id: id, nome: novoNome })
+
+        })
+
         .then(res => res.json())
+
         .then(data => {
-          const tbody = document.querySelector("#tabelaDisciplinas tbody");
-          tbody.innerHTML = "";
 
-          data.disciplinas.forEach(disciplina => {
-            const row = document.createElement("tr");
+          if (data.success) {
 
-            row.innerHTML = `
-              <td>
-                <input type="text" value="${disciplina.nome}" data-id="${disciplina.id}" class="form-control input-nome" disabled>
-              </td>
-              <td>
-                <div style="text-align: right;">
-                  <button class="btn btn-sm btn-warning btn-editar">✏️</button>
-                  <button class="btn btn-sm btn-danger btn-excluir">🗑️</button>
-                </div>
-              </td>
-            `;
+            alert("✅ Atualizado!");
+            carregarDisciplinas();
 
-            tbody.appendChild(row);
-          });
-
-          adicionarEventos();
-        });
-    }
-    function adicionarEventos() {
-      document.querySelectorAll(".btn-editar").forEach(btn => {
-        btn.addEventListener("click", function() {
-          const row = this.closest("tr");
-          const input = row.querySelector(".input-nome");
-          const id = input.dataset.id;
-          if (input.disabled) {
-            input.disabled = false;
-            this.textContent = "💾";
-            this.classList.replace("btn-warning", "btn-success");
           } else {
-            const novoNome = input.value.trim();
-            fetch("{% url 'editar_disciplina' %}", {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-              },
-              body: JSON.stringify({ id: id, nome: novoNome })
-            }).then(res => res.json())
-              .then(data => {
-                if (data.success) {
-                  alert("✅ Atualizado!");
-                  carregarDisciplinas();
-                } else {
-                  alert("❌ Erro ao atualizar.");
-                }
-              });
+
+            alert("❌ Erro ao atualizar.");
+
           }
+
         });
-      });
-      document.querySelectorAll(".btn-excluir").forEach(btn => {
-        btn.addEventListener("click", function() {
-          const row = this.closest("tr");
-          const input = row.querySelector(".input-nome");
-          const id = input.dataset.id;
-          if (confirm("Deseja realmente excluir esta disciplina?")) {
-            fetch("{% url 'excluir_disciplina' %}", {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}'
-              },
-              body: JSON.stringify({ id: id })
-            }).then(res => res.json())
-              .then(data => {
-                if (data.success) {
-                  alert("✅ Excluído com sucesso!");
-                  carregarDisciplinas();
-                } else {
-                  alert("❌ Erro ao excluir.");
-                }
-              });
+
+      }
+
+    });
+
+  });
+
+
+
+  document.querySelectorAll(".btn-excluir").forEach(btn => {
+
+    btn.addEventListener("click", function() {
+
+      const row = this.closest("tr");
+
+      const input = row.querySelector(".input-nome");
+
+      const id = input.dataset.id;
+
+      if (confirm("Deseja realmente excluir esta disciplina?")) {
+
+        fetch("{% url 'excluir_disciplina' %}", {
+
+          method: 'POST',
+
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+
+          body: JSON.stringify({ id: id })
+
+        })
+
+        .then(res => res.json())
+
+        .then(data => {
+
+          if (data.success) {
+
+            alert("✅ Excluído com sucesso!");
+            carregarDisciplinas();
+
+          } else {
+
+            alert("❌ Erro ao excluir.");
+
           }
+
         });
-      });
-    }
-    carregarDisciplinas();
-  </script>
- </body>
-</html>
+
+      }
+
+    });
+
+  });
+
+}
+
+
+
+carregarDisciplinas();
+
+</script>
+
+{% endblock extra_js %}

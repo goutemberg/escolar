@@ -1,143 +1,22 @@
+{% extends "layout/base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    {% include 'partials/_head.html' %}
-    <style>
 
-        body {
-            background-color: #f5f6fa;
-        }
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-        .boletim-container {
-            max-width: 1200px;
-            margin: 40px auto;
-        }
+  {% with tema=user.escola.tema|default:"legacy" %}
+    {% if tema == "nucleo" %}
+      <link rel="stylesheet" href="{% static 'css/pages/alunos-nucleo.css' %}">
+    {% else %}
+      <link rel="stylesheet" href="{% static 'css/pages/boletim/boletim.css' %}">
+    {% endif %}
+  {% endwith %}
+{% endblock extra_head %}
 
-        .boletim-card {
-            background: #fff;
-            border-radius: 12px;
-            padding: 35px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
-        }
-
-        .boletim-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 35px;
-        }
-
-        .boletim-header img {
-            height: 70px;
-        }
-
-        .boletim-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
-
-        .info-box {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-        }
-
-        .info-box strong {
-            display: block;
-            font-size: 13px;
-            color: #6c757d;
-        }
-
-        .info-box span {
-            font-size: 15px;
-            font-weight: 500;
-        }
-
-        table thead {
-            background-color: #fab982;
-            color: #000;
-        }
-
-        table th {
-            text-align: center;
-            font-weight: 600;
-        }
-
-        table td {
-            text-align: center;
-            vertical-align: middle;
-        }
-
-        .badge-aprovado {
-            background-color: #28a745;
-            color: #fff;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-        }
-
-        .badge-reprovado {
-            background-color: #dc3545;
-            color: #fff;
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-        }
-
-        .btn-print {
-            border: 1px solid #fab982;
-            color: #fab982;
-        }
-
-        .btn-print:hover {
-            background-color: #fab982;
-            color: #000;
-        }
-
-        @media print {
-            .no-print {
-                display: none !important;
-            }
-
-            body {
-                background: #fff;
-            }
-
-            .boletim-card {
-                box-shadow: none;
-            }
-        }
-
-    </style>
-</head>
-
-<body>
-
-{% include 'partials/_nav.html' %}
-
-<div class="boletim-container">
-
-    <div class="boletim-card">
+{% block content %}
 
         <!-- HEADER -->
-        <div class="boletim-header">
-            <div>
-                <img src="{% static 'home/images/logo.svg' %}" alt="Logo">
-            </div>
-            <div class="boletim-title">
-                Boletim Escolar {{ ano }}
-            </div>
-        </div>
-
+            <div class="titulo-pagina">Boletim Escolar {{ ano }}</div>
         <!-- DADOS DA ESCOLA -->
         <div class="info-grid">
             <div class="info-box">
@@ -239,12 +118,22 @@
                 Imprimir
             </button>
         </div>
+{% endblock content %}
 
-    </div>
-
-</div>
-
-{% include 'partials/_footer.html' %}
-
-</body>
-</html>
+{% block extra_js %}
+<script>
+  function ensureFuse(cb){
+    if (window.Fuse) return cb();
+    var s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
+    s.onload = cb;
+    s.onerror = function(){
+      console.error("Falha ao carregar Fuse.js");
+      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
+    };
+    document.head.appendChild(s);
+  }
+// js aqui
+  
+</script>
+{% endblock extra_js %}
