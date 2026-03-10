@@ -582,8 +582,15 @@ def pdf_chamada(request, chamada_id):
     y -= 0.7 * cm
 
     for p in presencas:
-        # compat: se status não existir, deriva do presente
-        st = getattr(p, "status", None) or ("P" if p.presente else "F")
+
+        # compatibilidade total
+        presente = getattr(p, "presente", None)
+        status = getattr(p, "status", None)
+
+        if status:
+            st = status
+        else:
+            st = "P" if presente else "F"
 
         if st == "P":
             marca = "✔"
@@ -592,9 +599,12 @@ def pdf_chamada(request, chamada_id):
         else:
             marca = "✘"
 
+        observacao = getattr(p, "observacao", "")
+
         pdf.drawString(2 * cm, y, p.aluno.nome[:35])
         pdf.drawString(11 * cm, y, marca)
-        pdf.drawString(14 * cm, y, (p.observacao or "")[:25])
+        pdf.drawString(14 * cm, y, (observacao or "")[:25])
+
         y -= 0.6 * cm
 
         if y < 2 * cm:
@@ -606,6 +616,7 @@ def pdf_chamada(request, chamada_id):
     pdf.save()
 
     buffer.seek(0)
+
     return HttpResponse(buffer, content_type="application/pdf")
 
 
@@ -913,7 +924,6 @@ def relatorio_chamadas_pdf(request):
     doc.build(elementos)
     return response
 
-
 def resumo_mensal_turma_professor(request):
     hoje = timezone.now().date()
 
@@ -942,13 +952,15 @@ def resumo_mensal_turma_professor(request):
         )
         .annotate(
             total_aulas=Count("id", distinct=True),
+
             total_presentes=Count(
-                "presenca",
-                filter=Q(presenca__presente=True)
+                "presencas",
+                filter=Q(presencas__presente=True)
             ),
+
             total_ausentes=Count(
-                "presenca",
-                filter=Q(presenca__presente=False)
+                "presencas",
+                filter=Q(presencas__presente=False)
             ),
         )
         .order_by(
@@ -1009,12 +1021,12 @@ def export_resumo_mensal_csv(request):
         .annotate(
             total_aulas=Count("id", distinct=True),
             total_presentes=Count(
-                "presenca",
-                filter=Q(presenca__presente=True)
+                "presencas",
+                filter=Q(presencas__presente=True)
             ),
             total_ausentes=Count(
-                "presenca",
-                filter=Q(presenca__presente=False)
+                "presencas",
+                filter=Q(presencas__presente=False)
             ),
         )
         .order_by(
@@ -1029,6 +1041,7 @@ def export_resumo_mensal_csv(request):
     )
 
     writer = csv.writer(response)
+
     writer.writerow([
         "Turma",
         "Professor",
@@ -1073,12 +1086,12 @@ def export_resumo_mensal_excel(request):
         .annotate(
             total_aulas=Count("id", distinct=True),
             total_presentes=Count(
-                "presenca",
-                filter=Q(presenca__presente=True)
+                "presencas",
+                filter=Q(presencas__presente=True)
             ),
             total_ausentes=Count(
-                "presenca",
-                filter=Q(presenca__presente=False)
+                "presencas",
+                filter=Q(presencas__presente=False)
             ),
         )
         .order_by(
@@ -1111,11 +1124,13 @@ def export_resumo_mensal_excel(request):
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
     response["Content-Disposition"] = (
         f'attachment; filename="resumo_mensal_{mes:02d}_{ano}.xlsx"'
     )
 
     wb.save(response)
+
     return response
 
 
@@ -1146,14 +1161,16 @@ def relatorio_anual_chamadas(request):
         )
         .annotate(
             total_aulas=Count("id", distinct=True),
+
             total_presentes=Count(
-                "chamada__presenca",
-                filter=Q(chamada__presenca__presente=True),
+                "chamada__presencas",
+                filter=Q(chamada__presencas__presente=True),
                 distinct=True
             ),
+
             total_ausentes=Count(
-                "chamada__presenca",
-                filter=Q(chamada__presenca__presente=False),
+                "chamada__presencas",
+                filter=Q(chamada__presencas__presente=False),
                 distinct=True
             ),
         )
