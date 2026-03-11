@@ -8,7 +8,8 @@ from home.models import (
     TurmaDisciplina,
     Disciplina,
     Aluno,
-    NomeTurma
+    NomeTurma,
+    DiarioDeClasse,
 )
 
 from home.decorators import role_required
@@ -197,9 +198,11 @@ def excluir_nome_turma(request):
 @login_required
 @role_required(['diretor', 'coordenador'])
 def cadastro_turma(request):
+
     escola = request.user.escola
 
     if request.method == "POST":
+
         try:
             data = json.loads(request.body)
 
@@ -212,8 +215,8 @@ def cadastro_turma(request):
             alunos_ids = data.get('alunos_ids', [])
             professores = data.get('professores', [])
 
-            # ✅ sistema de avaliação
             sistema_avaliacao = (data.get("sistema_avaliacao") or "NUM").strip().upper()
+
             if sistema_avaliacao not in ("NUM", "CON"):
                 sistema_avaliacao = "NUM"
 
@@ -228,6 +231,7 @@ def cadastro_turma(request):
             with transaction.atomic():
 
                 if not turma_id:
+
                     turma = Turma.objects.create(
                         nome=nome,
                         turno=turno,
@@ -235,11 +239,16 @@ def cadastro_turma(request):
                         sala=sala,
                         descricao=descricao,
                         escola=escola,
-                        sistema_avaliacao=sistema_avaliacao,
+                        sistema_avaliacao=sistema_avaliacao
                     )
 
                 else:
-                    turma = get_object_or_404(Turma, id=turma_id, escola=escola)
+
+                    turma = get_object_or_404(
+                        Turma,
+                        id=turma_id,
+                        escola=escola
+                    )
 
                     turma.nome = nome
                     turma.turno = turno
@@ -251,16 +260,23 @@ def cadastro_turma(request):
 
                     turma.alunos.clear()
 
-                    Aluno.objects.filter(turma_principal=turma).update(turma_principal=None)
+                    Aluno.objects.filter(
+                        turma_principal=turma
+                    ).update(turma_principal=None)
 
-                    TurmaDisciplina.objects.filter(turma=turma, escola=escola).delete()
+                    TurmaDisciplina.objects.filter(
+                        turma=turma,
+                        escola=escola
+                    ).delete()
 
                 if alunos_ids:
+
                     alunos = Aluno.objects.filter(
                         id__in=alunos_ids,
                         escola=escola,
                         ativo=True
                     )
+
                     turma.alunos.add(*alunos)
 
                     for aluno in alunos:
@@ -268,6 +284,7 @@ def cadastro_turma(request):
                         aluno.save(update_fields=["turma_principal"])
 
                 for item in professores:
+
                     TurmaDisciplina.objects.create(
                         turma=turma,
                         professor_id=item.get('professor_id'),
@@ -275,32 +292,58 @@ def cadastro_turma(request):
                         escola=escola
                     )
 
-            # ✅ prova do que ficou no banco
             turma.refresh_from_db()
 
             return JsonResponse({
+
                 'success': True,
                 'mensagem': 'Turma salva com sucesso.',
                 'turma_id': turma.id,
 
-                # ✅ DEBUG (temporário)
                 'debug_sa_recebido': data.get("sistema_avaliacao"),
                 'debug_sa_normalizado': sistema_avaliacao,
                 'debug_sa_salvo': turma.sistema_avaliacao,
+
             })
 
         except Exception as e:
+
             return JsonResponse({
+
                 'success': False,
                 'mensagem': f'Erro ao salvar turma: {str(e)}'
+
             }, status=500)
 
-    disciplinas = Disciplina.objects.filter(escola=escola).order_by('nome')
-    nomes_turma = NomeTurma.objects.filter(escola=escola).order_by('nome')
+    # ===============================
+    # GET (abrir tela)
+    # ===============================
+
+    disciplinas = Disciplina.objects.filter(
+        escola=escola
+    ).order_by('nome')
+
+    nomes_turma = NomeTurma.objects.filter(
+        escola=escola
+    ).order_by('nome')
+
+    turma_id = request.GET.get("turma_id")
+
+    turma = None
+
+    if turma_id:
+
+        turma = Turma.objects.filter(
+            id=turma_id,
+            escola=escola
+        ).first()
 
     return render(request, 'pages/registrar_turma.html', {
+
         'disciplinas': disciplinas,
-        'nomes_turma': nomes_turma
+        'nomes_turma': nomes_turma,
+        'turma': turma
+
     })
 
 # ======================================================
@@ -552,4 +595,68 @@ def api_detalhe_turma(request, turma_id):
             }
             for p in professores
         ]
+    })
+
+
+@login_required
+def inativar_turma(request, turma_id):
+
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=request.user.escola
+    )
+
+    if turma.status == "INATIVA":
+        turma.status = "ATIVA"
+    else:
+        turma.status = "INATIVA"
+
+    turma.save()
+
+    return JsonResponse({"success": True})
+
+
+@login_required
+def excluir_turma(request, turma_id):
+
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=request.user.escola
+    )
+
+    if DiarioDeClasse.objects.filter(turma=turma).exists():
+        return JsonResponse({
+            "success": False,
+            "error": "Turma possui registros acadêmicos."
+        })
+
+    turma.delete()
+
+    return JsonResponse({"success": True})
+
+
+@login_required
+def duplicar_turma(request, turma_id):
+
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=request.user.escola
+    )
+
+    nova_turma = Turma.objects.create(
+        nome=turma.nome,
+        turno=turma.turno,
+        ano=turma.ano + 1,
+        sala=turma.sala,
+        descricao=turma.descricao,
+        sistema_avaliacao=turma.sistema_avaliacao,
+        escola=turma.escola
+    )
+
+    return JsonResponse({
+        "success": True,
+        "nova_turma_id": nova_turma.id
     })

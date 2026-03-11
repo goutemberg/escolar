@@ -358,17 +358,27 @@ class Turma(models.Model):
         ("CON", "Conceito (E/O/B)"),
     ]
 
+    STATUS_CHOICES = [
+        ("ATIVA", "Ativa"),
+        ("INATIVA", "Inativa"),
+    ]
+
     nome = models.CharField(max_length=100)
     turno = models.CharField(max_length=20)
     ano = models.IntegerField()
     sala = models.CharField(max_length=20)
     descricao = models.TextField(blank=True)
 
-    # ✅ novo: define se a turma usa nota numérica ou conceito
     sistema_avaliacao = models.CharField(
         max_length=3,
         choices=AVALIACAO_CHOICES,
         default="NUM",
+    )
+
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="ATIVA",
     )
 
     alunos = models.ManyToManyField(
@@ -384,8 +394,9 @@ class Turma(models.Model):
         blank=True
     )
 
+   
     def __str__(self):
-        return f"{self.nome} - {self.turno}"
+        return f"{self.nome} - {self.turno} ({self.ano})"
 
 
 # ================================================

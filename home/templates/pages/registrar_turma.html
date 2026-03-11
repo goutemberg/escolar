@@ -2,271 +2,588 @@
 {% load static %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-  {% with tema=user.escola.tema|default:"legacy" %}
-    {% if tema == "nucleo" %}
-      <link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
-    {% else %}
-      <link rel="stylesheet" href="{% static 'css/pages/turmas/registrar.css' %}">
-    {% endif %}
-  {% endwith %}
+{% with tema=user.escola.tema|default:"legacy" %}
+{% if tema == "nucleo" %}
+<link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
+{% else %}
+<link rel="stylesheet" href="{% static 'css/pages/turmas/registrar.css' %}">
+{% endif %}
+{% endwith %}
 
-  <style>
-    /* ✅ Linha 1: tudo lado a lado */
-    .form-row.first-row{
-      display: grid;
-      grid-template-columns: 2.2fr 1.1fr 0.8fr 0.8fr 1.4fr;
-      gap: 12px;
-      align-items: start; /* ✅ não “cola” pelo fundo */
-    }
-
-    /* ✅ padroniza altura do label e do help pra alinhar inputs */
-    .form-row.first-row .form-group label{
-      display:block;
-      margin-bottom: 6px;
-      min-height: 22px; /* garante linha do label */
-    }
-    .form-row.first-row .help-inline{
-      display:block;
-      min-height: 18px;   /* reserva espaço pra help (mesmo vazio) */
-      margin-top: 4px;
-      font-size: 12px;
-      color: #64748b;
-    }
-
-    @media (max-width: 1100px){
-      .form-row.first-row{ grid-template-columns: 1.6fr 1fr 1fr; }
-    }
-    @media (max-width: 720px){
-      .form-row.first-row{ grid-template-columns: 1fr 1fr; }
-    }
-    @media (max-width: 520px){
-      .form-row.first-row{ grid-template-columns: 1fr; }
-    }
-  </style>
 {% endblock extra_head %}
 
 {% block content %}
 
-  <div class="titulo-pagina" id="tituloPagina">
-    {% if modo == "edit" %}Editar Turma{% else %}Criar Turma{% endif %}
-  </div>
+{% if turma.status == "INATIVA" %}
+<div style="
+background:#fff3cd;
+border:1px solid #ffeeba;
+color:#856404;
+padding:10px;
+margin-top:10px;
+border-radius:6px;
+font-size:14px;
+">
 
-  <section class="content-wrapper" style="margin-top: 15px;">
-    <form id="turmaForm" method="post">
-      {% csrf_token %}
-      <input type="hidden" id="turmaId" value="{{ turma.id|default:'' }}">
+⚠ Esta turma está inativa. Ative a turma para realizar alterações.
 
-      <!-- ✅ Linha 1: Nome, Turno, Ano, Sala, Sistema de Avaliação -->
-      <div class="form-row first-row">
+</div>
+{% endif %}
+<div class="titulo-pagina" id="tituloPagina">
 
-        <div class="form-group">
-          <label for="nomeTurmaSelect">Nome da Turma *</label>
-          <select id="nomeTurmaSelect" name="nome" class="form-control" required>
-            <option value="">Selecione</option>
-            {% for item in nomes_turma %}
-              <option value="{{ item.nome }}">{{ item.nome }}</option>
-            {% endfor %}
-          </select>
-          <span class="help-inline"></span>
-          <div class="mensagem-erro" id="erroNome"></div>
-        </div>
+{% if modo == "edit" %}
+Editar Turma
+{% else %}
+Criar Turma
+{% endif %}
+</div>
 
-        <div class="form-group">
-          <label for="turnoTurma">Turno *</label>
-          <select id="turnoTurma" name="turno" class="form-control" required>
-            <option value="">Selecione</option>
-            <option>Manhã</option>
-            <option>Tarde</option>
-            <option>Noite</option>
-          </select>
-          <span class="help-inline"></span>
-          <div class="mensagem-erro" id="erroTurno"></div>
-        </div>
+<section class="content-wrapper" style="margin-top:15px;">
+<form id="turmaForm" method="post">
 
-        <div class="form-group">
-          <label for="anoTurma">Ano *</label>
-          <input id="anoTurma" name="ano" type="number" min="1900" max="2100" required class="form-control">
-          <span class="help-inline"></span>
-          <div class="mensagem-erro" id="erroAno"></div>
-        </div>
+{% csrf_token %}
 
-        <div class="form-group">
-          <label for="salaTurma">Sala *</label>
-          <input id="salaTurma" name="sala" placeholder="Ex: 202" required type="text" class="form-control">
-          <span class="help-inline"></span>
-          <div class="mensagem-erro" id="erroSala"></div>
-        </div>
+<input type="hidden" id="turmaId" value="{{ turma.id|default:'' }}">
 
-        <div class="form-group">
-          <label for="sistemaAvaliacao">Sistema de Avaliação *</label>
-          <select id="sistemaAvaliacao" name="sistema_avaliacao" class="form-control" required>
-            <option value="NUM">Numérica (nota)</option>
-            <option value="CON">Conceito (E/O/B)</option>
-          </select>
-          <span class="help-inline">Infantil: Conceito · Fundamental: Nota</span>
-        </div>
+<div class="form-row">
 
-      </div>
+<div class="form-group">
+<label for="nomeTurmaSelect">Nome da Turma *</label>
 
-      <div class="form-row">
-        <div class="form-group" style="width: 100%">
-          <label for="descricaoTurma">Descrição (opcional)</label>
-          <textarea id="descricaoTurma" name="descricao" rows="3" class="form-control"></textarea>
-        </div>
-      </div>
+<select id="nomeTurmaSelect" name="nome" class="form-control" required>
 
-      <div class="form-row">
-        <div class="form-group short-field">
-          <label for="tipoPessoa">Tipo</label>
-          <select id="tipoPessoa" onchange="atualizarCampoDisciplina()" class="form-control">
-            <option value="professor">Professor</option>
-            <option value="aluno">Aluno</option>
-          </select>
-        </div>
+<option value="">Selecione</option>
 
-        <div class="form-group" style="flex: 2; position: relative;">
-          <label for="buscaPessoa">Buscar Aluno ou Professor</label>
-          <input id="buscaPessoa" type="text" placeholder="Digite o nome" autocomplete="off" class="form-control">
-          <ul id="sugestoes"></ul>
-        </div>
+{% for item in nomes_turma %}
+<option value="{{ item.nome }}">{{ item.nome }}</option>
+{% endfor %}
 
-        <div class="form-group short-field">
-          <label for="disciplinaSelecionada">Disciplina</label>
-          <select id="disciplinaSelecionada" name="disciplina_id" class="form-control">
-            <option value="">Selecione a disciplina</option>
-            {% for disciplina in disciplinas %}
-              <option value="{{ disciplina.id }}">{{ disciplina.nome }}</option>
-            {% endfor %}
-          </select>
-        </div>
+</select>
 
-        <div class="form-group short-field">
-          <label style="color: transparent;">Add</label>
-          <button class="btn btn-primary" type="button" onclick="adicionarPessoa()">Adicionar</button>
-        </div>
-      </div>
+<div class="mensagem-erro" id="erroNome"></div>
+</div>
 
-      <div class="form-row">
-        <div class="form-group" style="width: 100%">
-          <label>Turma Montada</label>
-          <div id="turmaMontadaTags"
-               style="width: 100%; background-color: #f9f9f9; height: 180px; padding: 10px;
-               border: 1px solid #fab982; border-radius: 4px; overflow-y: auto;">
-          </div>
 
-          <input type="hidden" id="professor_id" name="professor_id">
-          <input type="hidden" id="alunos_ids" name="alunos_ids">
-        </div>
-      </div>
+<div class="form-group short-field">
+<label for="turnoTurma">Turno *</label>
 
-      <div class="form-footer">
-        <button type="submit" class="btn btn-primary">
-          {% if turma %}Atualizar Turma{% else %}Salvar Turma{% endif %}
-        </button>
-        <button type="button" id="btnCancelar" class="btn btn-secondary"> Cancelar </button>
-      </div>
+<select id="turnoTurma" name="turno" class="form-control" required>
 
-    </form>
-  </section>
+<option value="">Selecione</option>
+<option>Manhã</option>
+<option>Tarde</option>
+<option>Noite</option>
+
+</select>
+
+<div class="mensagem-erro" id="erroTurno"></div>
+</div>
+
+
+<div class="form-group short-field">
+<label for="anoTurma">Ano *</label>
+
+<input id="anoTurma"
+name="ano"
+type="number"
+min="1900"
+max="2100"
+required
+class="form-control">
+
+<div class="mensagem-erro" id="erroAno"></div>
+</div>
+
+
+<div class="form-group short-field">
+<label for="salaTurma">Sala *</label>
+
+<input id="salaTurma"
+name="sala"
+placeholder="Ex: 202"
+required
+type="text"
+class="form-control">
+
+<div class="mensagem-erro" id="erroSala"></div>
+</div>
+
+</div>
+
+
+<div class="form-row">
+
+<div class="form-group" style="width:100%">
+<label for="descricaoTurma">Descrição (opcional)</label>
+
+<textarea id="descricaoTurma"
+name="descricao"
+rows="3"
+class="form-control"></textarea>
+
+</div>
+
+</div>
+
+
+<div class="form-row">
+
+<div class="form-group short-field">
+
+<label for="tipoPessoa">Tipo</label>
+
+<select id="tipoPessoa"
+onchange="atualizarCampoDisciplina()"
+class="form-control">
+
+<option value="professor">Professor</option>
+<option value="aluno">Aluno</option>
+
+</select>
+
+</div>
+
+
+<div class="form-group" style="flex:2;position:relative">
+
+<label for="buscaPessoa">Buscar Aluno ou Professor</label>
+
+<input id="buscaPessoa"
+type="text"
+placeholder="Digite o nome"
+autocomplete="off"
+class="form-control">
+
+<ul id="sugestoes"></ul>
+
+</div>
+
+
+<div class="form-group short-field">
+
+<label for="disciplinaSelecionada">Disciplina</label>
+
+<select id="disciplinaSelecionada"
+name="disciplina_id"
+class="form-control"
+{% if turma and turma.status == "INATIVA" %}disabled{% endif %}>
+
+<option value="">Selecione a disciplina</option>
+
+{% for disciplina in disciplinas %}
+<option value="{{ disciplina.id }}">{{ disciplina.nome }}</option>
+{% endfor %}
+
+</select>
+
+</div>
+
+
+<div class="form-group short-field">
+
+<label style="color:transparent;">Add</label>
+
+{% if turma.status != "INATIVA" %}
+<button
+class="btn btn-outline-primary btn-sm"
+type="button"
+onclick="adicionarPessoa()">
+
+<i class="bi bi-plus"></i> Adicionar
+
+</button>
+{% endif %}
+
+</div>
+
+</div>
+
+
+<div class="form-row">
+
+<div class="form-group" style="width:100%">
+
+<label>Turma Montada</label>
+
+<div id="turmaMontadaTags"
+style="width:100%;background-color:#f9f9f9;height:180px;padding:10px;border:1px solid #fab982;border-radius:4px;overflow-y:auto;">
+</div>
+
+<input type="hidden" id="professor_id" name="professor_id">
+<input type="hidden" id="alunos_ids" name="alunos_ids">
+
+</div>
+
+</div>
+
+
+
+<div class="form-footer" style="display:flex;justify-content:space-between;align-items:center;margin-top:15px;">
+
+
+{% if turma %}
+<div style="display:flex;gap:8px">
+
+<button
+type="button"
+class="btn btn-outline-primary btn-sm"
+onclick="duplicarTurma({{ turma.id }})">
+
+<i class="bi bi-copy"></i> Duplicar
+
+</button>
+
+<button
+type="button"
+class="btn btn-outline-warning btn-sm"
+onclick="inativarTurma({{ turma.id }})">
+
+{% if turma.status == "INATIVA" %}
+<i class="bi bi-play-circle"></i> Ativar
+{% else %}
+<i class="bi bi-pause-circle"></i> Inativar
+{% endif %}
+
+</button>
+
+<button
+type="button"
+class="btn btn-outline-danger btn-sm"
+onclick="excluirTurma({{ turma.id }})">
+
+<i class="bi bi-trash"></i> Excluir
+
+</button>
+
+</div>
+{% endif %}
+
+
+<div style="display:flex;gap:8px">
+
+<button
+type="submit"
+class="btn btn-outline-success btn-sm">
+
+<i class="bi bi-check-circle"></i>
+{% if turma %}Atualizar{% else %}Salvar{% endif %}
+
+</button>
+
+
+<button
+type="button"
+id="btnCancelar"
+class="btn btn-outline-secondary btn-sm">
+
+<i class="bi bi-x-circle"></i> Cancelar
+
+</button>
+
+</div>
+
+
+</div>
+
+
+</form>
+</section>
 
 {% endblock content %}
 
+
+
 {% block extra_js %}
+
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
 
-    // ✅ Ano atual por padrão (somente se NÃO estiver em modo edit ou se estiver vazio)
-    const anoInput = document.getElementById("anoTurma");
-    if (anoInput && !anoInput.value){
-      anoInput.value = new Date().getFullYear();
+document.addEventListener("DOMContentLoaded", function(){
+
+const turmaStatus = "{{ turma.status|default:'ATIVA' }}";
+
+window.atualizarCampoDisciplina = function(){
+
+    const selectDisciplina = document.getElementById("disciplinaSelecionada");
+
+    if(!selectDisciplina) return;
+
+    if(turmaStatus === "INATIVA"){
+        selectDisciplina.disabled = true;
+        return;
     }
 
-    window.atualizarCampoDisciplina = function() {
-      const tipo = document.getElementById("tipoPessoa").value;
-      const selectDisciplina = document.getElementById("disciplinaSelecionada");
-      selectDisciplina.disabled = (tipo !== "professor");
-      if (tipo !== "professor") selectDisciplina.value = "";
-    };
+    const tipo = document.getElementById("tipoPessoa").value;
 
-    if (typeof window.adicionarPessoa !== "function") {
-      window.adicionarPessoa = function() {
+    selectDisciplina.disabled = (tipo !== "professor");
+
+    if(tipo !== "professor"){
+        selectDisciplina.value = "";
+    }
+
+};
+
+
+/* ================================
+   BLOQUEIO COMPLETO SE TURMA INATIVA
+================================ */
+
+if(turmaStatus === "INATIVA"){
+
+    document.querySelectorAll(
+        "#turmaForm input, #turmaForm select, #turmaForm textarea"
+    ).forEach(el => {
+
+        if(el.id !== "btnCancelar"){
+            el.disabled = true;
+        }
+
+    });
+
+    const btnAdd = document.querySelector('[onclick="adicionarPessoa()"]');
+
+    if(btnAdd){
+        btnAdd.disabled = true;
+        btnAdd.classList.remove("btn-outline-primary");
+        btnAdd.classList.add("btn-outline-secondary");
+    }
+
+}
+
+
+/* ================================
+   FALLBACK adicionarPessoa
+================================ */
+
+if(typeof window.adicionarPessoa !== "function"){
+
+    window.adicionarPessoa = function(){
         console.warn("adicionarPessoa() não está definido no formulario_turma_dinamico.js");
-      };
     }
 
-    window.atualizarCampoDisciplina();
+}
 
-    {% if turma %}
-      document.getElementById("nomeTurmaSelect").value = "{{ turma.nome }}";
-      document.getElementById("turnoTurma").value = "{{ turma.turno }}";
-      document.getElementById("anoTurma").value = "{{ turma.ano }}";
-      document.getElementById("salaTurma").value = "{{ turma.sala }}";
-      document.getElementById("descricaoTurma").value = "{{ turma.descricao|default:'' }}";
 
-      {% if turma.sistema_avaliacao %}
-        document.getElementById("sistemaAvaliacao").value = "{{ turma.sistema_avaliacao }}";
-      {% endif %}
-    {% endif %}
-  });
+/* ================================
+   EXECUTA LÓGICA DE DISCIPLINA
+================================ */
+
+window.atualizarCampoDisciplina();
+
+
+/* ================================
+   BOTÃO CANCELAR
+================================ */
+
+const btnCancelar = document.getElementById("btnCancelar");
+
+if(btnCancelar){
+
+    btnCancelar.addEventListener("click", function(){
+        window.history.back();
+    });
+
+}
+
+
+/* ================================
+   CARREGAR DADOS DA TURMA (EDIÇÃO)
+================================ */
+
+{% if turma %}
+
+const nomeTurma = "{{ turma.nome|escapejs }}";
+const selectNome = document.getElementById("nomeTurmaSelect");
+
+if(selectNome){
+
+    [...selectNome.options].forEach(opt => {
+        if(opt.value === nomeTurma){
+            opt.selected = true;
+        }
+    });
+
+}
+
+document.getElementById("turnoTurma").value = "{{ turma.turno }}";
+document.getElementById("anoTurma").value = "{{ turma.ano }}";
+document.getElementById("salaTurma").value = "{{ turma.sala }}";
+document.getElementById("descricaoTurma").value = "{{ turma.descricao|default:'' }}";
+
+{% endif %}
+
+});
+
 </script>
+
 
 <script src="{% static 'home/js/formulario_turma_dinamico.js' %}"></script>
 
+
+
 <script>
-  (function(){
-    function getSugestoes(){ return document.getElementById("sugestoes"); }
-    function getInput(){ return document.getElementById("buscaPessoa"); }
 
-    function ensurePortal(){
-      const ul = getSugestoes();
-      if (!ul) return null;
-      if (ul.parentElement !== document.body){ document.body.appendChild(ul); }
-      return ul;
+(function(){
+
+function getSugestoes(){
+return document.getElementById("sugestoes")
+}
+
+function getInput(){
+return document.getElementById("buscaPessoa")
+}
+
+function ensurePortal(){
+
+const ul=getSugestoes()
+
+if(!ul) return null
+
+if(ul.parentElement!==document.body){
+document.body.appendChild(ul)
+}
+
+return ul
+
+}
+
+
+function reposition(){
+
+const input=getInput()
+const ul=ensurePortal()
+
+if(!input || !ul) return
+
+const hasItems=ul.children.length>0
+
+if(!hasItems){
+
+ul.style.display="none"
+return
+
+}
+
+const r=input.getBoundingClientRect()
+
+ul.style.left=r.left+"px"
+ul.style.top=(r.bottom+6)+"px"
+ul.style.width=r.width+"px"
+ul.style.display="block"
+
+}
+
+
+window.addEventListener("load",function(){
+
+ensurePortal()
+reposition()
+
+const ul=getSugestoes()
+
+if(ul){
+
+const obs=new MutationObserver(reposition)
+obs.observe(ul,{childList:true,subtree:true})
+
+}
+
+})
+
+
+document.addEventListener("DOMContentLoaded",function(){
+
+const input=getInput()
+
+if(input){
+
+input.addEventListener("input",reposition)
+input.addEventListener("focus",reposition)
+
+input.addEventListener("blur",()=>setTimeout(()=>{
+
+const ul=getSugestoes()
+if(ul) ul.style.display="none"
+
+},150))
+
+}
+
+window.addEventListener("resize",reposition)
+window.addEventListener("scroll",reposition,true)
+
+})
+
+
+const guard=new MutationObserver(()=>ensurePortal())
+guard.observe(document.documentElement,{childList:true,subtree:true})
+
+})()
+
+
+function duplicarTurma(id){
+
+    if(!confirm("Deseja duplicar esta turma?")){
+        return
     }
 
-    function reposition(){
-      const input = getInput();
-      const ul = ensurePortal();
-      if (!input || !ul) return;
+    fetch(`/turmas/${id}/duplicar/`)
+    .then(r => r.json())
+    .then(data => {
 
-      const hasItems = ul.children.length > 0;
-      if (!hasItems){ ul.style.display = "none"; return; }
+        if(data.success){
+            window.location.href = "/turmas/listar/"
+        }
 
-      const r = input.getBoundingClientRect();
-      ul.style.left = r.left + "px";
-      ul.style.top = (r.bottom + 6) + "px";
-      ul.style.width = r.width + "px";
-      ul.style.display = "block";
+    })
+
+}
+
+function inativarTurma(id){
+
+    const statusAtual = "{{ turma.status|default:'ATIVA' }}"
+
+    const mensagem = statusAtual === "INATIVA"
+        ? "Deseja ativar esta turma?"
+        : "Deseja inativar esta turma?"
+
+    if(!confirm(mensagem)){
+        return
     }
 
-    window.addEventListener("load", function(){
-      ensurePortal();
-      reposition();
-      const ul = getSugestoes();
-      if (ul){
-        const obs = new MutationObserver(reposition);
-        obs.observe(ul, { childList:true, subtree:true });
-      }
-    });
+    fetch(`/turmas/${id}/inativar/`)
+    .then(r => r.json())
+    .then(data => {
 
-    document.addEventListener("DOMContentLoaded", function(){
-      const input = getInput();
-      if (input){
-        input.addEventListener("input", reposition);
-        input.addEventListener("focus", reposition);
-        input.addEventListener("blur", () => setTimeout(() => {
-          const ul = getSugestoes();
-          if (ul) ul.style.display = "none";
-        }, 150));
-      }
-      window.addEventListener("resize", reposition);
-      window.addEventListener("scroll", reposition, true);
-    });
+        if(data.success){
+            window.location.href = "/turmas/listar/"
+        }
 
-    const guard = new MutationObserver(() => ensurePortal());
-    guard.observe(document.documentElement, { childList:true, subtree:true });
-  })();
+    })
+
+}
+
+
+function excluirTurma(id){
+
+    if(!confirm("Tem certeza que deseja excluir esta turma?")){
+        return
+    }
+
+    fetch(`/turmas/${id}/excluir/`)
+    .then(r => r.json())
+    .then(data => {
+
+        if(data.success){
+            window.location.href = "/turmas/listar/"
+        }
+
+    })
+
+}
+
+
 </script>
+
 {% endblock extra_js %}
