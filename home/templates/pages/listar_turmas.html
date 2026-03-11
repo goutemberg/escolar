@@ -2,416 +2,354 @@
 {% load static %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-  {% with tema=user.escola.tema|default:"legacy" %}
-    {% if tema == "nucleo" %}
-      <link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
-    {% else %}
-      <link rel="stylesheet" href="{% static 'css/pages/arquivo.css' %}">
-    {% endif %}
-  {% endwith %}
+{% with tema=user.escola.tema|default:"legacy" %}
+{% if tema == "nucleo" %}
+<link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
+{% else %}
+<link rel="stylesheet" href="{% static 'css/pages/arquivo.css' %}">
+{% endif %}
+{% endwith %}
 {% endblock extra_head %}
 
 {% block content %}
 
-    <div class="container">
+<div class="container">
 
-        <div class="titulo-pagina">Lista de Turmas</div>
+<div class="titulo-pagina">Lista de Turmas</div>
 
-        <!-- CONTROLES -->
-        <div class="list-controls">
-            <div>
-                <input id="filtroTurma" class="form-control"
-                       placeholder="🔍 Buscar por nome, sala, ano, turno...">
-                <div id="autocompleteBox"></div>
-            </div>
+<div class="list-controls">
 
-            <select id="filtroTurno" class="custom-select">
-                <option value="">Turno: todos</option>
-                <option value="Manhã">Manhã</option>
-                <option value="Tarde">Tarde</option>
-                <option value="Noite">Noite</option>
-            </select>
-
-            <select id="filtroAno" class="custom-select">
-                <option value="">Ano: todos</option>
-            </select>
-
-            <select id="pageSize" class="custom-select">
-                <option value="10">Exibir 10</option>
-                <option value="25" selected>Exibir 25</option>
-                <option value="50">Exibir 50</option>
-                <option value="100">Exibir 100</option>
-            </select>
-
-            <button id="clearFilters" class="btn btn-secondary btn-sm">
-                Limpar filtros
-            </button>
-        </div>
-
-        <!-- TABELA -->
-        <table id="tabelaTurmas">
-            <thead>
-                <tr>
-                    <th data-sort="nome">Nome</th>
-                    <th data-sort="sala">Sala</th>
-                    <th data-sort="ano">Ano</th>
-                    <th data-sort="turno">Turno</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-
-            <tbody id="tabelaTurmasBody">
-                <script id="turmas-data" type="application/json">
-                    {{ turmas_json|safe }}
-                </script>
-            </tbody>
-        </table>
-
-        <!-- PAGINAÇÃO -->
-        <div class="pagination-bar mt-3 d-flex justify-content-between align-items-center">
-            <div id="resultsInfo">Mostrando 0–0 de 0</div>
-            <ul class="pagination mb-0">
-                <li class="page-item"><button id="firstPage" class="page-link">«</button></li>
-                <li class="page-item"><button id="prevPage" class="page-link">‹</button></li>
-                <li class="page-item disabled"><span id="pageIndicator" class="page-link">1 / 1</span></li>
-                <li class="page-item"><button id="nextPage" class="page-link">›</button></li>
-                <li class="page-item"><button id="lastPage" class="page-link">»</button></li>
-            </ul>
-        </div>
-
-    </div>
-
-<!-- MODAL EDITAR TURMA -->
-<div class="modal fade" id="modalEditarTurma" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <form id="formEditarTurma">
-                <div class="modal-header" style="background:#fab982;border-bottom:none;">
-                    <h5 class="modal-title">Editar Turma</h5>
-                    <button class="close" data-dismiss="modal"><span>&times;</span></button>
-                </div>
-
-                <div class="modal-body">
-                    <input id="editId" type="hidden">
-
-                    <div class="form-row">
-                        <div class="form-group col-md-4">
-                            <label>Nome</label>
-                            <input id="editNome" class="form-control">
-                        </div>
-                        <div class="form-group col-md-2">
-                            <label>Sala</label>
-                            <input id="editSala" class="form-control">
-                        </div>
-                        <div class="form-group col-md-2">
-                            <label>Ano</label>
-                            <input id="editAno" class="form-control">
-                        </div>
-                        <div class="form-group col-md-2">
-                            <label>Turno</label>
-                            <input id="editTurno" class="form-control">
-                        </div>
-
-                        <!-- ✅ NOVO: Sistema de Avaliação -->
-                        <div class="form-group col-md-2">
-                            <label>Sist. Aval.</label>
-                            <select id="editSistemaAvaliacao" class="form-control">
-                                <option value="NUM">Nota</option>
-                                <option value="CON">Conceito</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Descrição</label>
-                        <textarea id="editDescricao" rows="3" class="form-control"></textarea>
-                    </div>
-                </div>
-
-                <div class="modal-footer">
-                    <button id="btnSalvarEditar" type="submit" class="btn btn-primary">Salvar</button>
-                    <button class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                </div>
-            </form>
-        </div>
-    </div>
+<div>
+<input id="filtroTurma" class="form-control"
+placeholder="🔍 Buscar por nome, sala, ano, turno...">
+<div id="autocompleteBox"></div>
 </div>
+
+<select id="filtroTurno" class="custom-select">
+<option value="">Turno: todos</option>
+<option value="Manhã">Manhã</option>
+<option value="Tarde">Tarde</option>
+<option value="Noite">Noite</option>
+</select>
+
+<select id="filtroAno" class="custom-select">
+<option value="">Ano: todos</option>
+</select>
+
+<select id="pageSize" class="custom-select">
+<option value="10">Exibir 10</option>
+<option value="25" selected>Exibir 25</option>
+<option value="50">Exibir 50</option>
+<option value="100">Exibir 100</option>
+</select>
+
+<button id="clearFilters" class="btn btn-secondary btn-sm">
+Limpar filtros
+</button>
+
+</div>
+
+<table id="tabelaTurmas">
+
+<thead>
+<tr>
+<th data-sort="nome">Nome</th>
+<th data-sort="sala">Sala</th>
+<th data-sort="ano">Ano</th>
+<th data-sort="turno">Turno</th>
+<th>Status</th>
+<th>Ações</th>
+</tr>
+</thead>
+
+<tbody id="tabelaTurmasBody">
+<script id="turmas-data" type="application/json">
+{{ turmas_json|safe }}
+</script>
+</tbody>
+
+</table>
+
+<div class="pagination-bar mt-3 d-flex justify-content-between align-items-center">
+<div id="resultsInfo">Mostrando 0–0 de 0</div>
+
+<ul class="pagination mb-0">
+<li class="page-item"><button id="firstPage" class="page-link">«</button></li>
+<li class="page-item"><button id="prevPage" class="page-link">‹</button></li>
+<li class="page-item disabled"><span id="pageIndicator" class="page-link">1 / 1</span></li>
+<li class="page-item"><button id="nextPage" class="page-link">›</button></li>
+<li class="page-item"><button id="lastPage" class="page-link">»</button></li>
+</ul>
+
+</div>
+
+</div>
+
 {% endblock content %}
 
 {% block extra_js %}
+
 <script>
-  function ensureFuse(cb){
-    if (window.Fuse) return cb();
-    var s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
-    s.onload = cb;
-    s.onerror = function(){
-      console.error("Falha ao carregar Fuse.js");
-      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
-    };
-    document.head.appendChild(s);
-  }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    ensureFuse(function() {
-    /* ============================================================
-   1. CARREGAR DADOS
-============================================================ */
-const turmas = JSON.parse(document.getElementById("turmas-data").textContent);
+function ensureFuse(cb){
 
-/* ============================================================
-   2. FUNÇÕES AUXILIARES
-============================================================ */
-function normaliza(t) {
-    return (t || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-function highlight(text, term) {
-    if (!term) return text;
-    const regex = new RegExp(`(${term})`, "gi");
-    return text.replace(regex, `<mark>$1</mark>`);
+if(window.Fuse) return cb();
+
+var s=document.createElement("script");
+
+s.src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
+
+s.onload=cb;
+
+document.head.appendChild(s);
+
 }
 
-/* ============================================================
-   3. FUZZY SEARCH
-============================================================ */
-const fuse = new Fuse(turmas, {
-    includeScore: true,
-    threshold: 0.29,
-    ignoreLocation: true,
-    keys: ["nome", "sala", "turno", "ano", "descricao"]
+document.addEventListener("DOMContentLoaded",function(){
+
+ensureFuse(function(){
+
+const turmas=JSON.parse(document.getElementById("turmas-data").textContent);
+
+let searchTerm="";
+let turnoFilter="";
+let anoFilter="";
+let pageSize=25;
+let currentPage=1;
+
+function normaliza(t){
+return (t||"").toString().normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+}
+
+const fuse=new Fuse(turmas,{
+includeScore:true,
+threshold:0.29,
+ignoreLocation:true,
+keys:["nome","sala","turno","ano","descricao"]
 });
 
-let searchTerm = "";
-const autoBox = document.getElementById("autocompleteBox");
+function aplicarBusca(){
 
-function showSugestoes(lista, termo) {
-    if (!termo || lista.length === 0) {
-        autoBox.style.display = "none";
-        return;
-    }
+const termo=searchTerm.trim();
 
-    autoBox.innerHTML = "";
-    lista.slice(0, 6).forEach(t => {
-        const div = document.createElement("div");
-        div.innerHTML = highlight(t.nome, termo);
-        div.onclick = () => {
-            document.getElementById("filtroTurma").value = t.nome;
-            searchTerm = t.nome;
-            autoBox.style.display = "none";
-            renderizarTabela(1);
-        };
-        autoBox.appendChild(div);
-    });
+if(!termo) return turmas;
 
-    autoBox.style.display = "block";
+return fuse.search(termo).map(r=>r.item);
+
 }
 
-document.addEventListener("click", function(e) {
-    if (!e.target.closest("#autocompleteBox") &&
-        !e.target.closest("#filtroTurma")) {
-        autoBox.style.display = "none";
-    }
+function filtrarSimples(lista){
+
+return lista.filter(t=>{
+
+if(turnoFilter && t.turno!==turnoFilter) return false;
+
+if(anoFilter && t.ano!=anoFilter) return false;
+
+return true;
+
 });
 
-function aplicarBusca() {
-    const termo = searchTerm.trim().toLowerCase();
-    if (!termo) { autoBox.style.display = "none"; return turmas; }
-    const resultado = fuse.search(termo).map(r => r.item);
-    showSugestoes(resultado, termo);
-    return resultado;
 }
 
-/* ============================================================
-   4. FILTROS
-============================================================ */
-let turnoFilter = "";
-let anoFilter = "";
-let pageSize = 25;
-let currentPage = 1;
+let sortKey="";
+let sortDir="asc";
 
-function filtrarSimples(lista) {
-    return lista.filter(t => {
-        if (turnoFilter && t.turno !== turnoFilter) return false;
-        if (anoFilter && t.ano != anoFilter) return false;
-        return true;
-    });
-}
+function ordenar(lista){
 
-/* ============================================================
-   5. ORDENAR
-============================================================ */
-let sortKey = "";
-let sortDir = "asc";
+if(!sortKey) return lista;
 
-function ordenar(lista) {
-    if (!sortKey) return lista;
+return lista.slice().sort((a,b)=>{
 
-    return lista.slice().sort((a, b) => {
-        let av = a[sortKey]; let bv = b[sortKey];
-        av = normaliza(av); bv = normaliza(bv);
+let av=a[sortKey];
+let bv=b[sortKey];
 
-        if (av < bv) return sortDir === "asc" ? -1 : 1;
-        if (av > bv) return sortDir === "asc" ? 1 : -1;
-        return 0;
-    });
-}
+av=normaliza(av);
+bv=normaliza(bv);
 
-/* ============================================================
-   6. RENDERIZAÇÃO DA TABLE
-============================================================ */
-function renderizarTabela(pagina=1) {
-    let lista = aplicarBusca();
-    lista = filtrarSimples(lista);
-    lista = ordenar(lista);
+if(av<bv) return sortDir==="asc"?-1:1;
+if(av>bv) return sortDir==="asc"?1:-1;
 
-    const total = lista.length;
-    const totalPag = Math.max(1, Math.ceil(total / pageSize));
-    currentPage = Math.min(Math.max(1, pagina), totalPag);
+return 0;
 
-    const ini = (currentPage - 1) * pageSize;
-    const fim = ini + pageSize;
-
-    const tbody = document.getElementById("tabelaTurmasBody");
-    tbody.innerHTML = "";
-
-    const termo = searchTerm.toLowerCase();
-
-    lista.slice(ini, fim).forEach(t => {
-        tbody.insertAdjacentHTML("beforeend", `
-            <tr>
-                <td>${highlight(t.nome, termo)}</td>
-                <td>${highlight(t.sala, termo)}</td>
-                <td>${highlight(String(t.ano), termo)}</td>
-                <td>${highlight(t.turno, termo)}</td>
-                <td>
-                    <button class="btn btn-info btn-sm" onclick="editarTurma(${t.id})">Editar</button>
-                </td>
-            </tr>
-        `);
-    });
-
-    document.getElementById("resultsInfo").textContent =
-        total ? `Mostrando ${ini+1}–${Math.min(fim,total)} de ${total}` : "Nenhum resultado";
-
-    document.getElementById("pageIndicator").textContent =
-        `${currentPage} / ${totalPag}`;
-}
-
-/* ============================================================
-   7. EVENTOS
-============================================================ */
-document.getElementById("filtroTurma").addEventListener("input", (e) => {
-    searchTerm = e.target.value;
-    renderizarTabela(1);
 });
 
-document.getElementById("filtroTurno").onchange = e => {
-    turnoFilter = e.target.value;
-    renderizarTabela(1);
-};
-
-document.getElementById("filtroAno").onchange = e => {
-    anoFilter = e.target.value;
-    renderizarTabela(1);
-};
-
-document.getElementById("pageSize").onchange = e => {
-    pageSize = parseInt(e.target.value);
-    renderizarTabela(1);
-};
-
-document.getElementById("clearFilters").onclick = () => {
-    searchTerm = "";
-    turnoFilter = "";
-    anoFilter = "";
-    document.getElementById("filtroTurma").value = "";
-    renderizarTabela(1);
-};
-
-document.getElementById("firstPage").onclick = () => renderizarTabela(1);
-document.getElementById("prevPage").onclick = () => renderizarTabela(currentPage - 1);
-document.getElementById("nextPage").onclick = () => renderizarTabela(currentPage + 1);
-document.getElementById("lastPage").onclick = () => {
-    const total = aplicarBusca().length;
-    renderizarTabela(Math.ceil(total / pageSize));
-};
-
-document.querySelectorAll("th[data-sort]").forEach(th => {
-    th.onclick = () => {
-        const k = th.dataset.sort;
-        if (sortKey === k) sortDir = sortDir === "asc" ? "desc" : "asc";
-        else { sortKey = k; sortDir = "asc"; }
-        renderizarTabela(1);
-    };
-});
-
-/* ============================================================
-   8. EDITAR TURMA – MODAL
-============================================================ */
-function editarTurma(id) {
-    const t = turmas.find(x => x.id === id);
-    console.log("EDITAR TURMA:", t?.id, t?.nome, t?.sistema_avaliacao);
-    if (!t) return alert("Turma não encontrada!");
-
-    document.getElementById("editId").value = t.id;
-    document.getElementById("editNome").value = t.nome;
-    document.getElementById("editSala").value = t.sala;
-    document.getElementById("editAno").value = t.ano;
-    document.getElementById("editTurno").value = t.turno;
-    document.getElementById("editDescricao").value = t.descricao;
-
-    // ✅ novo: preencher sistema de avaliação (fallback NUM)
-    const sel = document.getElementById("editSistemaAvaliacao");
-    if (sel) sel.value = (t.sistema_avaliacao || "NUM");
-
-    $("#modalEditarTurma").modal("show");
 }
 
-document.getElementById("formEditarTurma").onsubmit = function(e) {
-    e.preventDefault();
+function renderizarTabela(pagina=1){
 
-    const id = document.getElementById("editId").value;
+let lista=aplicarBusca();
 
-    fetch(`/turmas/${id}/editar/`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": "{{ csrf_token }}"
-        },
-        body: JSON.stringify({
-            nome: document.getElementById("editNome").value,
-            sala: document.getElementById("editSala").value,
-            ano: document.getElementById("editAno").value,
-            turno: document.getElementById("editTurno").value,
-            descricao: document.getElementById("editDescricao").value,
+lista=filtrarSimples(lista);
 
-            // ✅ novo: enviar sistema de avaliação
-            sistema_avaliacao: document.getElementById("editSistemaAvaliacao").value
-        })
-    })
-    .then(r => r.json())
-    .then(d => {
-        if (d.success) location.reload();
-        else alert("Erro ao salvar: " + (d.error || d.mensagem || "Erro"));
-    })
-    .catch(() => alert("Erro inesperado."));
-};
+lista=ordenar(lista);
 
-/* ============================================================
-   INICIAR
-============================================================ */
+const total=lista.length;
+
+const totalPag=Math.max(1,Math.ceil(total/pageSize));
+
+currentPage=Math.min(Math.max(1,pagina),totalPag);
+
+const ini=(currentPage-1)*pageSize;
+
+const fim=ini+pageSize;
+
+const tbody=document.getElementById("tabelaTurmasBody");
+
+tbody.innerHTML="";
+
+lista.slice(ini,fim).forEach(t=>{
+
+const statusBadge = t.ativo
+? `<span class="badge badge-success">Ativa</span>`
+: `<span class="badge badge-secondary">Inativa</span>`;
+
+tbody.insertAdjacentHTML("beforeend",`
+
+<tr>
+
+<td>${t.nome}</td>
+
+<td>${t.sala}</td>
+
+<td>${t.ano}</td>
+
+<td>${t.turno}</td>
+
+<td>${statusBadge}</td>
+
+<td style="white-space:nowrap">
+
+<button class="btn btn-info btn-sm" onclick="editarTurma(${t.id})">
+<i class="bi bi-pencil"></i>
+</button>
+
+<button class="btn btn-secondary btn-sm" onclick="duplicarTurma(${t.id})">
+<i class="bi bi-copy"></i>
+</button>
+
+<button class="btn btn-warning btn-sm" onclick="inativarTurma(${t.id})">
+<i class="bi bi-pause-circle"></i>
+</button>
+
+<button class="btn btn-danger btn-sm" onclick="excluirTurma(${t.id})">
+<i class="bi bi-trash"></i>
+</button>
+
+</td>
+
+</tr>
+
+`);
+
+});
+
+document.getElementById("resultsInfo").textContent=
+total?`Mostrando ${ini+1}–${Math.min(fim,total)} de ${total}`:"Nenhum resultado";
+
+document.getElementById("pageIndicator").textContent=
+`${currentPage} / ${totalPag}`;
+
+}
+
+window.editarTurma=function(id){
+
+window.location.href=`/turmas/${id}/editar/`;
+
+}
+
+
+window.duplicarTurma=function(id){
+
+if(!confirm("Deseja duplicar esta turma para o próximo ano?")) return;
+
+window.location.href=`/turmas/duplicar/${id}/`;
+
+}
+
+window.inativarTurma=function(id){
+
+if(!confirm("Deseja realmente inativar esta turma?")) return;
+
+fetch(`/turmas/${id}/inativar/`,{
+
+method:"POST",
+
+headers:{
+"X-CSRFToken":"{{ csrf_token }}"
+}
+
+})
+.then(r=>r.json())
+.then(d=>{
+
+if(d.success){
+
+alert("Turma inativada com sucesso");
+location.reload();
+
+}else{
+
+alert(d.error||"Erro ao inativar turma");
+
+}
+
+})
+.catch(()=>alert("Erro inesperado"));
+
+}
+
+window.excluirTurma=function(id){
+
+if(!confirm("Tem certeza que deseja excluir esta turma?")) return;
+
+fetch(`/turmas/${id}/excluir/`,{
+
+method:"POST",
+
+headers:{
+"X-CSRFToken":"{{ csrf_token }}"
+}
+
+})
+.then(r=>r.json())
+.then(d=>{
+
+if(d.success){
+
+alert("Turma excluída com sucesso");
+location.reload();
+
+}else{
+
+alert(d.error||"Erro ao excluir turma");
+
+}
+
+})
+.catch(()=>alert("Erro inesperado"));
+
+}
+
 renderizarTabela(1);
 
-/* Preencher dropdown ANO automaticamente */
 (function preencherAno(){
-    const anos = [...new Set(turmas.map(t => t.ano))].sort();
-    const sel = document.getElementById("filtroAno");
-    anos.forEach(a => sel.insertAdjacentHTML("beforeend",
-        `<option value="${a}">${a}</option>`));
+
+const anos=[...new Set(turmas.map(t=>t.ano))].sort();
+
+const sel=document.getElementById("filtroAno");
+
+anos.forEach(a=>sel.insertAdjacentHTML("beforeend",
+`<option value="${a}">${a}</option>`));
+
 })();
-    });
-  });
+
+});
+
+});
+
 </script>
+
 {% endblock extra_js %}
