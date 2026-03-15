@@ -1,4 +1,5 @@
 from django.urls import path
+from home.views_root import salvar_turma
 from home.views.turmas import (
 
     listar_turmas,
@@ -52,6 +53,8 @@ urlpatterns = [
     path("<int:turma_id>/inativar/", inativar_turma, name="inativar"),
 
     path("<int:turma_id>/excluir/", excluir_turma, name="excluir"),
+
+    path("salvar/", salvar_turma, name="salvar_turma"),
 
 
     # ============================

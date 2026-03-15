@@ -4,26 +4,51 @@
 <head>
     {% include 'partials/_head.html' %}
 
-    <link rel="stylesheet" href="{% static 'css/design-system.css' %}">
+    <!-- ========================= -->
+    <!-- TOKENS BASE (LEGACY DEFAULT) -->
+    <!-- ========================= -->
+    <link rel="stylesheet" href="{% static 'css/legacy_tokens.css' %}">
+
+    <!-- ========================= -->
+    <!-- CSS BASE DO SISTEMA -->
+    <!-- ========================= -->
     <link rel="stylesheet" href="{% static 'css/layout.css' %}">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{% static 'css/design-system.css' %}">
+
+    <!-- ========================= -->
+    <!-- ESTRUTURA PREMIUM (APLICA PARA TODOS) -->
+    <!-- ========================= -->
+    <link rel="stylesheet" href="{% static 'nucleo/css/2_base.css' %}">
+    <link rel="stylesheet" href="{% static 'nucleo/css/3_layout.css' %}">
+    <link rel="stylesheet" href="{% static 'nucleo/css/4_components.css' %}">
+    <link rel="stylesheet" href="{% static 'nucleo/css/5_responsive.css' %}">
+
+    <!-- ========================= -->
+    <!-- TOKENS DO NÚCLEO (SÓ SE FOR NÚCLEO) -->
+    <!-- ========================= -->
+    {% if user.escola.tema|lower == "nucleo" %}
+        <link rel="stylesheet" href="{% static 'nucleo/css/1_tokens.css' %}">
+    {% endif %}
+
+    <!-- ÍCONES -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
     {% block extra_head %}{% endblock %}
 </head>
 
-<body class="theme-{{ user.escola.tema|default:'legacy' }}">
+<body class="theme-{{ user.escola.tema|default:'legacy'|lower }}">
 
 <div class="app-wrapper">
 
-    <!-- SIDEBAR -->
     {% include 'layout/partials/_sidebar.html' %}
 
-    <!-- MAIN AREA -->
     <div class="main-content">
 
+        <!-- ========================= -->
         <!-- TOPBAR -->
+        <!-- ========================= -->
         <header class="topbar">
-
             <button class="menu-toggle" type="button" onclick="toggleSidebar()">
                 <i class="bi bi-list"></i>
             </button>
@@ -40,10 +65,11 @@
                 </span>
                 <i class="bi bi-person-circle"></i>
             </div>
-
         </header>
 
-        <!-- PAGE CONTENT PADRÃO -->
+        <!-- ========================= -->
+        <!-- CONTEÚDO -->
+        <!-- ========================= -->
         <main class="page-content">
             <div class="page-container">
                 {% block content %}{% endblock %}
@@ -51,9 +77,11 @@
         </main>
 
     </div>
-
 </div>
 
+<!-- ========================= -->
+<!-- SCRIPTS -->
+<!-- ========================= -->
 <script>
 function toggleSidebar() {
     const sb = document.getElementById("sidebar");
@@ -64,23 +92,7 @@ function toggleSubmenu(id){
     const box = document.getElementById(id);
     if (!box) return;
     box.classList.toggle("open");
-
-    const btn = document.querySelector(`[data-submenu="${id}"]`);
-    if (btn){
-        const expanded = box.classList.contains("open");
-        btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-    }
 }
-
-document.addEventListener("DOMContentLoaded", function(){
-    document.querySelectorAll(".submenu").forEach(function(sm){
-        if (sm.querySelector(".nav-item.active")){
-            sm.classList.add("open");
-            const btn = document.querySelector(`[data-submenu="${sm.id}"]`);
-            if (btn) btn.setAttribute("aria-expanded", "true");
-        }
-    });
-});
 </script>
 
 {% block extra_js %}{% endblock %}

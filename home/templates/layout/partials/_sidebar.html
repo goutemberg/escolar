@@ -239,6 +239,40 @@
     </div>
     {% endif %}
 
+  {% if user|has_role:'diretor,secretaria' and user.escola.financeiro_ativo %}
+  <!-- Financeiro -->
+<a class="nav-item submenu-toggle"
+   data-submenu="sm-financeiro"
+   aria-expanded="false"
+   onclick="toggleSubmenu('sm-financeiro')">
+
+  <span class="left">
+    <i class="bi bi-cash-stack"></i>
+    <span>Financeiro</span>
+  </span>
+
+  <i class="bi bi-chevron-down chev"></i>
+
+</a>
+
+<div class="submenu" id="sm-financeiro">
+
+  <a href="{% url 'listar_mensalidades' %}"
+     class="nav-item {% if current_view == 'listar_mensalidades' %}active{% endif %}">
+    <i class="bi bi-card-list"></i>
+    <span>Mensalidades</span>
+  </a>
+
+  <a href="{% url 'gerar_mensalidades' %}"
+     class="nav-item {% if current_view == 'gerar_mensalidades' %}active{% endif %}">
+    <i class="bi bi-plus-circle"></i>
+    <span>Gerar Mensalidades</span>
+  </a>
+
+</div>
+
+{% endif %}
+
     {% if user|has_role:'diretor,coordenador' %}
     <!-- Gestão Geral -->
     <a class="nav-item submenu-toggle"

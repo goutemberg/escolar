@@ -125,3 +125,42 @@ body {
 .page-content {
     padding: 2rem;
 }
+
+.sidebar .nav-item {
+    text-decoration: none !important;
+}
+
+.sidebar .nav-item:hover {
+    text-decoration: none !important;
+}
+.sidebar .nav-item *,
+.sidebar .nav-item:hover * {
+    text-decoration: none !important;
+}
+
+.titulo-pagina {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--primary);
+    color: var(--text-dark);
+}
+
+.app-wrapper {
+    display: flex;
+}
+
+.sidebar {
+    width: 260px;
+    transition: width .25s ease;
+}
+
+.sidebar.collapsed {
+    width: 70px;
+}
+
+.main-content {
+    flex: 1;
+    transition: margin .25s ease;
+}

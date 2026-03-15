@@ -1,22 +1,25 @@
-:root {
-  --color-primary: #1E4F9C;
-  --color-secondary: #2EAD61;
-  --color-accent: #F57C00;
-  --color-warning: #FBC02D;
-  --color-danger: #D32F2F;
+body.theme-nucleo {
+    /* IDENTIDADE */
+    --primary: #1565C0;
+    --primary-hover: #0D47A1;
 
-  --color-bg-main: #F4F8FF;
-  --color-bg-card: #FFFFFF;
+    --secondary: #43A047;
+    --accent: #FBC02D;
 
-  --color-text-main: #1E293B;
-  --color-text-light: #64748B;
+    --warning: #F57C00;
 
-  --sidebar-width: 240px;
-  --sidebar-collapsed-width: 70px;
+    /* FUNDOS */
+    --sidebar-bg: #0F2B46;
+    --sidebar-active: rgba(21,101,192,.18);
 
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
+    --page-bg: #F4F8FC;
+    --card-bg: #FFFFFF;
 
-  --shadow-soft: 0 4px 14px rgba(0,0,0,0.06);
+    /* TEXTO */
+    --text-dark: #1F2937;
+    --text-light: #6B7280;
+
+    /* ESTRUTURA */
+    --radius: 14px;
+    --shadow-sm: 0 2px 6px rgba(0,0,0,.05);
 }

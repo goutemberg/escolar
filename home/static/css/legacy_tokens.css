@@ -1,0 +1,27 @@
+body.theme-legacy {
+    --primary: rgba(255,255,255,.06);
+    --primary-hover: rgba(255,255,255,.06);
+    --secondary: #28a745;
+    --accent: #ffc107;
+    --warning: #f57c00;
+
+    --page-bg: #f4f6f9;
+    --card-bg: #ffffff;
+
+    --text-dark: #343a40;
+    --text-light: #6c757d;
+
+    --radius: 8px;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,.08);
+
+    /* Sidebar neutra elegante */
+    --sidebar-bg: #1f2937;
+    --sidebar-active: rgba(255,255,255,.06);
+    .nav-item.active {
+    background: rgba(255,255,255,.06);
+
+    .nav-item {
+    transition: .2s ease;
+}
+}
+}
