@@ -3,9 +3,7 @@
 
 {% block extra_head %}
 
-{% if user.escola.tema == "nucleo" %}
-<link rel="stylesheet" href="{% static 'css/pages/alunos/registrar-nucleo.css' %}">
-{% else %}
+{% if user.escola.tema != "nucleo" %}
 <link rel="stylesheet" href="{% static 'css/pages/alunos/listar.css' %}">
 {% endif %}
 
@@ -849,22 +847,30 @@
   </div>
 </div>
     <div class="form-footer" style="display:flex; gap:8px; flex-wrap:wrap;">
-      <button class="btn btn-secondary" type="button"
-        onclick="window.location.href='{% url 'cadastro_aluno' %}'">
-  Novo
-</button>
-     <button class="btn btn-secondary" onclick="goBack()" type="button">
-      Voltar
-     </button>
-     <button class="btn btn-light" onclick="cancelForm()" type="button">
-      Cancelar
-     </button>
-     <button class="btn btn-secondary" id="editButton" type="button">
-      Editar</button>
-     <button class="btn btn-primary" id="submitButton" type="button">
-      Salvar
-     </button>
-    </div>
+    <div class="form-footer">
+
+  <button class="btn btn-success" type="button"
+    onclick="window.location.href='{% url 'cadastro_aluno' %}'">
+    Novo
+  </button>
+
+  <button class="btn btn-outline" onclick="goBack()" type="button">
+    Voltar
+  </button>
+
+  <button class="btn btn-light" onclick="cancelForm()" type="button">
+    Cancelar
+  </button>
+
+  <button class="btn btn-success" id="editButton" type="button">
+    Editar
+  </button>
+
+  <button class="btn btn-primary" id="submitButton" type="button">
+    Salvar
+  </button>
+
+</div>
    </form>
 </section>
 {% endblock content %}

@@ -2342,18 +2342,18 @@ def editar_escola(request):
 
     return JsonResponse({'success': False, 'error': 'Método não permitido'}, status=405)
 
+
 @csrf_exempt
 @login_required
 @transaction.atomic
 def salvar_turma(request):
+
     if request.method != 'POST':
-        return JsonResponse(
-            {'success': False, 'error': 'Método inválido'},
-            status=405
-        )
+        return JsonResponse({'success': False, 'error': 'Método inválido'}, status=405)
 
     try:
-        data = json.loads(request.body)
+
+        data = request.POST
 
         nome = data.get('nome', '').strip()
         turno = data.get('turno', '').strip()
@@ -2361,11 +2361,17 @@ def salvar_turma(request):
         sala = data.get('sala', '').strip()
         descricao = data.get('descricao', '').strip()
 
-        professor_id = data.get('professor_id')
-        disciplina_id = data.get('disciplina_id')
-        alunos_ids = data.get('alunos_ids', [])
+        turma_id = data.get('turma_id') or request.GET.get('turma_id')
 
-        # 🔒 validação mínima (somente estrutura da turma)
+        if turma_id:
+            turma_id = int(turma_id)
+        else:
+            turma_id = None
+
+        professores_ids = [x for x in request.POST.getlist('professores_ids') if x]
+        disciplinas_ids = [x for x in request.POST.getlist('disciplinas_ids') if x]
+        alunos_ids = [x for x in request.POST.getlist('alunos_ids') if x]
+
         if not (nome and turno and ano and sala):
             return JsonResponse({
                 'success': False,
@@ -2374,32 +2380,53 @@ def salvar_turma(request):
 
         escola = request.user.escola
 
-        # 1️⃣ cria a turma (independente)
-        turma = Turma.objects.create(
-            nome=nome,
-            turno=turno,
-            ano=ano,
-            sala=sala,
-            descricao=descricao,
-            escola=escola
-        )
+        if turma_id:
 
-        # 2️⃣ vincula alunos (opcional)
-        if alunos_ids:
-            alunos = Aluno.objects.filter(
-                id__in=alunos_ids,
+            turma = Turma.objects.get(id=turma_id, escola=escola)
+
+            turma.nome = nome
+            turma.turno = turno
+            turma.ano = ano
+            turma.sala = sala
+            turma.descricao = descricao
+            turma.save()
+
+        else:
+
+            turma = Turma.objects.create(
+                nome=nome,
+                turno=turno,
+                ano=ano,
+                sala=sala,
+                descricao=descricao,
                 escola=escola
             )
+
+        # limpar vínculos apenas se vierem dados novos
+        if alunos_ids or professores_ids:
+            turma.alunos.clear()
+            TurmaDisciplina.objects.filter(turma=turma).delete()
+
+        # salvar alunos
+        if alunos_ids:
+            alunos = Aluno.objects.filter(id__in=alunos_ids, escola=escola)
             turma.alunos.add(*alunos)
 
-        # 3️⃣ vínculo pedagógico (opcional e explícito)
-        if professor_id and disciplina_id:
-            TurmaDisciplina.objects.create(
-                turma=turma,
-                professor_id=professor_id,
-                disciplina_id=disciplina_id,
-                escola=escola
-            )
+        # salvar professores
+        prof_disc = request.POST.get("prof_disc")
+
+        if prof_disc:
+
+            lista = json.loads(prof_disc)
+
+            for item in lista:
+
+                TurmaDisciplina.objects.create(
+                    turma=turma,
+                    professor_id=int(item["professor_id"]),
+                    disciplina_id=int(item["disciplina_id"]),
+                    escola=escola
+        )
 
         return JsonResponse({
             'success': True,
@@ -2407,10 +2434,12 @@ def salvar_turma(request):
         })
 
     except Exception as e:
+
         transaction.set_rollback(True)
+
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': f'Erro ao salvar turma: {str(e)}'
         }, status=500)
 
 
@@ -2418,6 +2447,7 @@ def salvar_turma(request):
 def listar_disciplinas(request):
     disciplinas = Disciplina.objects.all().values('id', 'nome')
     return JsonResponse({'disciplinas': list(disciplinas)})
+
 
 @csrf_exempt
 def editar_disciplina(request):
@@ -2666,34 +2696,42 @@ def _coerce_for_field(value, field: models.Field):
 @require_http_methods(["POST"])
 def editar_turma(request, pk):
     qs = Turma.objects
+
     if 'escola' in [f.name for f in Turma._meta.fields] and getattr(request.user, 'escola', None):
         turma = get_object_or_404(qs, pk=pk, escola=request.user.escola)
     else:
         turma = get_object_or_404(qs, pk=pk)
 
-    try:
-        data = json.loads(request.body.decode('utf-8'))
-    except Exception:
-        return HttpResponseBadRequest('JSON inválido')
+    # ✅ Agora usamos POST em vez de JSON
+    data = request.POST
 
-    # ✅ inclui sistema_avaliacao
+    # campos permitidos para edição
     allowed = ['nome', 'sala', 'ano', 'turno', 'descricao', 'sistema_avaliacao']
 
     updated = {}
+
     for field_name in allowed:
         if field_name in data:
             field = Turma._meta.get_field(field_name)
-            try:
-                coerced = _coerce_for_field(data[field_name], field)
-            except ValueError as e:
-                return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
-            # ✅ validação extra só pro sistema_avaliacao (não inventa nada além do necessário)
+            try:
+                coerced = _coerce_for_field(data.get(field_name), field)
+            except ValueError as e:
+                return JsonResponse(
+                    {'success': False, 'error': str(e)},
+                    status=400
+                )
+
+            # validação específica do sistema de avaliação
             if field_name == "sistema_avaliacao":
                 coerced = (str(coerced).strip().upper() if coerced is not None else "NUM")
+
                 if coerced not in ("NUM", "CON"):
                     return JsonResponse(
-                        {'success': False, 'error': 'sistema_avaliacao inválido. Use "NUM" ou "CON".'},
+                        {
+                            'success': False,
+                            'error': 'sistema_avaliacao inválido. Use "NUM" ou "CON".'
+                        },
                         status=400
                     )
 
@@ -2703,8 +2741,15 @@ def editar_turma(request, pk):
     try:
         with transaction.atomic():
             turma.save()
+
     except Exception as e:
-        return JsonResponse({'success': False, 'error': f'Erro ao salvar: {e}'}, status=400)
+        return JsonResponse(
+            {
+                'success': False,
+                'error': f'Erro ao salvar turma: {str(e)}'
+            },
+            status=400
+        )
 
     return JsonResponse({
         'success': True,

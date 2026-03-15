@@ -41,11 +41,10 @@ Criar Turma
 </div>
 
 <section class="content-wrapper" style="margin-top:15px;">
-<form id="turmaForm" method="post">
-
+<form id="turmaForm" method="post" action="{% url 'turmas:salvar_turma' %}">
 {% csrf_token %}
 
-<input type="hidden" id="turmaId" value="{{ turma.id|default:'' }}">
+<input type="hidden" name="turma_id" value="{{ turma.id }}">
 
 <div class="form-row">
 

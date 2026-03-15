@@ -110,11 +110,6 @@ input:focus, select:focus, textarea:focus {
     cursor: pointer;
 }
 
-.btn-primary {
-    background-color: #f89952;
-    color: white;
-}
-
 .btn-primary:hover {
     background-color: #e28032;
 }
@@ -190,11 +185,6 @@ footer {
     border-radius: 5px;
     border: none;
     font-weight: bold;
-}
-
-#submitButton {
-    background-color: #f89952;
-    color: white;
 }
 
 #resetButton, #alterarButton {

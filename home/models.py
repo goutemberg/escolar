@@ -70,6 +70,10 @@ class Escola(models.Model):
         choices=TEMA_CHOICES,
         default="nucleo",
     )
+    financeiro_ativo = models.BooleanField(
+        default=False,
+        verbose_name="Módulo financeiro ativo"
+    )
 
     def clean(self):
         if self.cnpj:
@@ -212,7 +216,6 @@ class Aluno(models.Model):
     matricula = models.CharField(max_length=20, unique=True, default=gerar_matricula_unica)
     nome = models.CharField(max_length=255, default='')
     data_nascimento = models.DateField(blank=True, null=True)
-    #cpf = models.CharField(max_length=14, default='')
     cpf = models.CharField(max_length=14, null=True, blank=True, default="")
     rg = models.CharField(max_length=20, blank=True, null=True, default='')
     sexo = models.CharField(max_length=10, default='')

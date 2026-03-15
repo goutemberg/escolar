@@ -291,4 +291,52 @@ document.addEventListener('DOMContentLoaded', function () {
     if (ul) ul.innerHTML = '';
   }
 
+  if (form) {
+
+    document.getElementById("turmaForm").addEventListener("submit", function (e) {
+
+      e.preventDefault();
+
+      const formData = new FormData(form);
+
+      turma.alunos.forEach(a => {
+        formData.append("alunos_ids", a.id);
+      });
+
+      turma.professores.forEach(p => {
+        formData.append("prof_disc", JSON.stringify(turma.professores));
+      });
+
+      const url = "/turmas/salvar/";
+
+fetch(url, {
+  method: "POST",
+  body: formData,
+  headers: {
+    "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+  }
+      })
+      .then(res => res.json())
+      .then(resp => {
+
+        if (resp.success) {
+
+          alert("Turma salva com sucesso!");
+
+          if (!turma.id) {
+            window.location.href = `/turmas/${resp.turma_id}/editar/`;
+          }
+
+        } else {
+
+          alert(resp.error || "Erro ao salvar turma.");
+
+        }
+
+      })
+      .catch(() => alert("Erro ao salvar turma."));
+    });
+
+  }
+
 });

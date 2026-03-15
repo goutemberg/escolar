@@ -13,11 +13,12 @@ from .models import Escola, User
 # ============================
 @admin.register(Escola)
 class EscolaAdmin(admin.ModelAdmin):
-    list_display = ("codigo_cliente", "nome", "cnpj", "cidade", "estado", "tema")
+    list_display = ("codigo_cliente", "nome", "cnpj", "cidade", "estado", "tema", "financeiro_ativo")
     search_fields = ("codigo_cliente", "nome", "cnpj")
     ordering = ("nome",)
-    list_editable = ("tema",)
+    list_editable = ("tema", "financeiro_ativo")
     readonly_fields = ("codigo_cliente",)
+    "financeiro_ativo"
 
     fields = (
         "codigo_cliente",
