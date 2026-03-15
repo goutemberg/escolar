@@ -147,9 +147,6 @@
   document.addEventListener("DOMContentLoaded", function () {
     ensureFuse(function() {
 
-      /* ============================================================
-         5) DISCIPLINAS POR TURMA
-      ============================================================ */
       const turmaSelect = document.getElementById("turma_id");
       const disciplinaSelect = document.getElementById("disciplina_id");
 
@@ -195,9 +192,6 @@
         });
       }
 
-      /* ============================================================
-         1) CARREGAR ALUNOS
-      ============================================================ */
       document.getElementById("carregarButton").addEventListener("click", function () {
         const turma = document.getElementById("turma_id").value;
         const disciplina = document.getElementById("disciplina_id").value;
@@ -235,7 +229,6 @@
             tbody.innerHTML = "";
 
             data.alunos.forEach(a => {
-              // ✅ aplica o status vindo do backend (fallback P)
               const st = (a.status || "P").toUpperCase();
               const obs = (a.observacao || "").replace(/"/g, "&quot;");
 
@@ -248,15 +241,15 @@
                   <td>${a.nome}</td>
 
                   <td style="text-align:center;">
-                    <div class="status-presenca" role="group" aria-label="Status de presença">
+                    <div class="status-presenca">
                       <input type="radio" name="status_${a.id}" id="p_${a.id}" class="status-radio" value="P" ${checkedP}>
-                      <label class="btn btn-outline-success" for="p_${a.id}" title="Presente">P</label>
+                      <label class="btn btn-outline-success" for="p_${a.id}">P</label>
 
                       <input type="radio" name="status_${a.id}" id="f_${a.id}" class="status-radio" value="F" ${checkedF}>
-                      <label class="btn btn-outline-danger" for="f_${a.id}" title="Falta">F</label>
+                      <label class="btn btn-outline-danger" for="f_${a.id}">F</label>
 
                       <input type="radio" name="status_${a.id}" id="j_${a.id}" class="status-radio" value="J" ${checkedJ}>
-                      <label class="btn btn-outline-warning" for="j_${a.id}" title="Falta Justificada">J</label>
+                      <label class="btn btn-outline-warning" for="j_${a.id}">J</label>
                     </div>
                   </td>
 
@@ -275,9 +268,6 @@
           });
       });
 
-      /* ============================================================
-         2) RESUMO
-      ============================================================ */
       function getStatusRow(row){
         const checked = row.querySelector(".status-radio:checked");
         return checked ? checked.value : "F";
@@ -309,9 +299,6 @@
         });
       }
 
-      /* ============================================================
-         3) SALVAR PRESENÇAS
-      ============================================================ */
       document.getElementById("salvarChamadaBtn").addEventListener("click", function () {
 
         const loader = document.getElementById("loader");
@@ -325,8 +312,8 @@
 
           lista.push({
             aluno_id: row.dataset.id,
-            status: status,         // P / F / J
-            presente: presenteBool, // compat
+            status: status,
+            presente: presenteBool,
             observacao: row.querySelector(".obs-input").value.trim()
           });
         });
@@ -346,8 +333,21 @@
             lista: lista
           })
         })
-        .then(res => res.json())
+        .then(res => {
+
+          if(res.status === 403){
+            loader.style.display = "none";
+            alert("Sua sessão expirou. Faça login novamente.");
+            window.location.href = "/login/";
+            return null;
+          }
+
+          return res.json();
+        })
         .then(data => {
+
+          if(!data) return;
+
           loader.style.display = "none";
 
           if (data.status === "sucesso") {
@@ -381,9 +381,6 @@
         });
       });
 
-      /* ============================================================
-         4) RESET COMPLETO DA TELA
-      ============================================================ */
       function resetarTelaChamada() {
 
         const turma = document.getElementById("turma_id");
