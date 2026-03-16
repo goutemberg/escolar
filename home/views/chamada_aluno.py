@@ -223,9 +223,11 @@ def api_carregar_alunos(request, turma_id):
 @csrf_exempt
 @login_required
 def salvar_presencas(request):
-    logger.warning("SALVAR PRESENCAS FOI CHAMADO")
+    logger.warning("====== SALVAR PRESENCAS ======")
     logger.warning(f"USER: {request.user}")
+    logger.warning(f"ROLE: {getattr(request.user, 'role', None)}")
     logger.warning(f"METHOD: {request.method}")
+    logger.warning(f"BODY: {request.body}")
     acesso = get_professor_or_gestor(request.user)
     if acesso == "bloqueado":
         return JsonResponse({"status": "erro", "mensagem": "Acesso negado."}, status=403)
