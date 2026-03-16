@@ -10,7 +10,4 @@ urlpatterns = [
 
     path("boletim/pdf/<int:aluno_id>/", gerar_pdf_boletim, name="boletim_pdf"),
     path("boletim/turma/<int:turma_id>/", boletim_turma, name="boletim_turma"),
-
-
-
 ]

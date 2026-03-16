@@ -3,339 +3,375 @@
 {% load custom_tags %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-  {% with tema=user.escola.tema|default:"legacy" %}
-    {% if tema == "nucleo" %}
-      <link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
-    {% else %}
-      <link rel="stylesheet" href="{% static 'css/pages/notas/lancar.css' %}">
-    {% endif %}
-  {% endwith %}
+{% with tema=user.escola.tema|default:"legacy" %}
+{% if tema == "nucleo" %}
+<link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
+{% else %}
+<link rel="stylesheet" href="{% static 'css/pages/notas/lancar.css' %}">
+{% endif %}
+{% endwith %}
 {% endblock extra_head %}
 
 {% block content %}
 <div class="content">
-  <div class="titulo-pagina">Lançamento de Notas</div>
 
-  <form class="form-top" method="GET">
-    <label for="turma">Turma:</label>
-    <select id="turma" name="turma" onchange="this.form.submit()">
-      <option value="">Selecione uma turma</option>
-      {% for t in turmas %}
-        <option value="{{ t.id }}"
-          {% if request.GET.turma == t.id|stringformat:"s" %}selected{% endif %}>
-          {{ t.nome }} - {{ t.turno }}
-        </option>
-      {% endfor %}
-    </select>
+<div class="titulo-pagina">Lançamento de Notas</div>
 
-    {% if disciplinas %}
-      <label for="disciplina">Disciplina:</label>
-      <select id="disciplina" name="disciplina" onchange="this.form.submit()">
-        <option value="">Selecione uma disciplina</option>
-        {% for d in disciplinas %}
-          <option value="{{ d.id }}"
-            {% if request.GET.disciplina == d.id|stringformat:"s" %}selected{% endif %}>
-            {{ d.nome }}
-          </option>
-        {% endfor %}
-      </select>
-    {% endif %}
-  </form>
+<form class="form-top" method="GET">
 
-  {% if alunos and avaliacoes %}
+<label for="turma">Turma:</label>
+<select id="turma" name="turma" onchange="this.form.submit()">
+<option value="">Selecione uma turma</option>
+{% for t in turmas %}
+<option value="{{ t.id }}"
+{% if request.GET.turma == t.id|stringformat:"s" %}selected{% endif %}>
+{{ t.nome }} - {{ t.turno }}
+</option>
+{% endfor %}
+</select>
 
-  <form id="notasForm">
-    <input type="hidden" name="turma_id" value="{{ turma_id }}">
-    <input type="hidden" name="disciplina_id" value="{{ disciplina_id }}">
+{% if disciplinas %}
+<label for="disciplina">Disciplina:</label>
+<select id="disciplina" name="disciplina" onchange="this.form.submit()">
+<option value="">Selecione uma disciplina</option>
+{% for d in disciplinas %}
+<option value="{{ d.id }}"
+{% if request.GET.disciplina == d.id|stringformat:"s" %}selected{% endif %}>
+{{ d.nome }}
+</option>
+{% endfor %}
+</select>
+{% endif %}
 
-    <!-- ✅ envia pro JS qual sistema a turma usa -->
-    <input type="hidden" id="sistema_avaliacao" value="{{ turma_sistema_avaliacao|default:'NUM' }}">
+<label for="bimestre">Bimestre:</label>
+<select id="bimestre" name="bimestre" onchange="this.form.submit()">
+<option value="">Bimestre</option>
+<option value="1" {% if request.GET.bimestre == "1" %}selected{% endif %}>1º</option>
+<option value="2" {% if request.GET.bimestre == "2" %}selected{% endif %}>2º</option>
+<option value="3" {% if request.GET.bimestre == "3" %}selected{% endif %}>3º</option>
+<option value="4" {% if request.GET.bimestre == "4" %}selected{% endif %}>4º</option>
+</select>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Aluno</th>
+</form>
 
-          {% for avaliacao in avaliacoes %}
-            <th>
-              {{ avaliacao.descricao }}<br>
-              <small>({{ avaliacao.tipo.nome }})</small>
-            </th>
-          {% endfor %}
+{% if request.GET.bimestre and alunos and avaliacoes %}
 
-          <th>Média</th>
-        </tr>
-      </thead>
+<form id="notasForm">
 
-      <tbody>
-        {% for aluno in alunos %}
-        <tr data-aluno-row="{{ aluno.id }}">
-          <td>{{ aluno.nome }}</td>
+<input type="hidden" name="turma_id" value="{{ turma_id }}">
+<input type="hidden" name="disciplina_id" value="{{ disciplina_id }}">
+<input type="hidden" name="bimestre" value="{{ request.GET.bimestre }}">
 
-          {% for avaliacao in avaliacoes %}
-            <td>
-              <div class="nota-cell">
-                {% with aluno_notas=notas|get_item:aluno.id %}
+<input type="hidden" id="sistema_avaliacao" value="{{ turma_sistema_avaliacao|default:'NUM' }}">
 
-                  {% if turma_sistema_avaliacao == "CON" %}
-                    <!-- ✅ INFANTIL / CONCEITO (salva como 3/2/1 no banco) -->
-                    <select
-                      class="conceito-input"
-                      data-aluno="{{ aluno.id }}"
-                      data-avaliacao="{{ avaliacao.id }}"
-                      name="{{ avaliacao.id }}_{{ aluno.id }}"
-                    >
-                      {% with v=aluno_notas|get_item:avaliacao.id|default:'' %}
-                        <option value="" {% if v == "" %}selected{% endif %}>—</option>
-                        <option value="3" {% if v|stringformat:"s" == "3" %}selected{% endif %}>E (Evolução)</option>
-                        <option value="2" {% if v|stringformat:"s" == "2" %}selected{% endif %}>O (Ótimo)</option>
-                        <option value="1" {% if v|stringformat:"s" == "1" %}selected{% endif %}>B (Bom)</option>
-                      {% endwith %}
-                    </select>
-                  {% else %}
-                    <!-- ✅ FUNDAMENTAL / NUMÉRICO -->
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="10"
-                      class="nota-input"
-                      data-aluno="{{ aluno.id }}"
-                      data-avaliacao="{{ avaliacao.id }}"
-                      data-peso="{{ avaliacao.tipo.peso }}"
-                      name="{{ avaliacao.id }}_{{ aluno.id }}"
-                      value="{{ aluno_notas|get_item:avaliacao.id|default:'' }}"
-                    >
-                  {% endif %}
+<table>
 
-                {% endwith %}
+<thead>
+<tr>
+<th>Aluno</th>
 
-                <button type="button"
-                        class="btn-limpar"
-                        title="Limpar"
-                        onclick="limparNota('{{ aluno.id }}','{{ avaliacao.id }}')">
-                  🗑️
-                </button>
-              </div>
-            </td>
-          {% endfor %}
+{% for avaliacao in avaliacoes %}
+<th>
+{{ avaliacao.descricao }}<br>
+<small>({{ avaliacao.tipo.nome }})</small>
+</th>
+{% endfor %}
 
-          <td class="media-cell" data-media="{{ aluno.id }}">
-            {% if turma_sistema_avaliacao == "CON" %}
-              -
-            {% else %}
-              {{ medias|get_item:aluno.id|default:"-" }}
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<th>Média</th>
+</tr>
+</thead>
 
-    <button type="button" class="btn-salvar" onclick="salvarNotas()">
-      Salvar
-    </button>
+<tbody>
 
-  </form>
+{% for aluno in alunos %}
+<tr data-aluno-row="{{ aluno.id }}">
 
-  {% elif turma_id and disciplina_id %}
-    <p class="sem-avaliacoes">
-      Não há avaliações cadastradas para esta disciplina.
-    </p>
-  {% else %}
-    <p>Selecione uma turma e uma disciplina para lançar.</p>
-  {% endif %}
+<td>{{ aluno.nome }}</td>
+
+{% for avaliacao in avaliacoes %}
+<td>
+
+<div class="nota-cell">
+
+{% with aluno_notas=notas|get_item:aluno.id %}
+
+{% if turma_sistema_avaliacao == "CON" %}
+
+<select
+class="conceito-input"
+data-aluno="{{ aluno.id }}"
+data-avaliacao="{{ avaliacao.id }}"
+name="{{ avaliacao.id }}_{{ aluno.id }}"
+>
+
+{% with v=aluno_notas|get_item:avaliacao.id|default:'' %}
+<option value="" {% if v == "" %}selected{% endif %}>—</option>
+<option value="3" {% if v|stringformat:"s" == "3" %}selected{% endif %}>E (Evolução)</option>
+<option value="2" {% if v|stringformat:"s" == "2" %}selected{% endif %}>O (Ótimo)</option>
+<option value="1" {% if v|stringformat:"s" == "1" %}selected{% endif %}>B (Bom)</option>
+{% endwith %}
+
+</select>
+
+{% else %}
+
+<input
+type="number"
+step="0.1"
+min="0"
+max="10"
+class="nota-input"
+data-aluno="{{ aluno.id }}"
+data-avaliacao="{{ avaliacao.id }}"
+data-peso="{{ avaliacao.tipo.peso }}"
+name="{{ avaliacao.id }}_{{ aluno.id }}"
+value="{{ aluno_notas|get_item:avaliacao.id|default:'' }}"
+>
+
+{% endif %}
+
+{% endwith %}
+
+<button
+type="button"
+class="btn-limpar"
+title="Limpar"
+onclick="limparNota('{{ aluno.id }}','{{ avaliacao.id }}')"
+>
+🗑️
+</button>
+
+</div>
+
+</td>
+{% endfor %}
+
+<td class="media-cell" data-media="{{ aluno.id }}">
+{% if turma_sistema_avaliacao == "CON" %}
+-
+{% else %}
+{{ medias|get_item:aluno.id|default:"-" }}
+{% endif %}
+</td>
+
+</tr>
+{% endfor %}
+
+</tbody>
+</table>
+
+<button type="button" class="btn-salvar" onclick="salvarNotas()">
+Salvar
+</button>
+
+</form>
+
+{% elif not request.GET.bimestre %}
+
+<p>Selecione o <strong>bimestre</strong> para lançar as notas.</p>
+
+{% elif turma_id and disciplina_id %}
+
+<p class="sem-avaliacoes">
+Não há avaliações cadastradas para esta disciplina neste bimestre.
+</p>
+
+{% else %}
+
+<p>Selecione turma, disciplina e bimestre.</p>
+
+{% endif %}
 
 </div>
 {% endblock content %}
 
 {% block extra_js %}
 <script>
-  function ensureFuse(cb){
-    if (window.Fuse) return cb();
-    var s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
-    s.onload = cb;
-    s.onerror = function(){
-      console.error("Falha ao carregar Fuse.js");
-      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
-    };
-    document.head.appendChild(s);
-  }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    ensureFuse(function() {
+document.addEventListener("DOMContentLoaded", function () {
 
-      const sistema = (document.getElementById("sistema_avaliacao")?.value || "NUM").toUpperCase();
+const sistema = (document.getElementById("sistema_avaliacao")?.value || "NUM").toUpperCase();
 
-      // =========================
-      // HELPERS (limpar + média ao vivo PONDERADA)
-      // =========================
-      window.limparNota = function(alunoId, avaliacaoId){
-        const sel = document.querySelector(`select.conceito-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`);
-        if (sel){
-          sel.value = "";
-          atualizarMediaAluno(alunoId);
-          return;
-        }
+window.limparNota = function(alunoId, avaliacaoId){
 
-        const input = document.querySelector(`input.nota-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`);
-        if (input){
-          input.value = "";
-          atualizarMediaAluno(alunoId);
-          return;
-        }
-      }
+const sel = document.querySelector(`select.conceito-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`);
 
-      function atualizarMediaAluno(alunoId){
-        const cell = document.querySelector(`[data-media="${alunoId}"]`);
-        if (!cell) return;
+if (sel){
+sel.value = "";
+atualizarMediaAluno(alunoId);
+return;
+}
 
-        // ✅ CONCEITO não tem média
-        if (sistema === "CON"){
-          cell.textContent = "-";
-          return;
-        }
+const input = document.querySelector(`input.nota-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`);
 
-        const inputs = document.querySelectorAll(`input.nota-input[data-aluno="${alunoId}"]`);
+if (input){
+input.value = "";
+atualizarMediaAluno(alunoId);
+return;
+}
 
-        let numerador = 0;
-        let denominador = 0;
+}
 
-        inputs.forEach(i => {
-          const v = (i.value || "").trim();
-          if (v === "") return;
+function atualizarMediaAluno(alunoId){
 
-          const n = Number(v.replace(",", "."));
-          if (!Number.isFinite(n)) return;
+const cell = document.querySelector(`[data-media="${alunoId}"]`);
+if (!cell) return;
 
-          const pesoRaw = (i.getAttribute("data-peso") || "1").trim();
-          const peso = Number(pesoRaw.replace(",", "."));
-          if (!Number.isFinite(peso) || peso <= 0) return;
+if (sistema === "CON"){
+cell.textContent = "-";
+return;
+}
 
-          numerador += (n * peso);
-          denominador += peso;
-        });
+const inputs = document.querySelectorAll(`input.nota-input[data-aluno="${alunoId}"]`);
 
-        if (denominador === 0){
-          cell.textContent = "-";
-        } else {
-          cell.textContent = (numerador / denominador).toFixed(1);
-        }
-      }
+let soma = 0;
+let quantidade = 0;
 
-      document.addEventListener("input", function(e){
-        if (e.target && e.target.classList.contains("nota-input")){
-          const alunoId = e.target.getAttribute("data-aluno");
-          if (alunoId) atualizarMediaAluno(alunoId);
-        }
-      });
+inputs.forEach(i => {
 
-      document.addEventListener("change", function(e){
-        if (e.target && e.target.classList.contains("conceito-input")){
-          const alunoId = e.target.getAttribute("data-aluno");
-          if (alunoId) atualizarMediaAluno(alunoId);
-        }
-      });
+const v = (i.value || "").trim();
+if (v === "") return;
 
-      // =========================
-      // SALVAR (robusto)
-      // =========================
-      window.salvarNotas = async function() {
-        const form = document.getElementById('notasForm');
-        if (!form) {
-          alert("Formulário não encontrado.");
-          return;
-        }
+const n = Number(v.replace(",", "."));
 
-        const btn = document.querySelector(".btn-salvar");
-        if (btn) btn.disabled = true;
+if (!Number.isFinite(n)) return;
 
-        try {
-          const turmaId = form.querySelector('input[name="turma_id"]').value;
-          const disciplinaId = form.querySelector('input[name="disciplina_id"]').value;
+soma += n;
+quantidade += 1;
 
-          const dados = {
-            turma_id: turmaId,
-            disciplina_id: disciplinaId,
-            notas: {}
-          };
+});
 
-          if (sistema === "CON"){
-            // ✅ conceitos (manda 3/2/1)
-            const selects = form.querySelectorAll('select.conceito-input');
+if (quantidade === 0){
+cell.textContent = "-";
+return;
+}
 
-            selects.forEach(sel => {
-              const [avaliacaoId, alunoId] = sel.name.split('_');
-              const val = (sel.value || "").trim(); // 3/2/1 ou ""
-              if (val === "") return;
+const media = soma / quantidade;
+cell.textContent = media.toFixed(1);
 
-              if (!dados.notas[alunoId]) dados.notas[alunoId] = {};
-              dados.notas[alunoId][avaliacaoId] = val; // manda 3/2/1
-            });
+}
 
-          } else {
-            // ✅ numérico
-            const inputs = form.querySelectorAll('input.nota-input');
+document.addEventListener("input", function(e){
 
-            inputs.forEach(input => {
-              const [avaliacaoId, alunoId] = input.name.split('_');
-              const val = (input.value || "").trim();
-              if (val === "") return;
+if (e.target && e.target.classList.contains("nota-input")){
 
-              if (!dados.notas[alunoId]) dados.notas[alunoId] = {};
-              dados.notas[alunoId][avaliacaoId] = val;
-            });
-          }
+const alunoId = e.target.getAttribute("data-aluno");
 
-          console.log("PAYLOAD /lancar_notas:", dados);
+if (alunoId) atualizarMediaAluno(alunoId);
 
-          const resp = await fetch('{% url "lancar_notas" %}', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': '{{ csrf_token }}',
-              'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify(dados)
-          });
+}
 
-          const text = await resp.text();
-          let data = null;
-          try { data = JSON.parse(text); } catch(e) {}
+});
 
-          if (!resp.ok) {
-            console.error("HTTP", resp.status, text);
-            alert((data && (data.erro || data.error)) ? (data.erro || data.error) : `Erro HTTP ${resp.status}. Veja o console.`);
-            return;
-          }
 
-          if (data && (data.mensagem || data.status === "sucesso")) {
-            alert(data.mensagem || "Salvo com sucesso!");
-            location.reload();
-            return;
-          }
+// ENTER DESCE PARA O PRÓXIMO ALUNO (MESMA COLUNA)
 
-          console.warn("Resposta inesperada:", text);
-          alert("Resposta inesperada do servidor. Veja o console.");
+document.addEventListener("keydown", function(e){
 
-        } catch (error) {
-          console.error("Erro na requisição:", error);
-          alert("Erro inesperado ao salvar. Veja o console.");
-        } finally {
-          if (btn) btn.disabled = false;
-        }
-      }
+if(!e.target.classList.contains("nota-input")) return;
 
-      // inicializa médias (caso já venha preenchido)
-      document.querySelectorAll("tr[data-aluno-row]").forEach(tr => {
-        const alunoId = tr.getAttribute("data-aluno-row");
-        if (alunoId) atualizarMediaAluno(alunoId);
-      });
+if(e.key === "Enter"){
 
-    });
-  });
+e.preventDefault();
+
+const avaliacaoId = e.target.dataset.avaliacao;
+
+const inputs = Array.from(document.querySelectorAll(
+`input.nota-input[data-avaliacao="${avaliacaoId}"]`
+));
+
+const index = inputs.indexOf(e.target);
+
+if(index >= 0 && index < inputs.length - 1){
+inputs[index + 1].focus();
+}
+
+}
+
+});
+
+
+window.salvarNotas = async function(){
+
+const form = document.getElementById('notasForm');
+
+if (!form){
+alert("Formulário não encontrado.");
+return;
+}
+
+const bimestre = form.querySelector('input[name="bimestre"]').value;
+
+if(!bimestre){
+alert("Selecione o bimestre antes de lançar notas.");
+return;
+}
+
+const btn = document.querySelector(".btn-salvar");
+
+if (btn) btn.disabled = true;
+
+try {
+
+const turmaId = form.querySelector('input[name="turma_id"]').value;
+const disciplinaId = form.querySelector('input[name="disciplina_id"]').value;
+
+const dados = {
+turma_id: turmaId,
+disciplina_id: disciplinaId,
+notas: {}
+};
+
+const inputs = form.querySelectorAll('input.nota-input');
+
+inputs.forEach(input => {
+
+const [avaliacaoId, alunoId] = input.name.split('_');
+const val = (input.value || "").trim();
+
+if (val === "") return;
+
+if (!dados.notas[alunoId]) dados.notas[alunoId] = {};
+
+dados.notas[alunoId][avaliacaoId] = val;
+
+});
+
+const resp = await fetch('{% url "lancar_notas" %}', {
+method: 'POST',
+headers: {
+'Content-Type': 'application/json',
+'X-CSRFToken': '{{ csrf_token }}',
+'X-Requested-With': 'XMLHttpRequest'
+},
+body: JSON.stringify(dados)
+});
+
+const data = await resp.json();
+
+alert(data.mensagem || "Salvo com sucesso!");
+location.reload();
+
+}
+
+catch (error){
+alert("Erro ao salvar notas");
+}
+
+finally{
+if (btn) btn.disabled = false;
+}
+
+}
+
+document.querySelectorAll("tr[data-aluno-row]").forEach(tr => {
+const alunoId = tr.getAttribute("data-aluno-row");
+if (alunoId) atualizarMediaAluno(alunoId);
+});
+
+});
+
 </script>
 {% endblock extra_js %}
