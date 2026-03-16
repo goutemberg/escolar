@@ -6,22 +6,27 @@
 import json
 import re
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from io import BytesIO
-from django.db.utils import DataError, IntegrityError
-from django.core.exceptions import ValidationError
-from babel.dates import format_date
 
 # ---- Django Core ----
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import get_user_model, login, logout, update_session_auth_hash
+from django.contrib.auth import (
+    get_user_model,
+    login,
+    logout,
+    update_session_auth_hash,
+)
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.hashers import make_password
+from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction, models
 from django.db.models import Prefetch, Q, IntegerField
 from django.db.models.functions import Cast, Substr
+from django.db.utils import DataError, IntegrityError
 from django.http import (
     HttpResponse,
     JsonResponse,
@@ -30,15 +35,16 @@ from django.http import (
 )
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import get_template
+from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.utils.timezone import localdate, timezone
+from django.utils.timezone import localdate
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
-from home.models import NomeTurma, Avaliacao
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 # ---- Third-Party ----
 import pandas as pd
+from babel.dates import format_date
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -51,8 +57,9 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-# ---- Local Apps (your models and tools) ----
+# ---- Local Apps ----
 from .forms import EscolaForm
+
 from .models import (
     Escola,
     Docente,
@@ -68,14 +75,18 @@ from .models import (
     Presenca,
     Chamada,
     Nota,
+    RegistroPedagogico,
+    ModeloAvaliacao,
+    
 )
+
+from home.models import NomeTurma, Avaliacao
 from home.decorators import role_required
 from home.utils import gerar_matricula_unica
 from home.utils_user import criar_usuario_com_cpf
 
-from django.utils import timezone
-
 from core.themes import get_base_template
+
 
 
 MESES_PT = [
@@ -1360,6 +1371,7 @@ def toggle_aluno_ativo(request, aluno_id):
         "ativo": aluno.ativo
     })
 
+
 @login_required
 @require_POST
 def excluir_aluno(request, aluno_id):
@@ -1758,19 +1770,13 @@ def impressao_dados(request):
     return render(request, 'pages/print.html', context)
 
 
-import json
-from decimal import Decimal, InvalidOperation
-
-from django.http import JsonResponse
-from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.decorators import login_required
 
 @csrf_exempt
 @login_required
 @role_required(['professor', 'diretor', 'coordenador'])
 def lancar_notas(request):
-    # mantém GET para compatibilidade (mas a tela correta é /registrar_notas/)
+
+    # mantém GET para compatibilidade
     if request.method == "GET":
         return render(request, "pages/registrar_notas.html")
 
@@ -1782,32 +1788,50 @@ def lancar_notas(request):
 
         turma_id = dados.get("turma_id")
         disciplina_id = dados.get("disciplina_id")
-        notas = dados.get("notas", {})  # { aluno_id: { avaliacao_id: valor, ... } }
+        bimestre = dados.get("bimestre")
+        notas = dados.get("notas", {})
 
         if not turma_id or not disciplina_id:
-            return JsonResponse({"erro": "Turma e disciplina são obrigatórias."}, status=400)
+            return JsonResponse(
+                {"erro": "Turma e disciplina são obrigatórias."},
+                status=400
+            )
+
+        if not bimestre:
+            return JsonResponse(
+                {"erro": "Bimestre é obrigatório."},
+                status=400
+            )
+
+        try:
+            bimestre = int(bimestre)
+        except ValueError:
+            return JsonResponse({"erro": "Bimestre inválido."}, status=400)
 
         escola = request.user.escola
 
         turma = Turma.objects.get(id=turma_id, escola=escola)
         disciplina = Disciplina.objects.get(id=disciplina_id, escola=escola)
 
+        # 🔹 avaliações válidas APENAS do bimestre selecionado
         avaliacoes_ids_validas = set(
             Avaliacao.objects.filter(
                 disciplina=disciplina,
-                escola=escola
+                escola=escola,
+                bimestre=bimestre
             ).values_list("id", flat=True)
         )
 
         if not avaliacoes_ids_validas:
             return JsonResponse(
-                {"erro": "Não há avaliações cadastradas para esta disciplina."},
+                {"erro": "Não há avaliações cadastradas para esta disciplina neste bimestre."},
                 status=400
             )
 
-        salvas = 0  # ✅ só conta quando gravar nota com valor
+        salvas = 0
 
         for aluno_id_str, notas_aluno in (notas or {}).items():
+
             try:
                 aluno_id = int(aluno_id_str)
                 aluno = Aluno.objects.get(id=aluno_id, escola=escola)
@@ -1818,6 +1842,7 @@ def lancar_notas(request):
                 continue
 
             for avaliacao_id_str, valor in notas_aluno.items():
+
                 try:
                     avaliacao_id = int(avaliacao_id_str)
                 except (ValueError, TypeError):
@@ -1826,12 +1851,12 @@ def lancar_notas(request):
                 if avaliacao_id not in avaliacoes_ids_validas:
                     continue
 
-                # ✅ PROTEÇÃO: campo vazio => NÃO faz nada (não salva, não conta)
+                # campo vazio não salva
                 if valor is None or str(valor).strip() == "":
                     continue
 
-                # aceita vírgula e inteiro
                 valor_str = str(valor).strip().replace(",", ".")
+
                 try:
                     valor_dec = Decimal(valor_str)
                 except (InvalidOperation, TypeError, ValueError):
@@ -1840,23 +1865,34 @@ def lancar_notas(request):
                 Nota.objects.update_or_create(
                     aluno=aluno,
                     avaliacao_id=avaliacao_id,
-                    defaults={"valor": valor_dec, "escola": escola}
+                    bimestre=bimestre,
+                    defaults={
+                        "valor": valor_dec,
+                        "escola": escola
+                    }
                 )
+
                 salvas += 1
 
-        return JsonResponse({"mensagem": f"Notas salvas com sucesso. ({salvas} lançadas)"})
-
+        return JsonResponse({
+            "mensagem": f"Notas salvas com sucesso. ({salvas} lançadas)"
+        })
 
     except Exception as e:
-        return JsonResponse({"erro": f"Erro ao processar: {str(e)}"}, status=400)
+        return JsonResponse(
+            {"erro": f"Erro ao processar: {str(e)}"},
+            status=400
+        )
 
 
 @login_required
 @role_required(['professor', 'diretor', 'coordenador'])
 def registrar_notas(request):
+
     user = request.user
     turma_id = request.GET.get('turma')
     disciplina_id = request.GET.get('disciplina')
+    bimestre = request.GET.get('bimestre')
 
     escola = user.escola
 
@@ -1865,6 +1901,7 @@ def registrar_notas(request):
     # ======================================================
     # RELAÇÕES (o que o usuário pode ver)
     # ======================================================
+
     if professor and user.role == 'professor':
         relacoes = TurmaDisciplina.objects.filter(
             professor=professor,
@@ -1878,29 +1915,35 @@ def registrar_notas(request):
     # ======================================================
     # TURMAS DISPONÍVEIS
     # ======================================================
+
     turmas = Turma.objects.filter(
         turmadisciplina__in=relacoes,
         escola=escola
     ).distinct().order_by('nome')
 
     # ======================================================
-    # DISCIPLINAS DISPONÍVEIS
-    # - se turma foi escolhida: filtra por turma
-    # - se professor: filtra por professor também
+    # DISCIPLINAS
     # ======================================================
+
     if turma_id:
+
         if professor and user.role == 'professor':
+
             disciplinas = Disciplina.objects.filter(
                 turmadisciplina__turma_id=turma_id,
                 turmadisciplina__professor=professor,
                 escola=escola
             ).distinct().order_by('nome')
+
         else:
+
             disciplinas = Disciplina.objects.filter(
                 turmadisciplina__turma_id=turma_id,
                 escola=escola
             ).distinct().order_by('nome')
+
     else:
+
         disciplinas = Disciplina.objects.filter(
             turmadisciplina__in=relacoes,
             escola=escola
@@ -1911,88 +1954,168 @@ def registrar_notas(request):
     notas_dict = {}
     medias = {}
 
-    # ✅ isso é o que o template usa pra alternar NUM/CON
     turma_sistema_avaliacao = "NUM"
 
     # ======================================================
-    # QUANDO TURMA + DISCIPLINA ESTÃO SELECIONADAS
+    # QUANDO TURMA + DISCIPLINA + BIMESTRE
     # ======================================================
-    if turma_id and disciplina_id:
+
+    if turma_id and disciplina_id and bimestre:
+
         turma = get_object_or_404(Turma, id=turma_id, escola=escola)
         disciplina = get_object_or_404(Disciplina, id=disciplina_id, escola=escola)
 
-        turma_sistema_avaliacao = (getattr(turma, "sistema_avaliacao", None) or "NUM").upper()
+        turma_sistema_avaliacao = (
+            getattr(turma, "sistema_avaliacao", None) or "NUM"
+        ).upper()
 
-        # alunos da turma (mantém seu comportamento)
-        alunos = turma.alunos.all().order_by('nome')
+        alunos = turma.alunos.only('id', 'nome').order_by('nome')
 
-        # avaliações da disciplina (mantém seu comportamento)
-        avaliacoes = Avaliacao.objects.filter(
-            disciplina=disciplina,
-            escola=escola
-        ).select_related('tipo').order_by('data')
+        try:
+            bimestre = int(bimestre)
+        except (ValueError, TypeError):
+            bimestre = None
 
-        avaliacoes_ids = list(avaliacoes.values_list('id', flat=True))
+        if bimestre:
 
-        # pesos por avaliação
-        pesos_por_avaliacao = {}
-        for av in avaliacoes:
-            try:
-                pesos_por_avaliacao[av.id] = Decimal(
-                    str(av.tipo.peso if av.tipo and av.tipo.peso is not None else 1)
+            # ======================================================
+            # AUTO CRIA AVALIAÇÕES SE NÃO EXISTIREM
+            # ======================================================
+
+            if not Avaliacao.objects.filter(
+                turma=turma,
+                disciplina=disciplina,
+                escola=escola,
+                bimestre=bimestre
+            ).exists():
+
+                modelos = ModeloAvaliacao.objects.filter(
+                    disciplina=disciplina,
+                    escola=escola,
+                    ativo=True
                 )
-            except (InvalidOperation, TypeError, ValueError):
-                pesos_por_avaliacao[av.id] = Decimal("1")
 
-        todas_notas = Nota.objects.filter(
-            escola=escola,
-            aluno__in=alunos,
-            avaliacao_id__in=avaliacoes_ids
-        ).select_related('avaliacao')
+                for modelo in modelos:
 
-        for n in todas_notas:
-            if n.aluno_id not in notas_dict:
-                notas_dict[n.aluno_id] = {}
-            notas_dict[n.aluno_id][n.avaliacao_id] = n.valor
-
-        # ✅ média ponderada só para NUM
-        if turma_sistema_avaliacao == "NUM":
-            for aluno in alunos:
-                aluno_notas = notas_dict.get(aluno.id, {})
-
-                numerador = Decimal("0")
-                denominador = Decimal("0")
-
-                for av_id in avaliacoes_ids:
-                    v = aluno_notas.get(av_id)
-                    if v is None:
-                        continue
-
-                    try:
-                        valor_dec = Decimal(str(v))
-                    except (InvalidOperation, TypeError, ValueError):
-                        continue
-
-                    peso = pesos_por_avaliacao.get(av_id, Decimal("1"))
-                    if peso <= 0:
-                        continue
-
-                    numerador += (valor_dec * peso)
-                    denominador += peso
-
-                if denominador > 0:
-                    medias[aluno.id] = (numerador / denominador).quantize(
-                        Decimal("0.1"),
-                        rounding=ROUND_HALF_UP
+                    Avaliacao.objects.create(
+                        turma=turma,
+                        disciplina=disciplina,
+                        tipo=modelo.tipo,
+                        descricao=modelo.nome,
+                        bimestre=bimestre,
+                        data=timezone.now().date(),
+                        escola=escola
                     )
-                else:
+
+            # ======================================================
+            # FILTRA AVALIAÇÕES DO BIMESTRE
+            # ======================================================
+
+            avaliacoes = Avaliacao.objects.filter(
+                disciplina=disciplina,
+                escola=escola,
+                bimestre=bimestre
+            ).select_related('tipo').only(
+                'id',
+                'descricao',
+                'tipo__peso'
+            ).order_by('data')  
+
+            avaliacoes_ids = list(
+                avaliacoes.values_list('id', flat=True)
+            )
+
+            # ======================================================
+            # PESOS
+            # ======================================================
+
+            pesos_por_avaliacao = {}
+
+            for av in avaliacoes:
+
+                try:
+
+                    pesos_por_avaliacao[av.id] = Decimal(
+                        str(av.tipo.peso if av.tipo and av.tipo.peso else 1)
+                    )
+
+                except (InvalidOperation, TypeError, ValueError):
+
+                    pesos_por_avaliacao[av.id] = Decimal("1")
+
+            # ======================================================
+            # NOTAS
+            # ======================================================
+
+            if avaliacoes_ids:
+
+                todas_notas = Nota.objects.filter(
+                    escola=escola,
+                    aluno_id__in=[a.id for a in alunos],
+                    avaliacao_id__in=avaliacoes_ids
+                ).only(
+                    'aluno_id',
+                    'avaliacao_id',
+                    'valor'
+                )
+
+                for n in todas_notas:
+
+                    if n.aluno_id not in notas_dict:
+                        notas_dict[n.aluno_id] = {}
+
+                    notas_dict.setdefault(n.aluno_id, {})[n.avaliacao_id] = n.valor
+
+            # ======================================================
+            # MÉDIAS
+            # ======================================================
+
+            if turma_sistema_avaliacao == "NUM":
+
+                for aluno in alunos:
+
+                    aluno_notas = notas_dict.get(aluno.id, {})
+
+                    numerador = Decimal("0")
+                    denominador = Decimal("0")
+
+                    for av_id in avaliacoes_ids:
+
+                        v = aluno_notas.get(av_id)
+
+                        if v is None:
+                            continue
+
+                        try:
+                            valor_dec = Decimal(str(v))
+                        except (InvalidOperation, TypeError, ValueError):
+                            continue
+
+                        peso = pesos_por_avaliacao.get(av_id, Decimal("1"))
+
+                        numerador += (valor_dec * peso)
+                        denominador += peso
+
+                    if denominador > 0:
+
+                        medias[aluno.id] = (
+                            numerador / denominador
+                        ).quantize(
+                            Decimal("0.1"),
+                            rounding=ROUND_HALF_UP
+                        )
+
+                    else:
+
+                        medias[aluno.id] = None
+
+            else:
+
+                for aluno in alunos:
                     medias[aluno.id] = None
-        else:
-            # CON: sem média (template mostra "-")
-            for aluno in alunos:
-                medias[aluno.id] = None
 
     context = {
+
         'turmas': turmas,
         'disciplinas': disciplinas,
         'alunos': alunos,
@@ -2001,9 +2124,8 @@ def registrar_notas(request):
         'avaliacoes': avaliacoes,
         'notas': notas_dict,
         'medias': medias,
-
-        # ✅ ESSENCIAL para o template alternar CON/NUM
         'turma_sistema_avaliacao': turma_sistema_avaliacao,
+
     }
 
     return render(request, 'pages/registrar_notas.html', context)
@@ -2201,15 +2323,24 @@ def trocar_senha_api(request):
 
     return JsonResponse({'success': False, 'error': 'Método não permitido'}, status=405)
 
+
 @login_required
 @role_required(['diretor', 'coordenador'])
 def listar_turmas_para_boletim(request):
-    turmas = Turma.objects.filter(escola=request.user.escola)
-    alunos = []
 
     turma_id = request.GET.get('turma')
+    print("TURMA_ID:", turma_id)
+
+    turmas = Turma.objects.filter(escola=request.user.escola)
+
+    alunos = []
+
     if turma_id:
-        alunos = Aluno.objects.filter(turmas__id=turma_id, escola=request.user.escola)
+        alunos = Aluno.objects.filter(
+            turma_principal_id=turma_id
+        ).order_by("nome")
+
+        print("ALUNOS ENCONTRADOS:", alunos.count())
 
     return render(request, 'pages/listar_turmas_boletim.html', {
         'turmas': turmas,
@@ -2218,53 +2349,61 @@ def listar_turmas_para_boletim(request):
     })
 
 
+
 @login_required
 @role_required(['diretor', 'coordenador'])
 def visualizar_boletim(request, aluno_id):
 
     aluno = get_object_or_404(Aluno, pk=aluno_id)
-    escola = aluno.escola  # 👈 AQUI
+    escola = aluno.escola
 
-    turma_id = request.GET.get("turma")
+    turma = aluno.turma_principal
 
     notas = Nota.objects.filter(
         aluno=aluno,
-        escola=request.user.escola
-    ).select_related('avaliacao__disciplina', 'avaliacao')
-
-    if turma_id:
-        if not aluno.turmas.filter(id=turma_id).exists():
-            return HttpResponse("Aluno não pertence a essa turma.")
+        escola=escola
+    ).select_related(
+        'avaliacao__disciplina',
+        'avaliacao__tipo'
+    )
 
     from collections import defaultdict
 
-    boletim = defaultdict(lambda: {
-        "1": None,
-        "2": None,
-        "3": None,
-        "4": None,
-        "obs": "",
-        "media": None
+    dados = defaultdict(lambda: {
+        "bimestres": {1: None, 2: None, 3: None, 4: None},
+        "media_final": None
     })
 
     for nota in notas:
-        disciplina_nome = nota.avaliacao.disciplina.nome
-        bimestre = str(nota.avaliacao.bimestre)
-        boletim[disciplina_nome][bimestre] = nota.valor
 
-    for dados in boletim.values():
-        notas_validas = [
-            v for k, v in dados.items()
-            if k in ['1', '2', '3', '4'] and v is not None
+        disciplina = nota.avaliacao.disciplina.nome
+        bimestre = nota.avaliacao.bimestre
+
+        dados[disciplina]["bimestres"][bimestre] = nota.valor
+
+    boletim = []
+
+    for disciplina, info in dados.items():
+
+        valores = [
+            v for v in info["bimestres"].values()
+            if v is not None
         ]
 
-        if notas_validas:
-            dados["media"] = round(sum(notas_validas) / len(notas_validas), 2)
+        media = round(sum(valores)/len(valores),2) if valores else None
+
+        boletim.append({
+            "disciplina": disciplina,
+            "bimestres": info["bimestres"],
+            "media_final": media
+        })
 
     return render(request, 'pages/boletim.html', {
         'aluno': aluno,
-        'escola': escola,  # 👈 AGORA ENVIA
-        'boletim': dict(boletim)
+        'turma': turma,
+        'escola': escola,
+        'ano': datetime.now().year,
+        'boletim': boletim
     })
 
 

@@ -135,6 +135,7 @@ def avaliacoes(request):
         try:
             data = json.loads(request.body)
 
+            turma_id = data.get("turma_id")
             disciplina_id = data.get("disciplina_id")
             tipo_id = data.get("tipo_id")
             descricao = data.get("descricao")
@@ -142,8 +143,11 @@ def avaliacoes(request):
             data_avaliacao = data.get("data") or date.today()
 
             # ================================
-            # VALIDAÇÕES ANTI-QA
+            # VALIDAÇÕES
             # ================================
+
+            if not turma_id:
+                return JsonResponse({"erro": "Selecione a turma."}, status=400)
 
             if not disciplina_id:
                 return JsonResponse({"erro": "Selecione a disciplina."}, status=400)
@@ -159,18 +163,23 @@ def avaliacoes(request):
 
             if not data_avaliacao:
                 return JsonResponse({"erro": "Informe a data da avaliação."}, status=400)
-            
+
+            turma = Turma.objects.get(id=turma_id, escola=escola)
+
             # 🚫 Bloquear duplicidade
             if Avaliacao.objects.filter(
                 escola=escola,
+                turma=turma,
                 disciplina_id=disciplina_id,
                 bimestre=bimestre,
                 descricao__iexact=descricao.strip()
             ).exists():
                 return JsonResponse({
-        "erro": "Já existe uma avaliação com essa descrição para essa disciplina e bimestre."}, status=400)
+                    "erro": "Já existe uma avaliação com essa descrição para essa turma, disciplina e bimestre."
+                }, status=400)
 
             Avaliacao.objects.create(
+                turma=turma,
                 disciplina_id=disciplina_id,
                 tipo_id=tipo_id,
                 descricao=descricao.strip(),
@@ -191,7 +200,8 @@ def avaliacoes(request):
         escola=escola
     ).select_related(
         "disciplina",
-        "tipo"
+        "tipo",
+        "turma"
     ).order_by("-data")
 
     return render(request, "avaliacoes/avaliacoes.html", {
@@ -199,6 +209,7 @@ def avaliacoes(request):
         "tipos": tipos,
         "avaliacoes": avaliacoes_lista
     })
+
 
 
 @login_required
@@ -497,10 +508,9 @@ def lancar_notas(request):
         ).order_by("nome")
 
         avaliacoes = Avaliacao.objects.filter(
-            turma_id=turma.id,
-            disciplina_id=disciplina.id,
-            escola=escola
-        ).select_related("tipo").order_by("data")
+            escola=escola,
+            disciplina__turmadisciplina__turma=turma
+        ).distinct()
 
         notas = Nota.objects.filter(
             avaliacao__in=avaliacoes,

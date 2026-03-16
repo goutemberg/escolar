@@ -2,87 +2,146 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
-from django.http import HttpResponse
-from datetime import datetime
-from django.shortcuts import render
 
-from home.models import Aluno, Avaliacao, Disciplina, Nota
+from django.http import HttpResponse
+from django.shortcuts import render, get_object_or_404
 
 from collections import defaultdict
+from datetime import datetime
+from decimal import Decimal
 
+from home.models import Aluno, Avaliacao, Disciplina, Nota, Presenca, Turma, Chamada
+
+
+# =========================================
+# PDF DO BOLETIM
+# =========================================
 
 def gerar_pdf_boletim(request, aluno_id):
 
-    aluno = Aluno.objects.get(id=aluno_id)
+    aluno = get_object_or_404(Aluno, id=aluno_id)
     escola = aluno.escola
+    turma = aluno.turma
 
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="boletim_{aluno.nome}.pdf"'
+    disciplinas = Disciplina.objects.filter(
+        turmadisciplina__turma=turma,
+        escola=escola
+    ).distinct()
 
-    doc = SimpleDocTemplate(response)
-    elements = []
+    avaliacoes = Avaliacao.objects.filter(
+        turma=turma,
+        escola=escola
+    ).select_related("disciplina", "tipo")
 
-    styles = getSampleStyleSheet()
+    notas = Nota.objects.filter(
+        aluno=aluno,
+        avaliacao__in=avaliacoes
+    ).select_related("avaliacao")
 
-    # Título
-    elements.append(Paragraph(f"<b>BOLETIM ESCOLAR - {datetime.now().year}</b>", styles['Title']))
-    elements.append(Spacer(1, 0.3 * inch))
+    notas_por_disciplina = defaultdict(lambda: defaultdict(list))
 
-    # Dados da escola
-    elements.append(Paragraph(f"<b>Escola:</b> {escola.nome}", styles['Normal']))
-    elements.append(Paragraph(f"<b>CNPJ:</b> {escola.cnpj}", styles['Normal']))
-    elements.append(Paragraph(f"<b>Cidade:</b> {escola.cidade} - {escola.estado}", styles['Normal']))
-    elements.append(Spacer(1, 0.3 * inch))
+    for nota in notas:
 
-    # Dados do aluno
-    elements.append(Paragraph(f"<b>Aluno:</b> {aluno.nome}", styles['Normal']))
-    elements.append(Paragraph(f"<b>CPF:</b> {aluno.cpf}", styles['Normal']))
-    elements.append(Spacer(1, 0.4 * inch))
+        disciplina_id = nota.avaliacao.disciplina_id
+        bimestre = nota.avaliacao.bimestre
+        peso = nota.avaliacao.tipo.peso if nota.avaliacao.tipo else 1
 
-    # Organização das notas
-    boletim = defaultdict(lambda: defaultdict(list))
-
-    avaliacoes = Avaliacao.objects.filter(escola=escola)
-
-    for av in avaliacoes:
-        nota = Nota.objects.filter(avaliacao=av, aluno=aluno).first()
-        if nota:
-            boletim[av.disciplina.nome][av.bimestre].append(
-                nota.valor * av.tipo.peso
+        if nota.valor is not None:
+            notas_por_disciplina[disciplina_id][bimestre].append(
+                (float(nota.valor), float(peso))
             )
 
-    # Tabela
-    data = [["Disciplina", "1º", "2º", "3º", "4º", "Média Final"]]
+    faltas_por_disciplina = defaultdict(int)
 
-    for disciplina, bimestres in boletim.items():
+    
+    chamadas = Chamada.objects.filter(
+        diario__turma=turma
+    )
 
-        medias = []
-        for i in range(1, 5):
-            notas = bimestres.get(i, [])
-            if notas:
-                media = round(sum(notas) / len(notas), 2)
+    presencas = Presenca.objects.filter(
+        aluno=aluno,
+        chamada__in=chamadas
+    ).select_related("chamada__diario")
+
+    for p in presencas:
+        if not p.presente:
+            faltas_por_disciplina[p.chamada.diario.disciplina_id] += 1
+
+    boletim = []
+
+    for disciplina in disciplinas:
+
+        bimestres = {}
+
+        for b in [1, 2, 3, 4]:
+
+            valores = notas_por_disciplina[disciplina.id][b]
+
+            if valores:
+
+                soma = 0
+                peso_total = 0
+
+                for nota, peso in valores:
+                    soma += nota * peso
+                    peso_total += peso
+
+                bimestres[b] = round(soma / peso_total, 2)
+
             else:
-                media = "-"
-            medias.append(media)
+                bimestres[b] = None
 
-        medias_validas = [m for m in medias if isinstance(m, (int, float))]
-        media_final = round(sum(medias_validas) / len(medias_validas), 2) if medias_validas else "-"
+        medias_validas = [v for v in bimestres.values() if v is not None]
+
+        media_final = round(sum(medias_validas) / len(medias_validas), 2) if medias_validas else None
+
+        boletim.append({
+            "disciplina": disciplina.nome,
+            "b1": bimestres[1] or "-",
+            "b2": bimestres[2] or "-",
+            "b3": bimestres[3] or "-",
+            "b4": bimestres[4] or "-",
+            "media": media_final or "-",
+            "faltas": faltas_por_disciplina.get(disciplina.id, 0)
+        })
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="boletim_{aluno.nome}.pdf"'
+
+    doc = SimpleDocTemplate(response)
+
+    elements = []
+    styles = getSampleStyleSheet()
+
+    elements.append(Paragraph(f"<b>BOLETIM ESCOLAR - {datetime.now().year}</b>", styles["Title"]))
+    elements.append(Spacer(1, 20))
+
+    elements.append(Paragraph(f"<b>Escola:</b> {escola.nome}", styles["Normal"]))
+    elements.append(Paragraph(f"<b>Aluno:</b> {aluno.nome}", styles["Normal"]))
+    elements.append(Paragraph(f"<b>Turma:</b> {turma.nome}", styles["Normal"]))
+
+    elements.append(Spacer(1, 20))
+
+    data = [["Disciplina", "1º", "2º", "3º", "4º", "Média", "Faltas"]]
+
+    for item in boletim:
 
         data.append([
-            disciplina,
-            medias[0],
-            medias[1],
-            medias[2],
-            medias[3],
-            media_final
+            item["disciplina"],
+            item["b1"],
+            item["b2"],
+            item["b3"],
+            item["b4"],
+            item["media"],
+            item["faltas"]
         ])
 
     table = Table(data, repeatRows=1)
 
     table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#fab982")),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('ALIGN', (1, 1), (-1, -1), 'CENTER'),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#fab982")),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("ALIGN", (1, 1), (-1, -1), "CENTER"),
     ]))
 
     elements.append(table)
@@ -92,24 +151,56 @@ def gerar_pdf_boletim(request, aluno_id):
     return response
 
 
+# =========================================
+# BOLETIM DA TURMA
+# =========================================
+
 def boletim_turma(request, turma_id):
 
-    turma = Turma.objects.get(id=turma_id)
-    alunos = turma.alunos.all()
+    turma = get_object_or_404(Turma, id=turma_id)
+    escola = turma.escola
+
+    alunos = Aluno.objects.filter(
+        turma_principal=turma,
+        escola=escola
+    ).order_by("nome")
+
+    avaliacoes = Avaliacao.objects.filter(
+        turma=turma,
+        escola=escola
+    ).select_related(
+        "disciplina",
+        "tipo"
+    )
+
+    notas = Nota.objects.filter(
+        avaliacao__in=avaliacoes,
+        aluno__in=alunos
+    ).select_related(
+        "avaliacao",
+        "avaliacao__tipo"
+    )
+
+    notas_por_aluno = defaultdict(list)
+
+    for nota in notas:
+        notas_por_aluno[nota.aluno_id].append(nota)
 
     resultado = []
 
     for aluno in alunos:
-        medias = []
 
-        avaliacoes = Avaliacao.objects.filter(escola=turma.escola)
+        soma = Decimal("0")
+        peso_total = Decimal("0")
 
-        for av in avaliacoes:
-            nota = Nota.objects.filter(avaliacao=av, aluno=aluno).first()
-            if nota:
-                medias.append(nota.valor * av.tipo.peso)
+        for n in notas_por_aluno.get(aluno.id, []):
 
-        media_final = round(sum(medias)/len(medias), 2) if medias else None
+            peso = n.avaliacao.tipo.peso if n.avaliacao.tipo else 1
+
+            soma += Decimal(n.valor) * Decimal(peso)
+            peso_total += Decimal(peso)
+
+        media_final = round(soma / peso_total, 2) if peso_total > 0 else None
 
         resultado.append({
             "aluno": aluno,

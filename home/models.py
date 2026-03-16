@@ -282,6 +282,17 @@ class Aluno(models.Model):
         related_name="alunos_principais"
     )
 
+    @property
+    def turma(self):
+
+        if self.turma_principal:
+            return self.turma_principal
+
+        if hasattr(self, "turmas") and self.turmas.exists():
+            return self.turmas.first()
+
+        return None
+
     def __str__(self):
         return f"{self.nome} - {self.matricula}"
 
@@ -765,6 +776,14 @@ class Avaliacao(models.Model):
         (4, '4º Bimestre'),
     ]
 
+    turma = models.ForeignKey(
+        'Turma',
+        on_delete=models.CASCADE,
+        related_name='avaliacoes',
+        null=True,
+        blank=True,
+    )
+
     disciplina = models.ForeignKey(
         'Disciplina',
         on_delete=models.CASCADE,
@@ -779,7 +798,9 @@ class Avaliacao(models.Model):
 
     descricao = models.CharField(max_length=200)
 
-    bimestre = models.IntegerField(choices=BIMESTRES)
+    bimestre = models.IntegerField(
+        choices=BIMESTRES
+    )
 
     data = models.DateField()
 
@@ -789,24 +810,45 @@ class Avaliacao(models.Model):
         related_name='avaliacoes'
     )
 
-    criado_em = models.DateTimeField(auto_now_add=True)
-    atualizado_em = models.DateTimeField(auto_now=True)
+    criado_em = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True
+    )
 
     def __str__(self):
-        return f"{self.descricao} - {self.disciplina.nome}"
+        return f"{self.descricao} - {self.disciplina.nome} - {self.turma.nome}"
 
     class Meta:
+
         constraints = [
             models.UniqueConstraint(
-                fields=['disciplina', 'bimestre', 'descricao', 'escola'],
-                name='unique_avaliacao_por_disciplina_bimestre_escola'
+                fields=[
+                    'turma',
+                    'disciplina',
+                    'bimestre',
+                    'descricao',
+                    'escola'
+                ],
+                name='unique_avaliacao_por_turma_disciplina_bimestre_escola'
             )
         ]
+
+        indexes = [
+            models.Index(fields=['turma', 'disciplina']),
+            models.Index(fields=['disciplina', 'bimestre']),
+            models.Index(fields=['escola', 'bimestre']),
+        ]
+
         ordering = ['-data']
 
 
 
+
 class Nota(models.Model):
+
     CONCEITO_CHOICES = [
         ("E", "Evolução"),
         ("O", "Ótimo"),
@@ -825,7 +867,7 @@ class Nota(models.Model):
         related_name='notas'
     )
 
-    # ✅ numérico (fundamental)
+    # ✅ nota normal
     valor = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -833,10 +875,18 @@ class Nota(models.Model):
         blank=True
     )
 
-    # ✅ conceito (infantil)
+    # ✅ conceito
     conceito = models.CharField(
         max_length=1,
         choices=CONCEITO_CHOICES,
+        null=True,
+        blank=True
+    )
+
+    # ✅ NOVO: recuperação do bimestre (opcional)
+    recuperacao = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
         null=True,
         blank=True
     )
@@ -854,20 +904,52 @@ class Nota(models.Model):
         unique_together = ('aluno', 'avaliacao')
 
     def clean(self):
-        # Não pode preencher os dois
+
         if self.valor is not None and self.conceito:
             raise ValidationError("Preencha apenas valor OU conceito.")
 
-        # Deve preencher pelo menos um
         if self.valor is None and not self.conceito:
             raise ValidationError("Informe um valor (nota) ou um conceito.")
 
     def save(self, *args, **kwargs):
-        # garante validação sempre
+
         self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
+
         if self.conceito:
             return f"{self.aluno.nome} - {self.avaliacao.descricao} - {self.get_conceito_display()}"
+
         return f"{self.aluno.nome} - {self.avaliacao.descricao} - {self.valor}"
+    
+
+class ModeloAvaliacao(models.Model):
+
+    escola = models.ForeignKey(
+        'Escola',
+        on_delete=models.CASCADE,
+        related_name='modelos_avaliacao'
+    )
+
+    disciplina = models.ForeignKey(
+        'Disciplina',
+        on_delete=models.CASCADE,
+        related_name='modelos_avaliacao'
+    )
+
+    nome = models.CharField(max_length=100)
+
+    peso = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        default=1
+    )
+
+    ativo = models.BooleanField(default=True)
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.nome} - {self.disciplina.nome}"
+
