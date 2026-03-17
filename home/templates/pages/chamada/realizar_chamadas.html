@@ -54,7 +54,134 @@
       border-color:#ffc107 !important;
       color:#111 !important;           /* warning fica melhor com texto escuro */
     }
-  </style>
+
+/* ================================
+   BOTÃO CARREGAR ALUNOS
+================================ */
+
+#carregarButton{
+  background:#596981;
+  color:#fff;
+  border:none;
+  font-weight:600;
+  padding:10px 18px;
+  border-radius:6px;
+  transition:all .15s ease;
+}
+
+#carregarButton:hover{
+  background:#47576c;
+  color:#fff;
+}
+
+/* ================================
+   TABELA DE CHAMADA
+================================ */
+
+.chamada-table{
+  width:100%;
+  border-collapse:collapse;
+  background:#fff;
+  margin-top:10px;
+  border:1px solid #e5e5e5;
+}
+
+.chamada-table th{
+  background:#f5f7fa;
+  padding:10px;
+  text-align:left;
+  font-weight:600;
+  border-bottom:1px solid #ddd;
+}
+
+.chamada-table td{
+  padding:8px 10px;
+  border-bottom:1px solid #eee;
+  vertical-align:middle;
+}
+
+.chamada-table tr:hover{
+  background:#f9fbfd;
+}
+
+/* ================================
+   INPUT OBSERVAÇÃO
+================================ */
+
+.obs-input{
+  width:100%;
+}
+
+/* ================================
+   RESUMO
+================================ */
+
+.resumo-box{
+  margin-top:12px;
+  padding:10px;
+  background:#f5f7fa;
+  border-radius:6px;
+  font-weight:500;
+}
+
+/* ================================
+   BOTÃO SALVAR
+================================ */
+
+#salvarChamadaBtn{
+  padding:10px 20px;
+  font-weight:600;
+}
+
+/* ================================
+   STATUS PRESENÇA
+================================ */
+
+.status-presenca{
+  display:flex;
+  justify-content:center;
+  gap:.5rem;
+  flex-wrap:wrap;
+}
+
+.status-presenca .btn{
+  padding: .25rem .6rem;
+  font-size: .85rem;
+}
+
+.status-presenca input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+
+.status-presenca input:checked + label{
+  color:#fff !important;
+}
+
+/* Presente */
+
+.status-presenca input[value="P"]:checked + label{
+  background:#198754 !important;
+  border-color:#198754 !important;
+}
+
+/* Falta */
+
+.status-presenca input[value="F"]:checked + label{
+  background:#dc3545 !important;
+  border-color:#dc3545 !important;
+}
+
+/* Justificada */
+
+.status-presenca input[value="J"]:checked + label{
+  background:#ffc107 !important;
+  border-color:#ffc107 !important;
+  color:#111 !important;
+}
+
+</style>
 {% endblock extra_head %}
 
 {% block content %}
@@ -88,7 +215,7 @@
     Carregar alunos
   </button>
 
-  <hr class="my-2">
+  <hr style="margin:15px 0;">
 
   <div id="areaTabela" style="display:none;">
 

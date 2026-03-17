@@ -2,6 +2,150 @@
 {% load static %}
 
 {% block extra_head %}
+<style>
+
+/* ================================
+TÍTULO
+================================ */
+
+.titulo-pagina{
+  font-size:22px;
+  font-weight:600;
+  margin-bottom:20px;
+}
+
+/* ================================
+CARD
+================================ */
+
+.card-custom{
+  background:#fff;
+  border-radius:8px;
+  padding:20px;
+  margin-bottom:20px;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+}
+
+/* ================================
+FORM GRID
+================================ */
+
+.form-grid{
+  display:grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap:12px;
+  align-items:end;
+}
+
+/* ================================
+INPUTS
+================================ */
+
+.form-control{
+  border:1px solid #dcdcdc;
+  background:#fff;
+  height:38px;
+}
+
+.form-control:focus{
+  border-color:#596981;
+  box-shadow:0 0 0 0.1rem rgba(89,105,129,.15);
+}
+
+/* ================================
+BOTÃO
+================================ */
+
+#btnCadastrar{
+  background:#596981;
+  border:none;
+  color:#fff;
+  font-weight:600;
+  height:38px;
+  border-radius:6px;
+  padding:0 18px;
+}
+
+#btnCadastrar:hover{
+  background:#47576c;
+}
+
+/* ================================
+TABELA
+================================ */
+
+.table{
+  background:#fff;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:14px;
+}
+
+.table thead th{
+  background:#f4f6f9;
+  color:#444;
+  font-weight:600;
+  border-bottom:1px solid #e5e5e5;
+  padding:12px 10px;
+}
+
+.table tbody td{
+  padding:10px;
+  border-bottom:1px solid #f0f0f0;
+}
+
+.table tbody tr:nth-child(even){
+  background:#fafbfc;
+}
+
+.table tbody tr:hover{
+  background:#eef2f6;
+}
+
+/* ================================
+AÇÕES
+================================ */
+
+.acoes{
+  display:flex;
+  justify-content:flex-end;
+  gap:.4rem;
+}
+
+.icon-btn{
+  width:36px;
+  height:36px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0;
+}
+
+/* ================================
+TOAST
+================================ */
+
+#toast{
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast-item{
+  background: rgba(15, 23, 42, .95);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,.18);
+  max-width: 340px;
+}
+
+</style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
   {% with tema=user.escola.tema|default:"legacy" %}

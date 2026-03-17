@@ -2,6 +2,31 @@
 {% load static %}
 
 {% block extra_head %}
+<style>
+
+/* BOTÃO SALVAR PRINCIPAL */
+#btnSalvar{
+  background:#6c757d !important; /* cinza */
+  border:none !important;
+  color:#fff !important;
+  font-weight:600;
+}
+
+#btnSalvar:hover{
+  background:#5a6268 !important; /* cinza mais escuro */
+}
+
+/* BOTÃO SALVAR INLINE (edição da tabela) */
+.btn-success.salvar{
+  background:#6c757d !important;
+  border:none !important;
+}
+
+.btn-success.salvar:hover{
+  background:#5a6268 !important;
+}
+
+</style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
   {% with tema=user.escola.tema|default:"legacy" %}

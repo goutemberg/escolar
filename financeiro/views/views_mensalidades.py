@@ -6,6 +6,7 @@ from home.models import Aluno, Turma
 from django.contrib import messages
 from datetime import date
 from decimal import Decimal
+import calendar
 
 
 def listar_mensalidades(request):
@@ -84,7 +85,7 @@ def gerar_mensalidades(request):
             return redirect("gerar_mensalidades")
 
         alunos = Aluno.objects.filter(
-            turma=turma,
+            turma_principal=turma,
             escola=escola,
             ativo=True
         )
@@ -95,9 +96,23 @@ def gerar_mensalidades(request):
         # percorre os meses
         for mes in range(mes_inicio, mes_fim + 1):
 
+            ultimo_dia = calendar.monthrange(ano, mes)[1]
+            dia = min(dia_vencimento, ultimo_dia)
+
             for aluno in alunos:
 
-                vencimento = date(ano, mes, dia_vencimento)
+                vencimento = date(ano, mes, dia)
+
+                # -------------------------------
+                # DESCONTO AUTOMÁTICO DO ALUNO
+                # -------------------------------
+                desconto_auto = aluno.desconto_mensal or Decimal("0.00")
+
+                valor_final = valor - desconto_auto
+
+                # evita valor negativo
+                if valor_final < 0:
+                    valor_final = Decimal("0.00")
 
                 mensalidade, created = Mensalidade.objects.get_or_create(
 
@@ -110,8 +125,8 @@ def gerar_mensalidades(request):
                         "escola": escola,
 
                         "valor_original": valor,
-                        "desconto": Decimal("0.00"),
-                        "valor_final": valor,
+                        "desconto": desconto_auto,
+                        "valor_final": valor_final,
 
                         "vencimento": vencimento,
 

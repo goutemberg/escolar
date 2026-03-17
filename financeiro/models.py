@@ -1,6 +1,7 @@
 from django.db import models
 from home.models import Aluno, Escola
 from datetime import date
+from decimal import Decimal
 
 
 
@@ -94,6 +95,30 @@ class Mensalidade(models.Model):
             return "vencido"
 
         return "pendente"
+
+    def valor_atualizado(self):
+
+        valor = self.valor_final
+
+        # se já foi pago não altera
+        if self.status == "pago":
+            return valor
+
+        hoje = date.today()
+
+        # se ainda não venceu
+        if hoje <= self.vencimento:
+            return valor
+
+        dias_atraso = (hoje - self.vencimento).days
+
+        # multa fixa 2%
+        multa = valor * Decimal("0.02")
+
+        # juros diário (~1% ao mês)
+        juros = valor * Decimal("0.00033") * dias_atraso
+
+        return (valor + multa + juros).quantize(Decimal("0.01"))
 
     def __str__(self):
         return f"{self.aluno.nome} - {self.mes_nome()}/{self.ano_referencia}"
