@@ -274,6 +274,16 @@ class Aluno(models.Model):
     turno_aluno = models.CharField(max_length=20, blank=True)
     possui_necessidade_especial = models.BooleanField(default=False)
 
+    # -------------------------------------------------
+    # NOVO CAMPO (DESCONTO AUTOMÁTICO DA MENSALIDADE)
+    # -------------------------------------------------
+    desconto_mensal = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Desconto automático aplicado nas mensalidades do aluno"
+    )
+
     turma_principal = models.ForeignKey(
         "Turma",
         on_delete=models.SET_NULL,
@@ -779,9 +789,7 @@ class Avaliacao(models.Model):
     turma = models.ForeignKey(
         'Turma',
         on_delete=models.CASCADE,
-        related_name='avaliacoes',
-        null=True,
-        blank=True,
+        related_name='avaliacoes'
     )
 
     disciplina = models.ForeignKey(
@@ -810,13 +818,8 @@ class Avaliacao(models.Model):
         related_name='avaliacoes'
     )
 
-    criado_em = models.DateTimeField(
-        auto_now_add=True
-    )
-
-    atualizado_em = models.DateTimeField(
-        auto_now=True
-    )
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.descricao} - {self.disciplina.nome} - {self.turma.nome}"
@@ -842,9 +845,7 @@ class Avaliacao(models.Model):
             models.Index(fields=['escola', 'bimestre']),
         ]
 
-        ordering = ['-data']
-
-
+        ordering = ['bimestre', 'data']
 
 
 class Nota(models.Model):
@@ -926,30 +927,23 @@ class Nota(models.Model):
 
 class ModeloAvaliacao(models.Model):
 
-    escola = models.ForeignKey(
-        'Escola',
-        on_delete=models.CASCADE,
-        related_name='modelos_avaliacao'
-    )
+    escola = models.ForeignKey('Escola', on_delete=models.CASCADE)
 
-    disciplina = models.ForeignKey(
-        'Disciplina',
-        on_delete=models.CASCADE,
-        related_name='modelos_avaliacao'
+    disciplina = models.ForeignKey('Disciplina', on_delete=models.CASCADE)
+
+    tipo = models.ForeignKey(
+        'TipoAvaliacao',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
     )
 
     nome = models.CharField(max_length=100)
 
-    peso = models.DecimalField(
-        max_digits=4,
-        decimal_places=2,
-        default=1
-    )
+    peso = models.DecimalField(max_digits=4, decimal_places=2, default=1)
+
+    quantidade = models.IntegerField(default=1)  
 
     ativo = models.BooleanField(default=True)
 
     criado_em = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.nome} - {self.disciplina.nome}"
-

@@ -2,6 +2,153 @@
 {% load static %}
 
 {% block extra_head %}
+<style>
+
+/* ================================
+   CARD
+================================ */
+
+.card{
+  border:none;
+  border-radius:8px;
+}
+
+.card-body{
+  padding:18px;
+}
+
+/* ================================
+   TABELA MODERNA
+================================ */
+
+.table{
+  background:#ffffff;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:14px;
+}
+
+.table thead th{
+  background:#f4f6f9;
+  color:#444;
+  font-weight:600;
+  border-bottom:1px solid #e5e5e5;
+  padding:12px 10px;
+}
+
+.table tbody td{
+  padding:10px;
+  border-bottom:1px solid #f0f0f0;
+  color:#333;
+}
+
+/* zebra rows */
+
+.table tbody tr:nth-child(even){
+  background:#fafbfc;
+}
+
+/* hover */
+
+.table-hover tbody tr:hover{
+  background:#eef2f6;
+}
+
+/* ================================
+   BOTÕES TABELA
+================================ */
+
+.table .btn{
+  padding:5px 8px;
+  font-size:13px;
+  border-radius:5px;
+}
+
+/* ver detalhes */
+
+.table .btn-primary{
+  background:#596981;
+  border:none;
+}
+
+.table .btn-primary:hover{
+  background:#47576c;
+}
+
+/* pdf */
+
+.table .btn-danger{
+  background:#c84c4c;
+  border:none;
+}
+
+.table .btn-danger:hover{
+  background:#a63e3e;
+}
+
+/* ================================
+   FILTROS
+================================ */
+
+label{
+  color:#444;
+}
+
+.form-control{
+  border:1px solid #dcdcdc;
+  background:#fff;
+  color:#333;
+}
+
+/* botão buscar */
+
+#filtroForm button{
+  background:#596981;
+  border:none;
+  color:#fff;
+  font-weight:600;
+}
+
+#filtroForm button:hover{
+  background:#47576c;
+}
+
+/* ================================
+   BADGE "VOCÊ"
+================================ */
+
+.badge.bg-primary{
+  background:#596981 !important;
+}
+
+/* ================================
+   PAGINAÇÃO
+================================ */
+
+.pagination .page-link{
+  color:#596981;
+  border:1px solid #e5e5e5;
+}
+
+.pagination .page-item.active .page-link{
+  background:#596981;
+  border-color:#596981;
+  color:#fff;
+}
+
+/* ================================
+   TÍTULO
+================================ */
+
+.titulo-pagina{
+  font-size:22px;
+  font-weight:600;
+  margin-bottom:20px;
+}
+
+</style>
+
+</style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
   {% with tema=user.escola.tema|default:"legacy" %}

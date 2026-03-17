@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db import transaction
+from django.utils import timezone
 import json
 from home.models import (
     Turma,
@@ -10,6 +11,9 @@ from home.models import (
     Aluno,
     NomeTurma,
     DiarioDeClasse,
+    TipoAvaliacao,
+    ModeloAvaliacao,
+    Avaliacao
 )
 
 from home.decorators import role_required
@@ -195,9 +199,10 @@ def excluir_nome_turma(request):
     return JsonResponse({"success": True})
 
 
+
 @login_required
 @role_required(['diretor', 'coordenador'])
-def cadastro_turma(request):
+def cadastro_turma(request, turma_id=None):
 
     escola = request.user.escola
 
@@ -229,6 +234,10 @@ def cadastro_turma(request):
                 return JsonResponse({'success': False, 'mensagem': 'Preencha os dados básicos da turma.'}, status=400)
 
             with transaction.atomic():
+
+                # =========================================================
+                # 🔹 CRIAR / ATUALIZAR TURMA
+                # =========================================================
 
                 if not turma_id:
 
@@ -269,6 +278,10 @@ def cadastro_turma(request):
                         escola=escola
                     ).delete()
 
+                # =========================================================
+                # 🔹 ALUNOS
+                # =========================================================
+
                 if alunos_ids:
 
                     alunos = Aluno.objects.filter(
@@ -283,40 +296,134 @@ def cadastro_turma(request):
                         aluno.turma_principal = turma
                         aluno.save(update_fields=["turma_principal"])
 
+                # =========================================================
+                # 🔹 PROFESSORES + DISCIPLINAS
+                # =========================================================
+
                 for item in professores:
 
                     TurmaDisciplina.objects.create(
                         turma=turma,
                         professor_id=item.get('professor_id'),
-                        disciplina_id=item.get('disciplina_id'),
+                        disciplina_id=item.get('disciplinas_id') or item.get('disciplina_id'),
                         escola=escola
                     )
+
+                # =========================================================
+                # 🔥 DISCIPLINAS DA TURMA
+                # =========================================================
+
+                disciplinas_turma = Disciplina.objects.filter(
+                    turmadisciplina__turma=turma
+                ).distinct()
+
+                # =========================================================
+                # 🔥 GARANTIR TIPOS DE AVALIAÇÃO
+                # =========================================================
+
+                tipo_prova, _ = TipoAvaliacao.objects.get_or_create(
+                    escola=escola,
+                    nome="Prova"
+                )
+
+                tipo_trabalho, _ = TipoAvaliacao.objects.get_or_create(
+                    escola=escola,
+                    nome="Trabalho"
+                )
+
+                # =========================================================
+                # 🔥 GARANTIR MODELOS POR DISCIPLINA
+                # =========================================================
+
+                for disciplina in disciplinas_turma:
+
+                    if not ModeloAvaliacao.objects.filter(
+                        escola=escola,
+                        disciplina=disciplina
+                    ).exists():
+
+                        ModeloAvaliacao.objects.create(
+                            nome="Prova",
+                            tipo=tipo_prova,
+                            peso=7,
+                            quantidade=3,  # 🔥 MULTIPLAS PROVAS
+                            escola=escola,
+                            disciplina=disciplina,
+                            ativo=True
+                        )
+
+                        ModeloAvaliacao.objects.create(
+                            nome="Trabalho",
+                            tipo=tipo_trabalho,
+                            peso=3,
+                            quantidade=1,
+                            escola=escola,
+                            disciplina=disciplina,
+                            ativo=True
+                        )
+
+                # =========================================================
+                # 🔥 GERAR AVALIAÇÕES
+                # =========================================================
+
+                ja_existe = Avaliacao.objects.filter(turma=turma).exists()
+
+                if not ja_existe:
+
+                    bimestres = [1, 2, 3, 4]
+
+                    for disciplina in disciplinas_turma:
+
+                        modelos = ModeloAvaliacao.objects.filter(
+                            escola=escola,
+                            disciplina=disciplina,
+                            ativo=True
+                        )
+
+                        for bimestre in bimestres:
+
+                            for modelo in modelos:
+
+                                for i in range(1, modelo.quantidade + 1):
+
+                                    nome_avaliacao = (
+                                        f"{modelo.nome} {i}"
+                                        if modelo.quantidade > 1
+                                        else modelo.nome
+                                    )
+
+                                    Avaliacao.objects.get_or_create(
+                                        turma=turma,
+                                        disciplina=disciplina,
+                                        bimestre=bimestre,
+                                        descricao=nome_avaliacao,
+                                        escola=escola,
+                                        defaults={
+                                            "tipo": modelo.tipo,
+                                            "data": timezone.now().date()
+                                        }
+                                    )
 
             turma.refresh_from_db()
 
             return JsonResponse({
-
                 'success': True,
                 'mensagem': 'Turma salva com sucesso.',
                 'turma_id': turma.id,
-
-                'debug_sa_recebido': data.get("sistema_avaliacao"),
-                'debug_sa_normalizado': sistema_avaliacao,
-                'debug_sa_salvo': turma.sistema_avaliacao,
-
             })
 
         except Exception as e:
 
-            return JsonResponse({
+            import traceback
+            traceback.print_exc()
 
+            return JsonResponse({
                 'success': False,
                 'mensagem': f'Erro ao salvar turma: {str(e)}'
-
             }, status=500)
 
     # ===============================
-    # GET (abrir tela)
+    # GET
     # ===============================
 
     disciplinas = Disciplina.objects.filter(
@@ -339,11 +446,9 @@ def cadastro_turma(request):
         ).first()
 
     return render(request, 'pages/registrar_turma.html', {
-
         'disciplinas': disciplinas,
         'nomes_turma': nomes_turma,
         'turma': turma
-
     })
 
 # ======================================================

@@ -8,6 +8,7 @@ import re
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from io import BytesIO
+import traceback
 
 # ---- Django Core ----
 from django.conf import settings
@@ -40,6 +41,7 @@ from django.utils.dateparse import parse_date
 from django.utils.timezone import localdate
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from collections import defaultdict
 
 # ---- Third-Party ----
 import pandas as pd
@@ -77,6 +79,7 @@ from .models import (
     Nota,
     RegistroPedagogico,
     ModeloAvaliacao,
+    TipoAvaliacao,
     
 )
 
@@ -1776,7 +1779,7 @@ def impressao_dados(request):
 @role_required(['professor', 'diretor', 'coordenador'])
 def lancar_notas(request):
 
-    # mantém GET para compatibilidade
+    # GET apenas renderiza página
     if request.method == "GET":
         return render(request, "pages/registrar_notas.html")
 
@@ -1784,6 +1787,7 @@ def lancar_notas(request):
         return JsonResponse({"erro": "Método não permitido."}, status=405)
 
     try:
+
         dados = json.loads(request.body)
 
         turma_id = dados.get("turma_id")
@@ -1810,23 +1814,11 @@ def lancar_notas(request):
 
         escola = request.user.escola
 
-        turma = Turma.objects.get(id=turma_id, escola=escola)
-        disciplina = Disciplina.objects.get(id=disciplina_id, escola=escola)
-
-        # 🔹 avaliações válidas APENAS do bimestre selecionado
-        avaliacoes_ids_validas = set(
-            Avaliacao.objects.filter(
-                disciplina=disciplina,
-                escola=escola,
-                bimestre=bimestre
-            ).values_list("id", flat=True)
-        )
-
-        if not avaliacoes_ids_validas:
-            return JsonResponse(
-                {"erro": "Não há avaliações cadastradas para esta disciplina neste bimestre."},
-                status=400
-            )
+        try:
+            turma = Turma.objects.get(id=turma_id, escola=escola, status="ATIVA")
+            disciplina = Disciplina.objects.get(id=disciplina_id, escola=escola)
+        except (Turma.DoesNotExist, Disciplina.DoesNotExist):
+            return JsonResponse({"erro": "Turma ou disciplina inválida."}, status=400)
 
         salvas = 0
 
@@ -1848,10 +1840,19 @@ def lancar_notas(request):
                 except (ValueError, TypeError):
                     continue
 
-                if avaliacao_id not in avaliacoes_ids_validas:
+                # busca avaliação válida
+                avaliacao = Avaliacao.objects.filter(
+                    id=avaliacao_id,
+                    turma=turma,
+                    disciplina=disciplina,
+                    escola=escola,
+                    bimestre=bimestre
+                ).first()
+
+                if not avaliacao:
                     continue
 
-                # campo vazio não salva
+                # bloqueia valor vazio
                 if valor is None or str(valor).strip() == "":
                     continue
 
@@ -1862,10 +1863,10 @@ def lancar_notas(request):
                 except (InvalidOperation, TypeError, ValueError):
                     continue
 
+                # salva nota
                 Nota.objects.update_or_create(
                     aluno=aluno,
-                    avaliacao_id=avaliacao_id,
-                    bimestre=bimestre,
+                    avaliacao=avaliacao,
                     defaults={
                         "valor": valor_dec,
                         "escola": escola
@@ -1873,6 +1874,12 @@ def lancar_notas(request):
                 )
 
                 salvas += 1
+
+        if salvas == 0:
+            return JsonResponse(
+                {"erro": "Nenhuma nota foi salva."},
+                status=400
+            )
 
         return JsonResponse({
             "mensagem": f"Notas salvas com sucesso. ({salvas} lançadas)"
@@ -1898,33 +1905,26 @@ def registrar_notas(request):
 
     professor = Docente.objects.filter(user=user, escola=escola).first()
 
-    # ======================================================
-    # RELAÇÕES (o que o usuário pode ver)
-    # ======================================================
-
     if professor and user.role == 'professor':
+
         relacoes = TurmaDisciplina.objects.filter(
             professor=professor,
             turma__escola=escola
         ).select_related('turma', 'disciplina')
+
     else:
+
         relacoes = TurmaDisciplina.objects.filter(
             turma__escola=escola
         ).select_related('turma', 'disciplina')
 
-    # ======================================================
-    # TURMAS DISPONÍVEIS
-    # ======================================================
-
+    # LISTA DE TURMAS
     turmas = Turma.objects.filter(
         turmadisciplina__in=relacoes,
         escola=escola
     ).distinct().order_by('nome')
 
-    # ======================================================
     # DISCIPLINAS
-    # ======================================================
-
     if turma_id:
 
         if professor and user.role == 'professor':
@@ -1956,10 +1956,6 @@ def registrar_notas(request):
 
     turma_sistema_avaliacao = "NUM"
 
-    # ======================================================
-    # QUANDO TURMA + DISCIPLINA + BIMESTRE
-    # ======================================================
-
     if turma_id and disciplina_id and bimestre:
 
         turma = get_object_or_404(Turma, id=turma_id, escola=escola)
@@ -1978,9 +1974,10 @@ def registrar_notas(request):
 
         if bimestre:
 
-            # ======================================================
-            # AUTO CRIA AVALIAÇÕES SE NÃO EXISTIREM
-            # ======================================================
+            # ------------------------------------------------
+            # MELHORIA IMPORTANTE
+            # Evita duplicação de avaliações
+            # ------------------------------------------------
 
             if not Avaliacao.objects.filter(
                 turma=turma,
@@ -1997,21 +1994,20 @@ def registrar_notas(request):
 
                 for modelo in modelos:
 
-                    Avaliacao.objects.create(
+                    Avaliacao.objects.get_or_create(
                         turma=turma,
                         disciplina=disciplina,
                         tipo=modelo.tipo,
                         descricao=modelo.nome,
                         bimestre=bimestre,
-                        data=timezone.now().date(),
-                        escola=escola
+                        defaults={
+                            "data": timezone.now().date(),
+                            "escola": escola
+                        }
                     )
 
-            # ======================================================
-            # FILTRA AVALIAÇÕES DO BIMESTRE
-            # ======================================================
-
             avaliacoes = Avaliacao.objects.filter(
+                turma=turma,
                 disciplina=disciplina,
                 escola=escola,
                 bimestre=bimestre
@@ -2019,40 +2015,31 @@ def registrar_notas(request):
                 'id',
                 'descricao',
                 'tipo__peso'
-            ).order_by('data')  
+            ).order_by('data')
 
             avaliacoes_ids = list(
                 avaliacoes.values_list('id', flat=True)
             )
-
-            # ======================================================
-            # PESOS
-            # ======================================================
 
             pesos_por_avaliacao = {}
 
             for av in avaliacoes:
 
                 try:
-
                     pesos_por_avaliacao[av.id] = Decimal(
                         str(av.tipo.peso if av.tipo and av.tipo.peso else 1)
                     )
-
-                except (InvalidOperation, TypeError, ValueError):
-
+                except:
                     pesos_por_avaliacao[av.id] = Decimal("1")
-
-            # ======================================================
-            # NOTAS
-            # ======================================================
 
             if avaliacoes_ids:
 
                 todas_notas = Nota.objects.filter(
                     escola=escola,
+                    avaliacao__bimestre=bimestre,
                     aluno_id__in=[a.id for a in alunos],
                     avaliacao_id__in=avaliacoes_ids
+
                 ).only(
                     'aluno_id',
                     'avaliacao_id',
@@ -2065,10 +2052,6 @@ def registrar_notas(request):
                         notas_dict[n.aluno_id] = {}
 
                     notas_dict.setdefault(n.aluno_id, {})[n.avaliacao_id] = n.valor
-
-            # ======================================================
-            # MÉDIAS
-            # ======================================================
 
             if turma_sistema_avaliacao == "NUM":
 
@@ -2088,7 +2071,7 @@ def registrar_notas(request):
 
                         try:
                             valor_dec = Decimal(str(v))
-                        except (InvalidOperation, TypeError, ValueError):
+                        except:
                             continue
 
                         peso = pesos_por_avaliacao.get(av_id, Decimal("1"))
@@ -2336,9 +2319,11 @@ def listar_turmas_para_boletim(request):
     alunos = []
 
     if turma_id:
+
         alunos = Aluno.objects.filter(
-            turma_principal_id=turma_id
-        ).order_by("nome")
+            notas__avaliacao__turma_id=turma_id,
+            escola=request.user.escola
+        ).distinct().order_by("nome")
 
         print("ALUNOS ENCONTRADOS:", alunos.count())
 
@@ -2349,7 +2334,6 @@ def listar_turmas_para_boletim(request):
     })
 
 
-
 @login_required
 @role_required(['diretor', 'coordenador'])
 def visualizar_boletim(request, aluno_id):
@@ -2357,23 +2341,27 @@ def visualizar_boletim(request, aluno_id):
     aluno = get_object_or_404(Aluno, pk=aluno_id)
     escola = aluno.escola
 
-    turma = aluno.turma_principal
-
+    # 🔥 BUSCA TODAS AS NOTAS DO ALUNO
     notas = Nota.objects.filter(
         aluno=aluno,
         escola=escola
     ).select_related(
         'avaliacao__disciplina',
-        'avaliacao__tipo'
+        'avaliacao__tipo',
+        'avaliacao__turma'
     )
 
-    from collections import defaultdict
+    # 🔥 DEFINE A TURMA BASEADA NAS NOTAS (NÃO MAIS turma_principal)
+    turma = None
+    if notas.exists():
+        turma = notas.first().avaliacao.turma
 
     dados = defaultdict(lambda: {
         "bimestres": {1: None, 2: None, 3: None, 4: None},
         "media_final": None
     })
 
+    # 🔥 ORGANIZA AS NOTAS
     for nota in notas:
 
         disciplina = nota.avaliacao.disciplina.nome
@@ -2390,7 +2378,7 @@ def visualizar_boletim(request, aluno_id):
             if v is not None
         ]
 
-        media = round(sum(valores)/len(valores),2) if valores else None
+        media = round(sum(valores)/len(valores), 2) if valores else None
 
         boletim.append({
             "disciplina": disciplina,
@@ -2482,6 +2470,7 @@ def editar_escola(request):
     return JsonResponse({'success': False, 'error': 'Método não permitido'}, status=405)
 
 
+
 @csrf_exempt
 @login_required
 @transaction.atomic
@@ -2507,8 +2496,6 @@ def salvar_turma(request):
         else:
             turma_id = None
 
-        professores_ids = [x for x in request.POST.getlist('professores_ids') if x]
-        disciplinas_ids = [x for x in request.POST.getlist('disciplinas_ids') if x]
         alunos_ids = [x for x in request.POST.getlist('alunos_ids') if x]
 
         if not (nome and turno and ano and sala):
@@ -2518,6 +2505,10 @@ def salvar_turma(request):
             }, status=400)
 
         escola = request.user.escola
+
+        # =========================================================
+        # 🔹 CRIAR OU ATUALIZAR TURMA
+        # =========================================================
 
         if turma_id:
 
@@ -2541,20 +2532,24 @@ def salvar_turma(request):
                 escola=escola
             )
 
-        # limpar vínculos apenas se vierem dados novos
-        if alunos_ids or professores_ids:
-            turma.alunos.clear()
-            TurmaDisciplina.objects.filter(turma=turma).delete()
+        # =========================================================
+        # 🔹 ALUNOS
+        # =========================================================
 
-        # salvar alunos
         if alunos_ids:
+            turma.alunos.clear()
             alunos = Aluno.objects.filter(id__in=alunos_ids, escola=escola)
             turma.alunos.add(*alunos)
 
-        # salvar professores
+        # =========================================================
+        # 🔹 PROFESSORES + DISCIPLINAS
+        # =========================================================
+
         prof_disc = request.POST.get("prof_disc")
 
         if prof_disc:
+
+            TurmaDisciplina.objects.filter(turma=turma).delete()
 
             lista = json.loads(prof_disc)
 
@@ -2565,7 +2560,94 @@ def salvar_turma(request):
                     professor_id=int(item["professor_id"]),
                     disciplina_id=int(item["disciplina_id"]),
                     escola=escola
+                )
+
+        # =========================================================
+        # 🔥 DISCIPLINAS DA TURMA
+        # =========================================================
+
+        disciplinas = Disciplina.objects.filter(
+            turmadisciplina__turma=turma
+        ).distinct()
+
+        # =========================================================
+        # 🔥 GARANTIR TIPOS DE AVALIAÇÃO
+        # =========================================================
+
+        tipo_prova, _ = TipoAvaliacao.objects.get_or_create(
+            escola=escola,
+            nome="Prova"
         )
+
+        tipo_trabalho, _ = TipoAvaliacao.objects.get_or_create(
+            escola=escola,
+            nome="Trabalho"
+        )
+
+        # =========================================================
+        # 🔥 GARANTIR MODELOS POR DISCIPLINA
+        # =========================================================
+
+        for disciplina in disciplinas:
+
+            if not ModeloAvaliacao.objects.filter(
+                escola=escola,
+                disciplina=disciplina
+            ).exists():
+
+                ModeloAvaliacao.objects.create(
+                    nome="Prova",
+                    tipo=tipo_prova,
+                    peso=7,
+                    escola=escola,
+                    disciplina=disciplina,
+                    ativo=True
+                )
+
+                ModeloAvaliacao.objects.create(
+                    nome="Trabalho",
+                    tipo=tipo_trabalho,
+                    peso=3,
+                    escola=escola,
+                    disciplina=disciplina,
+                    ativo=True
+                )
+
+        # =========================================================
+        # 🔥 GERAR AVALIAÇÕES
+        # =========================================================
+
+        ja_existe = Avaliacao.objects.filter(turma=turma).exists()
+
+        if not ja_existe:
+
+            bimestres = [1, 2, 3, 4]
+
+            for disciplina in disciplinas:
+
+                modelos = ModeloAvaliacao.objects.filter(
+                    escola=escola,
+                    disciplina=disciplina,
+                    ativo=True
+                )
+
+                for bimestre in bimestres:
+
+                    for modelo in modelos:
+
+                        Avaliacao.objects.get_or_create(
+                            turma=turma,
+                            disciplina=disciplina,
+                            bimestre=bimestre,
+                            descricao=modelo.nome,
+                            escola=escola,
+                            defaults={
+                                "tipo": modelo.tipo,
+                                "data": timezone.now().date()
+                            }
+                        )
+
+        # =========================================================
 
         return JsonResponse({
             'success': True,
@@ -2574,11 +2656,14 @@ def salvar_turma(request):
 
     except Exception as e:
 
+        import traceback
+        traceback.print_exc()
+
         transaction.set_rollback(True)
 
         return JsonResponse({
             'success': False,
-            'error': f'Erro ao salvar turma: {str(e)}'
+            'error': str(e)
         }, status=500)
 
 
@@ -3073,6 +3158,7 @@ def ficha_cadastral_pdf(request, pk):
 def pagina_nome_turma(request):
     return render(request, "pages/nome_turma.html")
 
+
 def cadastrar_nome_turma(request):
     data = json.loads(request.body)
     nome = data.get("nome")
@@ -3083,9 +3169,11 @@ def cadastrar_nome_turma(request):
     NomeTurma.objects.create(nome=nome, escola=request.user.escola)
     return JsonResponse({"success": True})
 
+
 def listar_nomes_turma(request):
     nomes = NomeTurma.objects.filter(escola=request.user.escola).values("id", "nome")
     return JsonResponse({"nomes": list(nomes)})
+
 
 def editar_nome_turma(request):
     data = json.loads(request.body)

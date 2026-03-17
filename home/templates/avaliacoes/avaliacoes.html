@@ -2,245 +2,417 @@
 {% load static %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<style>
 
-  {% with tema=user.escola.tema|default:"legacy" %}
-    {% if tema == "nucleo" %}
-      <link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
-    {% else %}
-      <link rel="stylesheet" href="{% static 'css/pages/avaliacoes/avaliacoes.css' %}">
-    {% endif %}
-  {% endwith %}
+/* ================================
+TÍTULO
+================================ */
+
+.titulo-pagina{
+  font-size:22px;
+  font-weight:600;
+  margin-bottom:20px;
+}
+
+/* ================================
+CARD
+================================ */
+
+.card-custom{
+  background:#fff;
+  border-radius:8px;
+  padding:20px;
+  margin-bottom:20px;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+}
+
+/* ================================
+GRID DO FORM
+================================ */
+
+.card-custom:first-of-type{
+  display:grid;
+  grid-template-columns: 2fr 2fr 1fr 2fr 1.4fr 1.4fr auto;
+  gap:12px;
+  align-items:end;
+}
+
+.card-custom:first-of-type h5{
+  grid-column:1 / -1;
+  margin-bottom:6px;
+}
+
+/* ================================
+INPUTS
+================================ */
+
+.form-control{
+  border:1px solid #dcdcdc;
+  background:#fff;
+  color:#333;
+  height:38px;
+}
+
+.form-control:focus{
+  border-color:#596981;
+  box-shadow:0 0 0 0.1rem rgba(89,105,129,.15);
+}
+
+/* ================================
+BOTÃO CADASTRAR
+================================ */
+
+#btnCadastrar{
+  background:#596981;
+  border:none;
+  color:#fff;
+  font-weight:600;
+  height:38px;
+  padding:0 16px;
+  border-radius:6px;
+  white-space:nowrap;
+}
+
+#btnCadastrar:hover{
+  background:#47576c;
+}
+
+#btnCadastrar.mt-2{
+  margin-top:0 !important;
+}
+
+/* ================================
+TABELA
+================================ */
+
+.table{
+  background:#fff;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:14px;
+}
+
+.table thead th{
+  background:#f4f6f9;
+  color:#444;
+  font-weight:600;
+  border-bottom:1px solid #e5e5e5;
+  padding:12px 10px;
+}
+
+.table tbody td{
+  padding:10px;
+  border-bottom:1px solid #f0f0f0;
+  color:#333;
+}
+
+.table tbody tr:nth-child(even){
+  background:#fafbfc;
+}
+
+.table tbody tr:hover{
+  background:#eef2f6;
+}
+
+/* ================================
+BOTÕES
+================================ */
+
+.btn-warning{
+  background:#e78a15;
+  border:none;
+}
+
+.btn-warning:hover{
+  background:#d37d12;
+}
+
+.btn-danger-custom{
+  background:#c84c4c;
+  color:#fff;
+  border:none;
+}
+
+.btn-danger-custom:hover{
+  background:#a63e3e;
+}
+
+</style>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+{% with tema=user.escola.tema|default:"legacy" %}
+{% if tema == "nucleo" %}
+<link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
+{% else %}
+<link rel="stylesheet" href="{% static 'css/pages/avaliacoes/avaliacoes.css' %}">
+{% endif %}
+{% endwith %}
+
 {% endblock extra_head %}
+
 {% block content %}
-    <div class="titulo-pagina">Cadastro de Avaliações</div>
-    <div class="card-custom">
-       <h5>Nova Avaliação</h5>
-        <select id="disciplina" class="form-control">
-            <option value="">Selecione a Disciplina</option>
-            {% for d in disciplinas %}
-            <option value="{{ d.id }}">{{ d.nome }}</option>
-            {% endfor %}
-        </select>
 
-        <select id="tipo" class="form-control">
-            <option value="">Selecione o Tipo</option>
-            {% for tipo in tipos %}
-            <option value="{{ tipo.id }}">
-                {{ tipo.nome }} (Peso: {{ tipo.peso }})
-            </option>
-            {% endfor %}
-        </select>
+<div class="titulo-pagina">Cadastro de Avaliações</div>
 
-        <input type="text"
-               id="descricao"
-               placeholder="Descrição (Ex: Prova 1)"
-               class="form-control">
+<div class="card-custom">
 
-        <input type="number"
-               id="bimestre"
-               placeholder="Bimestre"
-               min="1"
-               max="4"
-               class="form-control">
+<h5>Nova Avaliação</h5>
 
-        <input type="date"
-               id="data"
-               class="form-control">
+<select id="turma" class="form-control">
+<option value="">Selecione a Turma</option>
+{% for t in turmas %}
+<option value="{{ t.id }}">{{ t.nome }}</option>
+{% endfor %}
+</select>
 
-        <button id="btnCadastrar"
-                class="btn btn-primary-custom mt-2">
-            Cadastrar Avaliação
-        </button>
+<select id="disciplina" class="form-control">
+<option value="">Selecione a Disciplina</option>
+{% for d in disciplinas %}
+<option value="{{ d.id }}">{{ d.nome }}</option>
+{% endfor %}
+</select>
 
-    </div>
+<select id="tipo" class="form-control">
+<option value="">Selecione o Tipo</option>
+{% for tipo in tipos %}
+<option value="{{ tipo.id }}">
+{{ tipo.nome }} (Peso: {{ tipo.peso }})
+</option>
+{% endfor %}
+</select>
 
-    <div class="card-custom">
+<input type="text"
+id="descricao"
+placeholder="Descrição (Ex: Prova)"
+class="form-control">
 
-        <h5>Lista de Avaliações</h5>
+<input type="number"
+id="bimestre"
+placeholder="Bimestre"
+min="1"
+max="4"
+class="form-control">
 
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Descrição</th>
-                    <th>Disciplina</th>
-                    <th>Tipo</th>
-                    <th>Bimestre</th>
-                    <th>Data</th>
-                    <th style="width:200px;">Ação</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for a in avaliacoes %}
-                <tr>
-                    <td>{{ a.descricao }}</td>
-                    <td>{{ a.disciplina.nome }}</td>
-                    <td>{{ a.tipo.nome }}</td>
-                    <td class="text-center">{{ a.bimestre }}</td>
-                    <td class="text-center">{{ a.data }}</td>
-                    <td class="text-center">
+<input type="number"
+id="quantidade"
+placeholder="Qtd Provas"
+min="1"
+class="form-control">
 
-                        <button class="btn btn-warning btn-sm btnEditar"
-                                data-id="{{ a.id }}"
-                                data-descricao="{{ a.descricao }}"
-                                data-bimestre="{{ a.bimestre }}"
-                                data-data="{{ a.data }}"
-                                data-disciplina="{{ a.disciplina.id }}"
-                                data-tipo="{{ a.tipo.id }}">
-                            Editar
-                        </button>
+<input type="date"
+id="data"
+class="form-control">
 
-                        <button class="btn btn-danger-custom btn-sm btnExcluir"
-                                data-id="{{ a.id }}">
-                            Excluir
-                        </button>
+<button id="btnCadastrar"
+class="btn btn-primary-custom mt-2">
+Cadastrar Avaliação
+</button>
 
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center text-muted">
-                        Nenhuma avaliação cadastrada.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+</div>
+
+<div class="card-custom">
+
+<h5>Lista de Avaliações</h5>
+
+<table class="table table-bordered">
+
+<thead>
+<tr>
+<th>Turma</th>
+<th>Descrição</th>
+<th>Disciplina</th>
+<th>Tipo</th>
+<th>Bimestre</th>
+<th>Data</th>
+<th style="width:200px;">Ação</th>
+</tr>
+</thead>
+
+<tbody>
+
+{% for a in avaliacoes %}
+
+<tr>
+
+<td>{{ a.turma.nome }}</td>
+<td>{{ a.descricao }}</td>
+<td>{{ a.disciplina.nome }}</td>
+<td>{{ a.tipo.nome }}</td>
+<td class="text-center">{{ a.bimestre }}</td>
+<td class="text-center">{{ a.data }}</td>
+
+<td class="text-center">
+
+<button class="btn btn-warning btn-sm btnEditar"
+data-id="{{ a.id }}"
+data-descricao="{{ a.descricao }}"
+data-bimestre="{{ a.bimestre }}"
+data-data="{{ a.data }}"
+data-disciplina="{{ a.disciplina.id }}"
+data-tipo="{{ a.tipo.id }}"
+data-turma="{{ a.turma.id }}">
+Editar
+</button>
+
+<button class="btn btn-danger-custom btn-sm btnExcluir"
+data-id="{{ a.id }}">
+Excluir
+</button>
+
+</td>
+
+</tr>
+
+{% empty %}
+
+<tr>
+<td colspan="7" class="text-center text-muted">
+Nenhuma avaliação cadastrada.
+</td>
+</tr>
+
+{% endfor %}
+
+</tbody>
+
+</table>
+
+</div>
+
 <div id="toast"></div>
+
 {% endblock content %}
 
 {% block extra_js %}
+
 <script>
-  function ensureFuse(cb){
-    if (window.Fuse) return cb();
-    var s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
-    s.onload = cb;
-    s.onerror = function(){
-      console.error("Falha ao carregar Fuse.js");
-      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
-    };
-    document.head.appendChild(s);
-  }
+
 document.addEventListener("DOMContentLoaded", function () {
 
-    const btnCadastrar = document.getElementById("btnCadastrar");
-
-    const campoData = document.getElementById("data");
+const btnCadastrar = document.getElementById("btnCadastrar");
+const campoData = document.getElementById("data");
 
 if (!campoData.value) {
 
-    const hoje = new Date();
+const hoje = new Date();
 
-    const ano = hoje.getFullYear();
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const dia = String(hoje.getDate()).padStart(2, '0');
+const ano = hoje.getFullYear();
+const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+const dia = String(hoje.getDate()).padStart(2, '0');
 
-    campoData.value = `${ano}-${mes}-${dia}`;
+campoData.value = `${ano}-${mes}-${dia}`;
+
 }
 
+btnCadastrar.addEventListener("click", function () {
 
-    btnCadastrar.addEventListener("click", function () {
+const turma = document.getElementById("turma").value;
+const disciplina = document.getElementById("disciplina").value;
+const tipo = document.getElementById("tipo").value;
+const descricao = document.getElementById("descricao").value.trim();
+const bimestre = document.getElementById("bimestre").value;
+const quantidade = document.getElementById("quantidade").value || 1;
+const data = document.getElementById("data").value;
 
-        const disciplina = document.getElementById("disciplina").value;
-        const tipo = document.getElementById("tipo").value;
-        const descricao = document.getElementById("descricao").value.trim();
-        const bimestre = document.getElementById("bimestre").value;
-        const data = document.getElementById("data").value;
+if (!turma){ alert("Selecione a turma."); return; }
+if (!disciplina){ alert("Selecione a disciplina."); return; }
+if (!tipo){ alert("Selecione o tipo."); return; }
+if (!descricao){ alert("Informe a descrição."); return; }
+if (!bimestre || bimestre < 1 || bimestre > 4){
+alert("Bimestre deve ser entre 1 e 4."); return;
+}
+if (!data){ alert("Informe a data."); return; }
 
-        if (!disciplina) { alert("Selecione a disciplina."); return; }
-        if (!tipo) { alert("Selecione o tipo."); return; }
-        if (!descricao) { alert("Informe a descrição."); return; }
-        if (!bimestre || bimestre < 1 || bimestre > 4) {
-            alert("Bimestre deve ser entre 1 e 4."); return;
-        }
-        if (!data) { alert("Informe a data."); return; }
+const editId = btnCadastrar.dataset.editId || null;
 
-        const editId = btnCadastrar.dataset.editId || null;
+let url = "";
+let method = "";
 
-        let url = "";
-        let method = "";
+if (editId){
+    url = `/avaliacoes/editar/${editId}/`;
+    method = "PUT";
+}else{
+    url = "/avaliacoes/";
+    method = "POST";
+}
 
-        if (editId) {
-            url = `/avaliacoes/editar/${editId}/`;
-            method = "PUT";
-        } else {
-            url = "";
-            method = "POST";
-        }
-
-        fetch(url, {
-            method: method,
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}"
-            },
-            body: JSON.stringify({
-                disciplina_id: disciplina,
-                tipo_id: tipo,
-                descricao: descricao,
-                bimestre: bimestre,
-                data: data
-            })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.mensagem) {
-                alert(data.mensagem);
-                location.reload();
-            } else {
-                alert(data.erro || "Erro.");
-            }
-        });
-
-    });
-
-    document.querySelectorAll(".btnExcluir").forEach(function (btn) {
-
-        btn.addEventListener("click", function () {
-
-            const id = this.dataset.id;
-
-            if (!confirm("Deseja realmente excluir?")) return;
-
-            fetch(`/avaliacoes/excluir/${id}/`, {
-                method: "DELETE",
-                headers: {
-                    "X-CSRFToken": "{{ csrf_token }}"
-                }
-            })
-            .then(r => r.json())
-            .then(data => {
-                alert(data.mensagem || data.erro);
-                location.reload();
-            });
-
-        });
-
-    });
-
-    document.querySelectorAll(".btnEditar").forEach(function (btn) {
-
-        btn.addEventListener("click", function () {
-
-            const id = this.dataset.id;
-
-            document.getElementById("disciplina").value = this.dataset.disciplina;
-            document.getElementById("tipo").value = this.dataset.tipo;
-            document.getElementById("descricao").value = this.dataset.descricao;
-            document.getElementById("bimestre").value = this.dataset.bimestre;
-            document.getElementById("data").value = this.dataset.data;
-
-            btnCadastrar.textContent = "Atualizar Avaliação";
-            btnCadastrar.dataset.editId = id;
-
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        });
-
-    });
+fetch(url,{
+method: method,
+headers:{
+"Content-Type":"application/json",
+"X-CSRFToken":"{{ csrf_token }}"
+},
+body: JSON.stringify({
+turma_id: turma,
+disciplina_id: disciplina,
+tipo_id: tipo,
+descricao: descricao,
+bimestre: bimestre,
+quantidade: quantidade,
+data: data
+})
+})
+.then(r=>r.json())
+.then(data=>{
+if (data.mensagem){
+alert(data.mensagem);
+location.reload();
+}else{
+alert(data.erro || "Erro.");
+}
+});
 
 });
+
+document.querySelectorAll(".btnExcluir").forEach(function (btn){
+
+btn.addEventListener("click", function (){
+
+const id = this.dataset.id;
+
+if (!confirm("Deseja realmente excluir?")) return;
+
+fetch(`/avaliacoes/excluir/${id}/`,{
+method:"DELETE",
+headers:{
+"X-CSRFToken":"{{ csrf_token }}"
+}
+})
+.then(r=>r.json())
+.then(data=>{
+alert(data.mensagem || data.erro);
+location.reload();
+});
+
+});
+
+});
+
+document.querySelectorAll(".btnEditar").forEach(function (btn){
+
+btn.addEventListener("click", function (){
+
+const id = this.dataset.id;
+
+document.getElementById("turma").value = this.dataset.turma;
+document.getElementById("disciplina").value = this.dataset.disciplina;
+document.getElementById("tipo").value = this.dataset.tipo;
+document.getElementById("descricao").value = this.dataset.descricao;
+document.getElementById("bimestre").value = this.dataset.bimestre;
+document.getElementById("data").value = this.dataset.data;
+
+btnCadastrar.textContent = "Atualizar Avaliação";
+btnCadastrar.dataset.editId = id;
+
+window.scrollTo({ top:0, behavior:'smooth' });
+
+});
+
+});
+
+});
+
 </script>
+
 {% endblock extra_js %}

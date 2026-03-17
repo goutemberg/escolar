@@ -53,7 +53,6 @@ def gerar_pdf_boletim(request, aluno_id):
 
     faltas_por_disciplina = defaultdict(int)
 
-    
     chamadas = Chamada.objects.filter(
         diario__turma=turma
     )
@@ -95,6 +94,16 @@ def gerar_pdf_boletim(request, aluno_id):
 
         media_final = round(sum(medias_validas) / len(medias_validas), 2) if medias_validas else None
 
+        # Situação do aluno na disciplina
+        if media_final is None:
+            status = "-"
+        elif media_final >= 7:
+            status = "Aprovado"
+        elif media_final >= 5:
+            status = "Recuperação"
+        else:
+            status = "Reprovado"
+
         boletim.append({
             "disciplina": disciplina.nome,
             "b1": bimestres[1] or "-",
@@ -102,7 +111,8 @@ def gerar_pdf_boletim(request, aluno_id):
             "b3": bimestres[3] or "-",
             "b4": bimestres[4] or "-",
             "media": media_final or "-",
-            "faltas": faltas_por_disciplina.get(disciplina.id, 0)
+            "faltas": faltas_por_disciplina.get(disciplina.id, 0),
+            "status": status
         })
 
     response = HttpResponse(content_type="application/pdf")
@@ -113,16 +123,18 @@ def gerar_pdf_boletim(request, aluno_id):
     elements = []
     styles = getSampleStyleSheet()
 
+    # Cabeçalho
     elements.append(Paragraph(f"<b>BOLETIM ESCOLAR - {datetime.now().year}</b>", styles["Title"]))
-    elements.append(Spacer(1, 20))
+    elements.append(Spacer(1, 15))
 
     elements.append(Paragraph(f"<b>Escola:</b> {escola.nome}", styles["Normal"]))
     elements.append(Paragraph(f"<b>Aluno:</b> {aluno.nome}", styles["Normal"]))
     elements.append(Paragraph(f"<b>Turma:</b> {turma.nome}", styles["Normal"]))
+    elements.append(Paragraph(f"<b>Data de emissão:</b> {datetime.now().strftime('%d/%m/%Y')}", styles["Normal"]))
 
     elements.append(Spacer(1, 20))
 
-    data = [["Disciplina", "1º", "2º", "3º", "4º", "Média", "Faltas"]]
+    data = [["Disciplina", "1º", "2º", "3º", "4º", "Média", "Faltas", "Situação"]]
 
     for item in boletim:
 
@@ -133,22 +145,46 @@ def gerar_pdf_boletim(request, aluno_id):
             item["b3"],
             item["b4"],
             item["media"],
-            item["faltas"]
+            item["faltas"],
+            item["status"]
         ])
 
     table = Table(data, repeatRows=1)
 
     table.setStyle(TableStyle([
+
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#fab982")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-        ("ALIGN", (1, 1), (-1, -1), "CENTER"),
+
+        ("ALIGN", (1, 1), (-2, -1), "CENTER"),
+        ("ALIGN", (-1, 1), (-1, -1), "CENTER"),
+
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [
+            colors.whitesmoke,
+            colors.lightgrey
+        ]),
+
     ]))
 
     elements.append(table)
 
+    elements.append(Spacer(1, 30))
+
+    elements.append(
+        Paragraph(
+            "Documento gerado automaticamente pelo sistema Núcleo Escolar",
+            styles["Normal"]
+        )
+    )
+
     doc.build(elements)
 
     return response
+
 
 
 # =========================================
