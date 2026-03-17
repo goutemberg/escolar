@@ -789,7 +789,9 @@ class Avaliacao(models.Model):
     turma = models.ForeignKey(
         'Turma',
         on_delete=models.CASCADE,
-        related_name='avaliacoes'
+        related_name='avaliacoes',
+        null=True,
+        blank=True,
     )
 
     disciplina = models.ForeignKey(
