@@ -10,12 +10,10 @@
   <link href="{% static 'home/css/identidade.css' %}" rel="stylesheet"/>
 
   <style>
-    /* ✅ CORES DO NÚCLEO (INLINE) */
     :root{
       --nucleo-primary: #0EA5E9;
       --nucleo-primary-dark: #0284C7;
 
-      /* ✅ toque multicolor (bem sutil) */
       --nucleo-rainbow: linear-gradient(90deg,
         #0EA5E9 0%,
         #22C55E 35%,
@@ -88,7 +86,7 @@
       justify-content:center;
       flex: 0 0 auto;
       overflow: hidden;
-      padding: 6px; /* deixe 0 se quiser ocupar 100% */
+      padding: 6px;
     }
 
     .logo-badge img{
@@ -227,6 +225,10 @@
         <form id="trocarSenhaForm">
           {% csrf_token %}
 
+          {% if token %}
+            <input type="hidden" id="token" value="{{ token }}">
+          {% endif %}
+
           <div class="form-group mb-3">
             <label for="nova_senha">Digite sua nova senha</label>
             <input class="form-control-custom" id="nova_senha" name="nova_senha" required type="password"/>
@@ -236,8 +238,21 @@
             <label for="nova_senha_confirmar">Confirme sua nova senha</label>
             <input class="form-control-custom" id="nova_senha_confirmar" name="nova_senha_confirmar" required type="password"/>
           </div>
+          <div class="alert alert-info mt-2" style="font-size: 13px;">
+  <div class="alert alert-info mt-2" style="font-size: 13px;">
+  🔐 A senha deve conter:
+  <ul style="margin: 5px 0 0 15px;">
+    <li id="rule-length">❌ Pelo menos 8 caracteres</li>
+    <li id="rule-upper">❌ Uma letra maiúscula</li>
+    <li id="rule-lower">❌ Uma letra minúscula</li>
+    <li id="rule-number">❌ Um número</li>
+    <li id="rule-match">❌ As senhas devem coincidir</li>
+  </ul>
+</div>
 
-          <button class="btn-login" type="submit">Atualizar Senha</button>
+          <button id="btnSubmit" class="btn-login" type="submit" disabled>
+  Atualizar Senha
+</button>
 
           <div class="helper">
             © {{ now|date:"Y" }} <strong>Núcleo Escolar</strong> • Gestão Escolar
@@ -247,43 +262,147 @@
       </div>
     </div>
   </div>
+<script>
+const form = document.getElementById("trocarSenhaForm");
 
-  <script>
-    document.getElementById("trocarSenhaForm").addEventListener("submit", function (event) {
-      event.preventDefault();
+if (form) {
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
 
-      const novaSenha = document.getElementById("nova_senha").value;
-      const confirmarSenha = document.getElementById("nova_senha_confirmar").value;
+    const novaSenha = document.getElementById("nova_senha").value;
+    const confirmarSenha = document.getElementById("nova_senha_confirmar").value;
+    const token = document.getElementById("token")?.value;
 
-      fetch("{% url 'trocar_senha_api' %}", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": "{{ csrf_token }}"
-        },
-        body: JSON.stringify({
-          nova_senha: novaSenha,
-          nova_senha_confirmar: confirmarSenha
-        })
+    const alerta = document.getElementById("alerta");
+    alerta.innerHTML = "";
+
+    if (novaSenha !== confirmarSenha) {
+      alerta.innerHTML = '<div class="alert alert-danger">As senhas não coincidem.</div>';
+      return;
+    }
+
+    fetch("{% url 'trocar_senha_api' %}", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": "{{ csrf_token }}"
+      },
+      body: JSON.stringify({
+        nova_senha: novaSenha,
+        nova_senha_confirmar: confirmarSenha,
+        token: token
       })
-      .then(res => res.json())
-      .then(data => {
-        const alerta = document.getElementById("alerta");
-        alerta.innerHTML = "";
+    })
+    .then(res => res.json())
+    .then(data => {
+      alerta.innerHTML = "";
 
-        if (data.success) {
-          alerta.innerHTML = '<div class="alert alert-success">Senha alterada com sucesso! Redirecionando...</div>';
-          setTimeout(() => window.location.href = "{% url 'index' %}", 2000);
-        } else {
-          alerta.innerHTML = '<div class="alert alert-danger">' + (data.error || "Erro ao atualizar senha.") + '</div>';
-        }
-      })
-      .catch(error => {
-        document.getElementById("alerta").innerHTML =
-          '<div class="alert alert-danger">Erro interno ao tentar trocar a senha.</div>';
-        console.error("Erro:", error);
-      });
+      if (data.success) {
+        alerta.innerHTML = '<div class="alert alert-success">Senha alterada com sucesso! Redirecionando...</div>';
+
+        setTimeout(() => {
+          window.location.href = "{% url 'index' %}";
+        }, 2000);
+
+      } else {
+        alerta.innerHTML = '<div class="alert alert-danger">' + (data.error || "Erro ao atualizar senha.") + '</div>';
+      }
+    })
+    .catch(error => {
+      alerta.innerHTML = '<div class="alert alert-danger">Erro interno ao tentar trocar a senha.</div>';
+      console.error("Erro:", error);
     });
-  </script>
+  });
+}
+
+const senhaInput = document.getElementById("nova_senha");
+
+if (senhaInput) {
+  senhaInput.addEventListener("input", function () {
+
+    const senha = senhaInput.value;
+
+    const length = senha.length >= 8;
+    const upper = /[A-Z]/.test(senha);
+    const lower = /[a-z]/.test(senha);
+    const number = /\d/.test(senha);
+
+    // Atualiza visual (❌ → ✅)
+    document.getElementById("rule-length").innerHTML =
+      length ? "✅ Pelo menos 8 caracteres" : "❌ Pelo menos 8 caracteres";
+
+    document.getElementById("rule-upper").innerHTML =
+      upper ? "✅ Uma letra maiúscula" : "❌ Uma letra maiúscula";
+
+    document.getElementById("rule-lower").innerHTML =
+      lower ? "✅ Uma letra minúscula" : "❌ Uma letra minúscula";
+
+    document.getElementById("rule-number").innerHTML =
+      number ? "✅ Um número" : "❌ Um número";
+
+  });
+}
+const confirmarInput = document.getElementById("nova_senha_confirmar");
+
+function validarSenhas() {
+  const senha = document.getElementById("nova_senha").value;
+  const confirmar = document.getElementById("nova_senha_confirmar").value;
+
+  const match = senha && confirmar && senha === confirmar;
+
+  document.getElementById("rule-match").innerHTML =
+    match ? "✅ As senhas coincidem" : "❌ As senhas devem coincidir";
+}
+
+// escuta os dois campos
+senhaInput.addEventListener("input", validarSenhas);
+confirmarInput.addEventListener("input", validarSenhas);
+
+const btn = document.getElementById("btnSubmit");
+
+function validarTudo() {
+  const senha = document.getElementById("nova_senha").value;
+  const confirmar = document.getElementById("nova_senha_confirmar").value;
+
+  const length = senha.length >= 8;
+  const upper = /[A-Z]/.test(senha);
+  const lower = /[a-z]/.test(senha);
+  const number = /\d/.test(senha);
+  const match = senha && confirmar && senha === confirmar;
+
+  // 🔥 Atualiza os checks visuais
+  document.getElementById("rule-length").innerHTML =
+    length ? "✅ Pelo menos 8 caracteres" : "❌ Pelo menos 8 caracteres";
+
+  document.getElementById("rule-upper").innerHTML =
+    upper ? "✅ Uma letra maiúscula" : "❌ Uma letra maiúscula";
+
+  document.getElementById("rule-lower").innerHTML =
+    lower ? "✅ Uma letra minúscula" : "❌ Uma letra minúscula";
+
+  document.getElementById("rule-number").innerHTML =
+    number ? "✅ Um número" : "❌ Um número";
+
+  document.getElementById("rule-match").innerHTML =
+    match ? "✅ As senhas coincidem" : "❌ As senhas devem coincidir";
+
+  // 🔥 Habilita/desabilita botão
+  if (length && upper && lower && number && match) {
+    btn.disabled = false;
+    btn.style.opacity = "1";
+    btn.style.cursor = "pointer";
+  } else {
+    btn.disabled = true;
+    btn.style.opacity = "0.6";
+    btn.style.cursor = "not-allowed";
+  }
+}
+// 🔥 AQUI É O PONTO CERTO
+senhaInput.addEventListener("input", validarTudo);
+confirmarInput.addEventListener("input", validarTudo);
+
+// 🔥 EXECUTA AO CARREGAR
+validarTudo();
+</script>
 </body>
 </html>

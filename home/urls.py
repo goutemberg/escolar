@@ -131,6 +131,12 @@ urlpatterns = [
     path("avaliacoes/", include(("home.routes.avaliacoes", "avaliacoes"), namespace="avaliacoes")),
     path("boletim/", include(("home.routes.boletim", "boletim"), namespace="boletim")),
 
+     #######################################
+    #         RESET SENHA
+    #######################################
+
+    path("reset_senha/", include(("home.routes.reset_senha", "reset_senha"), namespace="reset_senha")),
+
 
     #######################################
     #         API

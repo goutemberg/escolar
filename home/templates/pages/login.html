@@ -10,12 +10,10 @@
   <link href="{% static 'home/css/identidade.css' %}" rel="stylesheet"/>
 
   <style>
-    /* ✅ CORES DO NÚCLEO (INLINE) */
     :root{
       --nucleo-primary: #0EA5E9;
       --nucleo-primary-dark: #0284C7;
 
-      /* ✅ toque multicolor (bem sutil) */
       --nucleo-rainbow: linear-gradient(90deg,
         #0EA5E9 0%,
         #22C55E 35%,
@@ -59,7 +57,7 @@
     }
 
     .login-top{
-      position: relative; /* necessário pro filete */
+      position: relative;
       padding: 18px 18px 14px;
       background: rgba(14,165,233,.08);
       border-bottom: 1px solid var(--border-color);
@@ -69,7 +67,6 @@
       gap: 12px;
     }
 
-    /* ✅ filete multicolor discreto */
     .login-top::before{
       content:"";
       position:absolute;
@@ -78,28 +75,26 @@
       background: var(--nucleo-rainbow);
     }
 
-  /* mantém o tamanho do badge */
-.logo-badge{
-  width: 70px;
-  height: 70px;
-  border-radius: 14px;
-  background: rgba(14,165,233,.10);
-  border: 1px solid rgba(14,165,233,.22);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex: 0 0 auto;
-  overflow: hidden; /* garante corte certinho */
-  padding: 6px;     /* ajuste: 0 se quiser ocupar 100% total */
-}
+    .logo-badge{
+      width: 70px;
+      height: 70px;
+      border-radius: 14px;
+      background: rgba(14,165,233,.10);
+      border: 1px solid rgba(14,165,233,.22);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex: 0 0 auto;
+      overflow: hidden;
+      padding: 6px;
+    }
 
-/* imagem ocupa todo o badge */
-.logo-badge img{
-  width: 100%;
-  height: 100%;
-  object-fit: contain;   /* mantém proporção sem cortar */
-  display: block;
-}
+    .logo-badge img{
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
 
     .login-head{
       flex: 1;
@@ -195,6 +190,24 @@
     .helper strong{
       color: var(--nucleo-primary-dark);
     }
+
+    .forgot-password{
+      margin-top: 10px;
+      text-align: right;
+    }
+
+    .forgot-password a{
+      font-size: 13px;
+      color: var(--nucleo-primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .forgot-password a:hover{
+      text-decoration: underline;
+      color: var(--nucleo-primary-dark);
+    }
+
   </style>
 </head>
 
@@ -219,17 +232,17 @@
 
           {% if form.errors %}
             <div class="alert alert-danger">
-              Usuário ou senha inválidos. Tente novamente.
+              CPF e/ou senha inválidos. Tente novamente.
             </div>
           {% endif %}
 
           <div class="form-group mb-3">
-            <label for="username">Usuário</label>
+            <label for="username">CPF</label>
             <input
               id="username"
               class="form-control-custom"
               name="username"
-              placeholder="Digite seu Username"
+              placeholder="Digite seu CPF"
               required
               type="text"
             />
@@ -245,6 +258,11 @@
               required
               type="password"
             />
+          </div>
+
+          <!-- 🔥 NOVO -->
+          <div class="forgot-password">
+            <a href="{% url 'reset_senha:reset_senha' %}">Esqueci minha senha</a>
           </div>
 
           <button class="btn-login" type="submit">

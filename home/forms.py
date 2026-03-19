@@ -10,16 +10,27 @@ class UserCreationNoPasswordForm(forms.ModelForm):
 
     class Meta:
         model = User
-        fields = ("cpf", "username", "first_name", "last_name", "email", "role", "escola")
+        fields = ("cpf", "first_name", "last_name", "email", "role", "escola")
+        # 🔥 removi username do form (não faz mais sentido expor)
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.set_password("123456")  # senha padrão
+
+        # 🔥 remove máscara do CPF (segurança + padrão)
+        if user.cpf:
+            user.cpf = user.cpf.replace('.', '').replace('-', '').replace('/', '')
+
+        # 🔥 ESSENCIAL: CPF vira username
+        user.username = user.cpf
+
+        # 🔐 senha padrão
+        user.set_password("123456")
         user.senha_temporaria = True
+
         if commit:
             user.save()
+
         return user
-    
 
 class UserChangeCustomForm(UserChangeForm):
     password = None  # remove campo senha

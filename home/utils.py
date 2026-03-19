@@ -60,3 +60,33 @@ def gerar_avaliacoes_para_turma(turma):
                         "data": timezone.now().date()
                     }
                 )
+
+
+import re
+
+
+def validar_senha_forte(senha):
+    if len(senha) < 8:
+        return "A senha deve ter pelo menos 8 caracteres"
+
+    if not re.search(r"[A-Z]", senha):
+        return "A senha deve conter letra maiúscula"
+
+    if not re.search(r"[a-z]", senha):
+        return "A senha deve conter letra minúscula"
+
+    if not re.search(r"\d", senha):
+        return "A senha deve conter número"
+
+    return None
+
+
+# utils.py (ou dentro da view mesmo)
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0]
+
+    return request.META.get('REMOTE_ADDR')
