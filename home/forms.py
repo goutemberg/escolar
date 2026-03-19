@@ -2,6 +2,7 @@ from django import forms
 from .models import Escola
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from .models import User
+from django.contrib.auth.forms import UserChangeForm
 
 
 class UserCreationNoPasswordForm(forms.ModelForm):
@@ -18,6 +19,15 @@ class UserCreationNoPasswordForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+    
+
+class UserChangeCustomForm(UserChangeForm):
+    password = None  # remove campo senha
+
+    class Meta:
+        model = User
+        fields = "__all__"
+
 
 class EscolaForm(forms.ModelForm):
     class Meta:

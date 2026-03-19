@@ -239,7 +239,7 @@
     </div>
     {% endif %}
 
-  {% if user|has_role:'diretor,secretaria' and user.escola.financeiro_ativo %}
+  {% if user|has_role:'diretor,financeiro' and user.escola.financeiro_ativo %}
   <!-- Financeiro -->
 <a class="nav-item submenu-toggle"
    data-submenu="sm-financeiro"

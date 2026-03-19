@@ -3,9 +3,8 @@ from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.urls import path
 from django.shortcuts import redirect
 from django.utils.html import format_html
-from .forms import UserCreationNoPasswordForm
-
-from .models import Escola, User
+from .forms import UserCreationNoPasswordForm, UserChangeCustomForm
+from .models import Escola, User, Role
 
 
 # ============================
@@ -45,7 +44,7 @@ class EscolaAdmin(admin.ModelAdmin):
 class CustomUserAdmin(DjangoUserAdmin):
 
     add_form = UserCreationNoPasswordForm
-    form = UserCreationNoPasswordForm
+    form = UserChangeCustomForm
 
     list_display = (
         "username", "cpf", "first_name", "last_name",
@@ -59,13 +58,13 @@ class CustomUserAdmin(DjangoUserAdmin):
         (None, {"fields": ("cpf", "username", "password")}),
         ("Informações pessoais", {"fields": ("first_name", "last_name", "email")}),
         ("Permissões", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
-        ("Outros", {"fields": ("role", "escola")}),
+        ("Outros", {"fields": ("role", "roles", "escola")}),
     )
 
     add_fieldsets = (
         (None, {
             "classes": ("wide",),
-            "fields": ("cpf", "username", "first_name", "last_name", "email", "role", "escola"),
+            "fields": ("cpf", "username", "first_name", "last_name", "email", "role", "roles", "escola"),
         }),
     )
 
@@ -83,7 +82,13 @@ class CustomUserAdmin(DjangoUserAdmin):
         if not change:
             obj.set_password("123456")
             obj.senha_temporaria = True
+
         super().save_model(request, obj, form, change)
+
+    # sincroniza role antiga com nova
+        if obj.role:
+            role_obj, _ = Role.objects.get_or_create(nome=obj.role)
+            obj.roles.add(role_obj)
 
     def reset_password_button(self, obj):
         return format_html(
@@ -110,3 +115,10 @@ class CustomUserAdmin(DjangoUserAdmin):
         user.save()
         messages.success(request, f"A senha do usuário {user.username} foi resetada para 123456.")
         return redirect(f"/admin/home/user/{user_id}/change/")
+    
+    filter_horizontal = ("roles",)
+
+
+@admin.register(Role)
+class RoleAdmin(admin.ModelAdmin):
+    list_display = ("nome",)

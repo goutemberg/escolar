@@ -106,6 +106,7 @@ class User(AbstractUser):
         ('coordenador', 'Coordenador'),
         ('secretaria', 'Secretária'),
         ('responsavel', 'Responsável'),
+        ('financeiro', 'Financeiro'),
     ]
 
     cpf = models.CharField(
@@ -121,6 +122,7 @@ class User(AbstractUser):
         choices=ROLE_CHOICES,
         default='responsavel',
     )
+    roles = models.ManyToManyField('Role', blank=True)
 
     escola = models.ForeignKey(
         Escola,
@@ -136,6 +138,13 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.cpf})"
+
+
+class Role(models.Model):
+    nome = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.nome
 
 
 # ================================================
