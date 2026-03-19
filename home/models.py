@@ -958,3 +958,31 @@ class ModeloAvaliacao(models.Model):
     ativo = models.BooleanField(default=True)
 
     criado_em = models.DateTimeField(auto_now_add=True)
+
+
+from django.utils import timezone
+from datetime import timedelta
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.UUIDField(default=uuid.uuid4, editable=False)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        return timezone.now() > self.criado_em + timedelta(minutes=15)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.token}"
+
+
+# home/models.py
+
+class LoginLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    cpf = models.CharField(max_length=20, null=True, blank=True)
+    ip = models.GenericIPAddressField()
+    sucesso = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.cpf} - {'OK' if self.sucesso else 'FAIL'}"

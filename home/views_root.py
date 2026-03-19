@@ -8,7 +8,9 @@ import re
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from io import BytesIO
-import traceback
+from django.contrib.auth import login, authenticate
+from home.utils import validar_senha_forte, get_client_ip
+from home.models import User, LoginLog
 
 # ---- Django Core ----
 from django.conf import settings
@@ -35,10 +37,8 @@ from django.http import (
     HttpResponseForbidden,
 )
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.loader import get_template
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.utils.timezone import localdate
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from collections import defaultdict
@@ -80,6 +80,7 @@ from .models import (
     RegistroPedagogico,
     ModeloAvaliacao,
     TipoAvaliacao,
+    PasswordResetToken,
     
 )
 
@@ -2114,15 +2115,48 @@ def registrar_notas(request):
     return render(request, 'pages/registrar_notas.html', context)
 
 
+
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0]
+
+    return request.META.get('REMOTE_ADDR')
+
+
 def login_view(request):
     if request.user.is_authenticated:
         return redirect('index')
 
+    form = AuthenticationForm(request, data=request.POST or None)
+
     if request.method == 'POST':
-        form = AuthenticationForm(request, data=request.POST)
-        if form.is_valid():
-            user = form.get_user()
+
+        identificador = request.POST.get("username")
+        senha = request.POST.get("password")
+        ip = get_client_ip(request)  # 🔥 captura IP
+
+        # 🔥 tenta buscar por CPF
+        try:
+            user_obj = User.objects.get(cpf=identificador)
+            username = user_obj.username
+        except User.DoesNotExist:
+            username = identificador  # fallback
+            user_obj = None
+
+        user = authenticate(request, username=username, password=senha)
+
+        if user is not None:
             login(request, user)
+
+            # 🔥 LOG SUCESSO
+            LoginLog.objects.create(
+                user=user,
+                cpf=identificador,
+                ip=ip,
+                sucesso=True
+            )
 
             if user.senha_temporaria:
                 return redirect('trocar_senha')
@@ -2131,11 +2165,22 @@ def login_view(request):
                 return redirect('index')
             else:
                 return redirect('usuario_sem_escola')
-    else:
-        form = AuthenticationForm()
 
-    return render(request, 'pages/login.html', {'form': form})
+        else:
+            # 🔥 LOG FALHA
+            LoginLog.objects.create(
+                user=user_obj,
+                cpf=identificador,
+                ip=ip,
+                sucesso=False
+            )
 
+            # 🔥 FORÇA erro no form
+            form.add_error(None, "CPF ou senha inválidos")
+
+    return render(request, 'pages/login.html', {
+        'form': form
+    })
 
 def logout_view(request):
     logout(request)
@@ -2277,34 +2322,69 @@ def importar_alunos(request):
 
     return render(request, 'pages/importar_alunos.html')
 
+
 @login_required
 def verificar_senha_temporaria(request):
     if request.user.senha_temporaria:
         return render(request, 'pages/trocar_senha.html')
     return redirect('index')
 
-@csrf_exempt
-@login_required
+
+
 def trocar_senha_api(request):
-    if request.method == 'POST':
+
+    if request.method != "POST":
+        return JsonResponse({"success": False, "error": "Método inválido"})
+
+    data = json.loads(request.body)
+
+    nova_senha = data.get("nova_senha")
+    confirmar = data.get("nova_senha_confirmar")
+    token = data.get("token")
+
+    if nova_senha != confirmar:
+        return JsonResponse({"success": False, "error": "Senhas não coincidem"})
+
+    # 🔐 senha forte
+    erro_senha = validar_senha_forte(nova_senha)
+    if erro_senha:
+        return JsonResponse({"success": False, "error": erro_senha})
+
+    user = None
+
+    # 🔥 fluxo 1: reset com token
+    if token:
         try:
-            data = json.loads(request.body)
-            nova = data.get('nova_senha')
-            confirmar = data.get('nova_senha_confirmar')
+            token_obj = PasswordResetToken.objects.get(token=token)
 
-            if not nova or nova != confirmar:
-                return JsonResponse({'success': False, 'error': 'Senhas não coincidem'}, status=400)
+            if token_obj.is_expired():
+                token_obj.delete()
+                return JsonResponse({"success": False, "error": "Token expirado"})
 
-            request.user.set_password(nova)
-            request.user.senha_temporaria = False
-            request.user.save()
-            update_session_auth_hash(request, request.user)
+            user = token_obj.user
 
-            return JsonResponse({'success': True})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            # 🔥 invalida todos os tokens desse usuário
+            PasswordResetToken.objects.filter(user=user).delete()
 
-    return JsonResponse({'success': False, 'error': 'Método não permitido'}, status=405)
+        except PasswordResetToken.DoesNotExist:
+            return JsonResponse({"success": False, "error": "Token inválido"})
+
+    # 🔥 fluxo 2: usuário logado
+    elif request.user.is_authenticated:
+        user = request.user
+
+    else:
+        return JsonResponse({"success": False, "error": "Não autorizado"})
+
+    # 🔐 atualiza senha
+    user.set_password(nova_senha)
+    user.senha_temporaria = False
+    user.save()
+
+    # 🔥 LOGIN AUTOMÁTICO (importantíssimo)
+    login(request, user)
+
+    return JsonResponse({"success": True})
 
 
 @login_required

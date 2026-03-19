@@ -5,6 +5,7 @@ from django.shortcuts import redirect
 from django.utils.html import format_html
 from .forms import UserCreationNoPasswordForm, UserChangeCustomForm
 from .models import Escola, User, Role
+from .models import LoginLog
 
 
 # ============================
@@ -122,3 +123,11 @@ class CustomUserAdmin(DjangoUserAdmin):
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
     list_display = ("nome",)
+
+
+
+@admin.register(LoginLog)
+class LoginLogAdmin(admin.ModelAdmin):
+    list_display = ('cpf', 'ip', 'sucesso', 'created_at')
+    list_filter = ('sucesso', 'created_at')
+    search_fields = ('cpf',)
