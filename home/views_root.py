@@ -2405,7 +2405,6 @@ def listar_turmas_para_boletim(request):
             escola=request.user.escola
         ).distinct().order_by("nome")
 
-        print("ALUNOS ENCONTRADOS:", alunos.count())
 
     return render(request, 'pages/listar_turmas_boletim.html', {
         'turmas': turmas,
