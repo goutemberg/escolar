@@ -10,7 +10,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from io import BytesIO
 from django.contrib.auth import login, authenticate
 from home.utils import validar_senha_forte, get_client_ip
-from home.models import User, LoginLog
+from home.models import User, LoginLog, UserEscola
 
 # ---- Django Core ----
 from django.conf import settings
@@ -161,7 +161,8 @@ def cadastrar_escola_banco(request):
 @role_required(['diretor', 'coordenador'])
 def cadastro_aluno(request):
     cadastro_aluno = Escola.objects.all()
-    turmas = Turma.objects.filter(escola=request.user.escola).order_by('nome')
+    turmas = Turma.objects.filter(escola=request.escola
+).order_by('nome')
     niveis_modalidades = ['Infantil', 'Fundamental I', 'Fundamental II']
 
     context = {
@@ -185,7 +186,8 @@ def cadastro_funcionarios(request):
 @role_required(['diretor', 'coordenador'])
 def cadastro_professor(request):
     escolas = Escola.objects.all()
-    disciplinas = Disciplina.objects.filter(escola=request.user.escola)
+    disciplinas = Disciplina.objects.filter(escola=request.escola
+)
     context = {
         'cadastro_professor': escolas,
         'disciplinas': disciplinas,
@@ -202,7 +204,8 @@ def buscar_cnpj(request):
         return JsonResponse({"error": "CNPJ inválido"}, status=400)
 
     try:
-        escola = Escola.objects.get(cnpj=cnpj, escola=request.user.escola)
+        escola = Escola.objects.get(cnpj=cnpj, escola=request.escola
+)
         return JsonResponse({"exists": True, "escola": {
             "schoolName": escola.nome,
             "schoolPhone": escola.telefone,
@@ -248,14 +251,9 @@ def cadastrar_professor_banco(request):
     try:
         data = json.loads(request.body)
 
-        # =========================
-        # Normalização / leitura
-        # =========================
         professor_id = data.get('id')
 
-        cpf = data.get('doctorCpf', '')
-        cpf = ''.join(filter(str.isdigit, cpf))
-
+        cpf = ''.join(filter(str.isdigit, data.get('doctorCpf', '')))
         nome = data.get('doctorName', '').strip()
         nascimento = parse_date(data.get('birthdate'))
         email = data.get('email', '').strip()
@@ -276,7 +274,7 @@ def cadastrar_professor_banco(request):
         ativo = str(data.get('ativo', 'True')).lower() == 'true'
         senha = data.get('senha')
 
-        escola = getattr(request.user, 'escola', None)
+        escola = request.escola  # 🔥 NOVO
 
         if not escola:
             return JsonResponse(
@@ -290,9 +288,7 @@ def cadastrar_professor_banco(request):
                 status=400
             )
 
-        # ==================================================
-        # ===================== EDIÇÃO =====================
-        # ==================================================
+        # ========================= EDIÇÃO =========================
         if professor_id:
 
             professor = get_object_or_404(
@@ -323,18 +319,13 @@ def cadastrar_professor_banco(request):
 
             professor.save()
 
-            # =========================
-            # sincroniza acesso login
-            # =========================
             if professor.user:
                 professor.user.is_active = ativo
                 professor.user.save(update_fields=["is_active"])
 
             return JsonResponse({'success': True})
 
-        # ==================================================
-        # ===================== CREATE =====================
-        # ==================================================
+        # ========================= CREATE =========================
 
         if not senha:
             return JsonResponse(
@@ -342,46 +333,37 @@ def cadastrar_professor_banco(request):
                 status=400
             )
 
-        # 1️⃣ Usuário já existe?
-        if User.objects.filter(cpf=cpf, escola=escola).exists():
-            return JsonResponse(
-                {'success': False, 'error': 'Já existe um usuário com este CPF.'},
-                status=400
-            )
-
-        # 2️⃣ Docente já existe?
-        if Docente.objects.filter(cpf=cpf, escola=escola).exists():
-            return JsonResponse(
-                {'success': False, 'error': 'Professor já cadastrado com este CPF.'},
-                status=400
-            )
-
-        # =========================
-        # Criação do usuário
-        # =========================
+        # 🔥 1️⃣ BUSCA OU CRIA USUÁRIO GLOBAL
         partes = nome.split()
         first = partes[0]
         last = ' '.join(partes[1:]) if len(partes) > 1 else ''
 
-        usuario = User(
-            username=cpf,
+        usuario, created = User.objects.get_or_create(
             cpf=cpf,
-            email=email,
-            first_name=first,
-            last_name=last,
-            role=cargo,
-            is_active=ativo,   # ✅ sincroniza com docente
-            escola=escola,
-            senha_temporaria=True
+            defaults={
+                "username": cpf,
+                "email": email,
+                "first_name": first,
+                "last_name": last,
+                "role": cargo,
+                "is_active": ativo,
+                "senha_temporaria": True
+            }
         )
 
-        usuario.set_password(senha)
-        usuario.save()
+        # 🔥 se criou agora → define senha
+        if created:
+            usuario.set_password(senha)
+            usuario.save()
 
-        # =========================
-        # Criação do docente
-        # =========================
-        docente, created = Docente.objects.get_or_create(
+        # 🔥 2️⃣ VINCULA À ESCOLA (MULTI-ESCOLA)
+        UserEscola.objects.get_or_create(
+            user=usuario,
+            escola=escola
+        )
+
+        # 🔥 3️⃣ DOCENTE (POR ESCOLA)
+        docente, created_docente = Docente.objects.get_or_create(
             cpf=cpf,
             escola=escola,
             defaults={
@@ -407,8 +389,7 @@ def cadastrar_professor_banco(request):
             }
         )
 
-        if not created:
-
+        if not created_docente:
             docente.user = usuario
             docente.nome = nome
             docente.nascimento = nascimento
@@ -428,27 +409,23 @@ def cadastrar_professor_banco(request):
             docente.experiencia = experiencia
             docente.sexo = sexo
             docente.ativo = ativo
-
             docente.save()
 
         return JsonResponse({
             'success': True,
-            'senha': senha
+            'senha': senha if created else None,
+            'message': 'Professor vinculado com sucesso' if not created else None
         })
 
     except IntegrityError:
-
         transaction.set_rollback(True)
-
         return JsonResponse(
             {'success': False, 'error': 'Erro de integridade ao salvar professor.'},
             status=400
         )
 
     except Exception as e:
-
         transaction.set_rollback(True)
-
         return JsonResponse(
             {'success': False, 'error': f'Erro interno: {str(e)}'},
             status=500
@@ -461,7 +438,8 @@ def listar_professores(request):
     professores = (
         Docente.objects
         .select_related('user')
-        .filter(escola=request.user.escola)
+        .filter(escola=request.escola
+)
         .order_by('nome')
     )
 
@@ -497,7 +475,8 @@ def toggle_status_professor(request, id):
     professor = get_object_or_404(
         Docente,
         id=id,
-        escola=request.user.escola
+        escola=request.escola
+
     )
 
     professor.ativo = not professor.ativo
@@ -530,7 +509,8 @@ def api_professor_detalhe(request, professor_id):
     p = get_object_or_404(
         Docente,
         id=professor_id,
-        escola=request.user.escola
+        escola=request.escola
+
     )
 
     return JsonResponse({
@@ -563,7 +543,8 @@ def editar_professor(request, prof_id):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            professor = Docente.objects.get(id=prof_id, escola=request.user.escola)
+            professor = Docente.objects.get(id=prof_id, escola=request.escola
+)
 
             professor.nome = data.get('nome', professor.nome)
             professor.email = data.get('email', professor.email)
@@ -589,7 +570,8 @@ def alternar_status_professor(request, prof_id):
         try:
             professor = Docente.objects.get(
                 id=prof_id,
-                escola=request.user.escola
+                escola=request.escola
+
             )
 
             # alterna status
@@ -688,7 +670,8 @@ def salvar_aluno(request):
                 aluno = (
                     Aluno.objects
                     .select_for_update()
-                    .get(id=aluno_id, escola=request.user.escola)
+                    .get(id=aluno_id, escola=request.escola
+)
                 )
 
                 aluno.nome = data.get('nome', '')
@@ -748,7 +731,8 @@ def salvar_aluno(request):
                     estado=data.get('estado', ''),
                     email=data.get('email', ''),
                     telefone=data.get('telefone', ''),
-                    escola=request.user.escola,
+                    escola=request.escola
+,
                     data_ingresso=data_ingresso,
                     cor_raca=data.get('cor_raca') or None,
                     responsavel_financeiro=data.get('responsavel_financeiro') or None,
@@ -770,7 +754,8 @@ def salvar_aluno(request):
             if turma_id:
                 turma = Turma.objects.filter(
                     id=turma_id,
-                    escola=request.user.escola
+                    escola=request.escola
+
                 ).first()
 
                 if turma:
@@ -1040,7 +1025,8 @@ def aluno_pdf(request, aluno_id):
 def cadastrar_aluno(request):
     request.session['matricula_gerada'] = gerar_matricula_unica()
 
-    turmas = Turma.objects.filter(escola=request.user.escola).order_by('nome')
+    turmas = Turma.objects.filter(escola=request.escola
+).order_by('nome')
     niveis_modalidades = ['Infantil', 'Fundamental I', 'Fundamental II']
 
     TIPOS_SANGUINEOS = [
@@ -1064,7 +1050,8 @@ def editar_aluno(request, aluno_id):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            aluno = Aluno.objects.get(id=aluno_id, escola=request.user.escola)
+            aluno = Aluno.objects.get(id=aluno_id, escola=request.escola
+)
 
             # Atualiza dados principais do aluno
             aluno.nome = data.get('nome', aluno.nome)
@@ -1073,7 +1060,8 @@ def editar_aluno(request, aluno_id):
             aluno.save()
 
             # Atualiza dados do responsável (se existirem)
-            responsavel = Responsavel.objects.filter(aluno=aluno, escola=request.user.escola).first()
+            responsavel = Responsavel.objects.filter(aluno=aluno, escola=request.escola
+).first()
             if responsavel:
                 responsavel.nome = data.get('responsavel_nome', responsavel.nome)
                 responsavel.cpf = data.get('responsavel_cpf', responsavel.cpf)
@@ -1083,7 +1071,8 @@ def editar_aluno(request, aluno_id):
                 responsavel.save()
 
             # Atualiza dados de saúde
-            saude = Saude.objects.filter(aluno=aluno, escola=request.user.escola).first()
+            saude = Saude.objects.filter(aluno=aluno, escola=request.escola
+).first()
             if saude:
                 saude.possui_necessidade_especial = data.get('possui_necessidade_especial', saude.possui_necessidade_especial)
                 saude.descricao_necessidade = data.get('descricao_necessidade', saude.descricao_necessidade)
@@ -1094,14 +1083,16 @@ def editar_aluno(request, aluno_id):
                 saude.save()
 
             # Atualiza transporte escolar
-            transporte = TransporteEscolar.objects.filter(aluno=aluno, escola=request.user.escola).first()
+            transporte = TransporteEscolar.objects.filter(aluno=aluno, escola=request.escola
+).first()
             if transporte:
                 transporte.usa_transporte_escolar = data.get('usa_transporte_escolar', transporte.usa_transporte_escolar)
                 transporte.trajeto = data.get('trajeto', transporte.trajeto)
                 transporte.save()
 
             # Atualiza autorizações
-            autorizacoes = Autorizacoes.objects.filter(aluno=aluno, escola=request.user.escola).first()
+            autorizacoes = Autorizacoes.objects.filter(aluno=aluno, escola=request.escola
+).first()
             if autorizacoes:
                 autorizacoes.autorizacao_saida_sozinho = data.get('autorizacao_saida_sozinho', autorizacoes.autorizacao_saida_sozinho)
                 autorizacoes.autorizacao_fotos_eventos = data.get('autorizacao_fotos_eventos', autorizacoes.autorizacao_fotos_eventos)
@@ -1124,11 +1115,12 @@ def editar_aluno_view(request, aluno_id):
     aluno = get_object_or_404(
         Aluno,
         id=aluno_id,
-        escola=request.user.escola
+        escola=request.escola
+
     )
 
     # Segurança extra
-    if aluno.escola != request.user.escola:
+    if aluno.escola != request.escola:
         return HttpResponseForbidden("Acesso negado")
 
     # ===============================
@@ -1160,7 +1152,8 @@ def editar_aluno_view(request, aluno_id):
     # AUXILIARES DE TELA
     # ===============================
     turmas = Turma.objects.filter(
-        escola=request.user.escola
+        escola=request.escola
+
     ).order_by('nome')
 
     niveis_modalidades = [
@@ -1206,7 +1199,8 @@ def editar_aluno_view(request, aluno_id):
 def alternar_status_aluno(request, aluno_id):
     if request.method == 'POST':
         try:
-            aluno = Aluno.objects.get(id=aluno_id, escola=request.user.escola)
+            aluno = Aluno.objects.get(id=aluno_id, escola=request.escola
+)
             aluno.ativo = not aluno.ativo
             aluno.save()
             return JsonResponse({'success': True})
@@ -1275,7 +1269,8 @@ def turmas_do_professor(user):
 @login_required
 def listar_alunos(request):
 
-    escola = request.user.escola
+    escola = request.escola
+
     base_template = get_base_template(request)  # 👈 novo
 
     alunos = (
@@ -1359,7 +1354,8 @@ def toggle_aluno_ativo(request, aluno_id):
     if request.method != "POST":
         return JsonResponse({"error": "Método não permitido"}, status=405)
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     aluno = get_object_or_404(
         Aluno,
@@ -1379,7 +1375,8 @@ def toggle_aluno_ativo(request, aluno_id):
 @login_required
 @require_POST
 def excluir_aluno(request, aluno_id):
-    escola = request.user.escola
+    escola = request.escola
+
 
     aluno = get_object_or_404(
         Aluno,
@@ -1429,12 +1426,14 @@ def buscar_pessoa(request):
             return JsonResponse({"error": "Parâmetros inválidos"}, status=400)
 
         if tipo == "professor":
-            professores = Docente.objects.filter(nome__icontains=nome, escola=request.user.escola).order_by("nome")
+            professores = Docente.objects.filter(nome__icontains=nome, escola=request.escola
+).order_by("nome")
             resultados = [
                 {"nome": p.nome, "disciplina": p.disciplina or "Disciplina não informada"} for p in professores
             ]
         else:
-            alunos = Aluno.objects.filter(nome__icontains=nome, escola=request.user.escola).order_by("nome")
+            alunos = Aluno.objects.filter(nome__icontains=nome, escola=request.escola
+).order_by("nome")
             resultados = [{"nome": a.nome} for a in alunos]
 
         return JsonResponse({"resultados": resultados})
@@ -1508,7 +1507,8 @@ def autocomplete_pessoa(request):
 @login_required
 @require_POST
 def criar_turma(request):
-    escola = request.user.escola
+    escola = request.escola
+
 
     # ✅ JSON seguro
     try:
@@ -1645,7 +1645,8 @@ def criar_turma(request):
 @login_required
 @role_required(['diretor', 'coordenador'])
 def formulario_criar_turma(request):
-    escola = request.user.escola
+    escola = request.escola
+
     disciplinas = Disciplina.objects.filter(escola=escola).order_by('nome')
 
     return render(request, 'pages/registrar_turma.html', {
@@ -1664,7 +1665,8 @@ def impressao_dados(request):
     if tipo == 'turmas':
         turmas = (
             Turma.objects
-            .filter(escola=request.user.escola)
+            .filter(escola=request.escola
+)
             .prefetch_related('alunos', 'professores')
         )
         if turma_id:
@@ -1685,7 +1687,8 @@ def impressao_dados(request):
         # Precarrega turmas + TODOS os responsáveis do aluno
         alunos = (
             Aluno.objects
-            .filter(escola=request.user.escola)
+            .filter(escola=request.escola
+)
             .prefetch_related(
                 'turmas',
                 Prefetch('responsavel_set', queryset=Responsavel.objects.all(), to_attr='responsaveis')
@@ -1738,7 +1741,8 @@ def impressao_dados(request):
     elif tipo == 'professores':
         professores = (
             Docente.objects
-            .filter(escola=request.user.escola)
+            .filter(escola=request.escola
+)
             .prefetch_related("disciplinas")
         )
         dados = [{
@@ -1750,7 +1754,8 @@ def impressao_dados(request):
         } for p in professores]
 
     elif tipo == 'funcionarios':
-        funcionarios = Funcionario.objects.filter(escola=request.user.escola)
+        funcionarios = Funcionario.objects.filter(escola=request.escola
+)
         dados = [{
             'nome': f.nome,
             'cpf': f.cpf,
@@ -1760,8 +1765,10 @@ def impressao_dados(request):
         } for f in funcionarios]
 
     # Selects de filtro
-    turmas_disponiveis = Turma.objects.filter(escola=request.user.escola)
-    professores_disponiveis = Docente.objects.filter(escola=request.user.escola)
+    turmas_disponiveis = Turma.objects.filter(escola=request.escola
+)
+    professores_disponiveis = Docente.objects.filter(escola=request.escola
+)
 
     context = {
         'tipo': tipo,
@@ -1813,7 +1820,8 @@ def lancar_notas(request):
         except ValueError:
             return JsonResponse({"erro": "Bimestre inválido."}, status=400)
 
-        escola = request.user.escola
+        escola = request.escola
+
 
         try:
             turma = Turma.objects.get(id=turma_id, escola=escola, status="ATIVA")
@@ -2118,11 +2126,10 @@ def registrar_notas(request):
 
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-
     if x_forwarded_for:
         return x_forwarded_for.split(',')[0]
-
     return request.META.get('REMOTE_ADDR')
+
 
 
 def login_view(request):
@@ -2133,41 +2140,23 @@ def login_view(request):
 
     if request.method == 'POST':
 
-        identificador = request.POST.get("username")
+        identificador = request.POST.get("username", "").replace(".", "").replace("-", "")
         senha = request.POST.get("password")
-        ip = get_client_ip(request)  # 🔥 captura IP
+        escola_id = request.POST.get("escola_id")
+        ip = get_client_ip(request)
 
         # 🔥 tenta buscar por CPF
         try:
             user_obj = User.objects.get(cpf=identificador)
             username = user_obj.username
         except User.DoesNotExist:
-            username = identificador  # fallback
+            username = identificador
             user_obj = None
 
         user = authenticate(request, username=username, password=senha)
 
-        if user is not None:
-            login(request, user)
-
-            # 🔥 LOG SUCESSO
-            LoginLog.objects.create(
-                user=user,
-                cpf=identificador,
-                ip=ip,
-                sucesso=True
-            )
-
-            if user.senha_temporaria:
-                return redirect('trocar_senha')
-
-            if user.is_superuser or (hasattr(user, 'escola') and user.escola):
-                return redirect('index')
-            else:
-                return redirect('usuario_sem_escola')
-
-        else:
-            # 🔥 LOG FALHA
+        # ❌ login inválido
+        if user is None:
             LoginLog.objects.create(
                 user=user_obj,
                 cpf=identificador,
@@ -2175,12 +2164,67 @@ def login_view(request):
                 sucesso=False
             )
 
-            # 🔥 FORÇA erro no form
-            form.add_error(None, "CPF ou senha inválidos")
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"success": False})
 
-    return render(request, 'pages/login.html', {
-        'form': form
-    })
+            form.add_error(None, "CPF ou senha inválidos")
+            return render(request, 'pages/login.html', {'form': form})
+
+        # ✅ login válido
+        login(request, user)
+
+        LoginLog.objects.create(
+            user=user,
+            cpf=identificador,
+            ip=ip,
+            sucesso=True
+        )
+
+        vinculos = UserEscola.objects.filter(user=user)
+
+        # 🔥 MULTI ESCOLA (ANTES DE DEFINIR SESSÃO)
+        if vinculos.count() > 1 and not escola_id:
+
+            escolas = [
+                {"id": v.escola.id, "nome": v.escola.nome}
+                for v in vinculos
+            ]
+
+            return JsonResponse({
+                "multi_escola": True,
+                "escolas": escolas
+            })
+
+        # 🔥 DEFINIR ESCOLA NA SESSÃO (CRÍTICO)
+        if escola_id:
+            request.session["escola_id"] = int(escola_id)
+
+        elif vinculos.exists():
+            request.session["escola_id"] = vinculos.first().escola.id
+
+        elif getattr(user, "escola", None):
+            request.session["escola_id"] = user.escola.id
+
+        else:
+            request.session["escola_id"] = None  # 🔥 evita lixo
+
+        # 🔥 GARANTE QUE A SESSÃO FOI SALVA
+        request.session.modified = True
+
+        # 🔥 senha temporária (DEPOIS de setar escola)
+        if user.senha_temporaria:
+            if request.headers.get("x-requested-with") == "XMLHttpRequest":
+                return JsonResponse({"success": True, "redirect": "/trocar-senha/"})
+            return redirect('trocar_senha')
+
+        # 🔥 resposta AJAX
+        if request.headers.get("x-requested-with") == "XMLHttpRequest":
+            return JsonResponse({"success": True})
+
+        return redirect('index')
+
+    return render(request, 'pages/login.html', {'form': form})
+
 
 def logout_view(request):
     logout(request)
@@ -2281,7 +2325,8 @@ def importar_alunos(request):
             with transaction.atomic():
                 for _, row in df.iterrows():
                     cpf = str(row.get('cpf')).replace('.', '').replace('-', '').strip()
-                    if Aluno.objects.filter(cpf=cpf, escola=request.user.escola).exists():
+                    if Aluno.objects.filter(cpf=cpf, escola=request.escola
+).exists():
                         ignorados += 1
                         continue
 
@@ -2394,7 +2439,8 @@ def listar_turmas_para_boletim(request):
     turma_id = request.GET.get('turma')
     print("TURMA_ID:", turma_id)
 
-    turmas = Turma.objects.filter(escola=request.user.escola)
+    turmas = Turma.objects.filter(escola=request.escola
+)
 
     alunos = []
 
@@ -2402,7 +2448,8 @@ def listar_turmas_para_boletim(request):
 
         alunos = Aluno.objects.filter(
             notas__avaliacao__turma_id=turma_id,
-            escola=request.user.escola
+            escola=request.escola
+
         ).distinct().order_by("nome")
 
 
@@ -2486,7 +2533,8 @@ def cadastrar_disciplina(request):
             if not nome:
                 return JsonResponse({'success': False, 'error': 'Nome da disciplina é obrigatório.'}, status=400)
 
-            escola = request.user.escola
+            escola = request.escola
+
             if not escola:
                 return JsonResponse({'success': False, 'error': 'Usuário sem escola vinculada.'}, status=400)
 
@@ -2515,7 +2563,8 @@ def usuario_sem_escola(request):
 
 @login_required
 def visualizar_escola(request):
-    escola = request.user.escola
+    escola = request.escola
+
     estados = [
         'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
         'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
@@ -2532,7 +2581,8 @@ def editar_escola(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            escola = request.user.escola
+            escola = request.escola
+
 
             campos_permitidos = ['nome', 'telefone', 'email', 'endereco', 'numero', 'complemento',
                                  'bairro', 'cidade', 'estado', 'site', 'cep']
@@ -2583,7 +2633,8 @@ def salvar_turma(request):
                 'error': 'Nome, turno, ano e sala são obrigatórios.'
             }, status=400)
 
-        escola = request.user.escola
+        escola = request.escola
+
 
         # =========================================================
         # 🔹 CRIAR OU ATUALIZAR TURMA
@@ -2958,7 +3009,8 @@ def listar_turmas(request):
 
     # filtra por escola, se houver escola vinculada
     if 'escola' in [f.name for f in Turma._meta.fields] and getattr(request.user, 'escola', None):
-        qs = qs.filter(escola=request.user.escola)
+        qs = qs.filter(escola=request.escola
+)
 
     qs = qs.order_by('nome')
 
@@ -3001,7 +3053,8 @@ def editar_turma(request, pk):
     qs = Turma.objects
 
     if 'escola' in [f.name for f in Turma._meta.fields] and getattr(request.user, 'escola', None):
-        turma = get_object_or_404(qs, pk=pk, escola=request.user.escola)
+        turma = get_object_or_404(qs, pk=pk, escola=request.escola
+)
     else:
         turma = get_object_or_404(qs, pk=pk)
 
@@ -3073,7 +3126,8 @@ def editar_turma(request, pk):
 def excluir_turma(request, pk):
     qs = Turma.objects
     if hasattr(Turma, 'escola_id') or 'escola' in [f.name for f in Turma._meta.fields]:
-        turma = get_object_or_404(qs, pk=pk, escola=request.user.escola)
+        turma = get_object_or_404(qs, pk=pk, escola=request.escola
+)
     else:
         turma = get_object_or_404(qs, pk=pk)
     turma.delete()
@@ -3107,7 +3161,8 @@ def _is_mae(resp):
 def aluno_requerimento_pdf(request, pk):
     qs = Aluno.objects.select_related("escola").prefetch_related("turmas")
     aluno = (
-        get_object_or_404(qs, pk=pk, escola=request.user.escola)
+        get_object_or_404(qs, pk=pk, escola=request.escola
+)
         if hasattr(Aluno, "escola_id")
         else get_object_or_404(qs, pk=pk)
     )
@@ -3195,12 +3250,14 @@ def reimprimir_documentos_aluno(request):
 
 
 def comprovante_matricula_pdf(request, pk):
-    aluno = get_object_or_404(Aluno, pk=pk, escola=request.user.escola)
+    aluno = get_object_or_404(Aluno, pk=pk, escola=request.escola
+)
     return render(request, "pages/comprovante_matricula.html", {"aluno": aluno})
 
 
 def ficha_cadastral_pdf(request, pk):
-    aluno = get_object_or_404(Aluno, pk=pk, escola=request.user.escola)
+    aluno = get_object_or_404(Aluno, pk=pk, escola=request.escola
+)
 
     dados_pai = Responsavel.objects.filter(aluno=aluno, tipo__iexact="pai").first()
     dados_mae = Responsavel.objects.filter(aluno=aluno, tipo__iexact="mae").first()
@@ -3242,15 +3299,18 @@ def cadastrar_nome_turma(request):
     data = json.loads(request.body)
     nome = data.get("nome")
 
-    if NomeTurma.objects.filter(nome=nome, escola=request.user.escola).exists():
+    if NomeTurma.objects.filter(nome=nome, escola=request.escola
+).exists():
         return JsonResponse({"success": False, "error": "Nome já cadastrado."})
 
-    NomeTurma.objects.create(nome=nome, escola=request.user.escola)
+    NomeTurma.objects.create(nome=nome, escola=request.escola
+)
     return JsonResponse({"success": True})
 
 
 def listar_nomes_turma(request):
-    nomes = NomeTurma.objects.filter(escola=request.user.escola).values("id", "nome")
+    nomes = NomeTurma.objects.filter(escola=request.escola
+).values("id", "nome")
     return JsonResponse({"nomes": list(nomes)})
 
 
@@ -3266,7 +3326,8 @@ def editar_nome_turma(request):
 
     obj = NomeTurma.objects.filter(
         id=id,
-        escola=request.user.escola
+        escola=request.escola
+
     ).first()
 
     if not obj:
@@ -3282,5 +3343,6 @@ def excluir_nome_turma(request):
     data = json.loads(request.body)
     id = data.get("id")
 
-    NomeTurma.objects.filter(id=id, escola=request.user.escola).delete()
+    NomeTurma.objects.filter(id=id, escola=request.escola
+).delete()
     return JsonResponse({"success": True})

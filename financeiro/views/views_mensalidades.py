@@ -20,7 +20,8 @@ from openpyxl import Workbook
 
 def listar_mensalidades(request):
 
-    escola = request.user.escola
+    escola = request.escola
+
     hoje = date.today()
 
     # =========================
@@ -176,7 +177,8 @@ def listar_mensalidades(request):
 
 def exportar_csv(request):
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     mes = request.GET.get("mes")
     ano = request.GET.get("ano")
@@ -213,7 +215,8 @@ def exportar_csv(request):
 
 def exportar_excel(request):
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     mes = request.GET.get("mes")
     ano = request.GET.get("ano")
@@ -264,7 +267,8 @@ def dar_baixa_mensalidade(request, mensalidade_id):
 
         mensalidade = Mensalidade.objects.get(
             id=mensalidade_id,
-            escola=request.user.escola
+            escola=request.escola
+
         )
 
         # 🔒 EVITA DUPLO PAGAMENTO
@@ -302,7 +306,8 @@ def dar_baixa_mensalidade(request, mensalidade_id):
 
 def gerar_mensalidades(request):
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     turmas = Turma.objects.filter(escola=escola)
 
@@ -427,7 +432,8 @@ def atualizar_desconto(request, id):
 
         desconto = Decimal(dados.get("desconto", "0"))
 
-        m = Mensalidade.objects.get(id=id, escola=request.user.escola)
+        m = Mensalidade.objects.get(id=id, escola=request.escola
+)
 
         m.desconto = desconto
         m.valor_final = m.valor_original - desconto

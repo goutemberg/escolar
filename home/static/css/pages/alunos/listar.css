@@ -107,3 +107,8 @@ table tbody tr:hover{ background:#fafafa; }
   transform:scale(1.10);
   box-shadow:0 6px 14px rgba(0,0,0,.12);
 }
+
+.campo-invalido {
+  border: 2px solid #ef4444 !important;
+  background: #fff5f5;
+}

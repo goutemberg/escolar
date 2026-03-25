@@ -1,6 +1,7 @@
 from django.template.loader import get_template
 from datetime import datetime
 from django.utils import timezone
+import re
 
 
 
@@ -62,9 +63,6 @@ def gerar_avaliacoes_para_turma(turma):
                 )
 
 
-import re
-
-
 def validar_senha_forte(senha):
     if len(senha) < 8:
         return "A senha deve ter pelo menos 8 caracteres"
@@ -81,8 +79,6 @@ def validar_senha_forte(senha):
     return None
 
 
-# utils.py (ou dentro da view mesmo)
-
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
 
@@ -90,3 +86,17 @@ def get_client_ip(request):
         return x_forwarded_for.split(',')[0]
 
     return request.META.get('REMOTE_ADDR')
+
+
+
+def get_escola_ativa(request):
+    from home.models import Escola
+    escola_id = request.session.get("escola_id")
+
+    if escola_id:
+        try:
+            return Escola.objects.get(id=escola_id)
+        except Escola.DoesNotExist:
+            return None
+
+    return None

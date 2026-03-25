@@ -33,7 +33,8 @@ def listar_tipos_avaliacao(request):
 @login_required
 @require_http_methods(["GET", "POST", "PUT", "DELETE"])
 def tipos_avaliacao(request):
-    escola = request.user.escola
+    escola = request.escola
+
 
     # =========================
     # GET: listar
@@ -129,7 +130,8 @@ def tipos_avaliacao(request):
 @login_required
 def avaliacoes(request):
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     # =========================================
     # POST — CRIAR AVALIAÇÃO(S)
@@ -261,7 +263,8 @@ def avaliacoes(request):
 @require_http_methods(["DELETE"])
 def excluir_avaliacao(request, avaliacao_id):
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     try:
         avaliacao = Avaliacao.objects.get(id=avaliacao_id, escola=escola)
@@ -283,7 +286,8 @@ def excluir_avaliacao(request, avaliacao_id):
 @login_required
 def editar_avaliacao(request, avaliacao_id):
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     try:
         avaliacao = Avaliacao.objects.get(id=avaliacao_id, escola=escola)
@@ -337,7 +341,8 @@ def _to_decimal(valor):
 @login_required
 @require_http_methods(["GET", "POST"])
 def lancar_notas(request):
-    escola = request.user.escola
+    escola = request.escola
+
     user = request.user
 
     # =========================================
@@ -533,7 +538,8 @@ def lancar_notas(request):
 @login_required
 def boletim_aluno(request, aluno_id):
 
-    escola = request.user.escola
+    escola = request.escola
+
     aluno = get_object_or_404(Aluno, id=aluno_id, escola=escola)
 
     turma = aluno.turma_principal

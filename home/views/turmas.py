@@ -27,7 +27,8 @@ from home.decorators import role_required
 def listar_turmas(request):
     turmas_qs = (
         Turma.objects
-        .filter(escola=request.user.escola)
+        .filter(escola=request.escola
+)
         .prefetch_related("alunos")
         .order_by("nome")
     )
@@ -72,7 +73,8 @@ def listar_turmas(request):
 # ======================================================
 @login_required
 def detalhe_turma(request, turma_id):
-    escola = request.user.escola
+    escola = request.escola
+
 
     turma = get_object_or_404(
         Turma,
@@ -123,12 +125,14 @@ def cadastrar_nome_turma(request):
     if not nome:
         return JsonResponse({"success": False, "error": "Nome não informado."})
 
-    if NomeTurma.objects.filter(nome=nome, escola=request.user.escola).exists():
+    if NomeTurma.objects.filter(nome=nome, escola=request.escola
+).exists():
         return JsonResponse({"success": False, "error": "Nome já cadastrado."})
 
     NomeTurma.objects.create(
         nome=nome,
-        escola=request.user.escola
+        escola=request.escola
+
     )
 
     return JsonResponse({"success": True})
@@ -141,7 +145,8 @@ def cadastrar_nome_turma(request):
 def listar_nomes_turma(request):
     nomes = (
         NomeTurma.objects
-        .filter(escola=request.user.escola)
+        .filter(escola=request.escola
+)
         .values("id", "nome")
         .order_by("nome")
     )
@@ -168,7 +173,8 @@ def editar_nome_turma(request):
 
     obj = NomeTurma.objects.filter(
         id=id,
-        escola=request.user.escola
+        escola=request.escola
+
     ).first()
 
     if not obj:
@@ -193,7 +199,8 @@ def excluir_nome_turma(request):
 
     NomeTurma.objects.filter(
         id=id,
-        escola=request.user.escola
+        escola=request.escola
+
     ).delete()
 
     return JsonResponse({"success": True})
@@ -204,7 +211,8 @@ def excluir_nome_turma(request):
 @role_required(['diretor', 'coordenador'])
 def cadastro_turma(request, turma_id=None):
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     if request.method == "POST":
 
@@ -466,7 +474,8 @@ def remover_aluno_turma(request, turma_id):
             status=405
         )
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     try:
         data = json.loads(request.body)
@@ -520,7 +529,8 @@ def remover_professor_turma(request, turma_id):
             status=405
         )
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     try:
         data = json.loads(request.body)
@@ -568,7 +578,8 @@ def atualizar_turma(request, turma_id):
             status=405
         )
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     try:
         data = json.loads(request.body)
@@ -659,7 +670,8 @@ def atualizar_turma(request, turma_id):
 
 @login_required
 def api_detalhe_turma(request, turma_id):
-    escola = request.user.escola
+    escola = request.escola
+
 
     turma = get_object_or_404(
         Turma,
@@ -709,7 +721,8 @@ def inativar_turma(request, turma_id):
     turma = get_object_or_404(
         Turma,
         id=turma_id,
-        escola=request.user.escola
+        escola=request.escola
+
     )
 
     if turma.status == "INATIVA":
@@ -728,7 +741,8 @@ def excluir_turma(request, turma_id):
     turma = get_object_or_404(
         Turma,
         id=turma_id,
-        escola=request.user.escola
+        escola=request.escola
+
     )
 
     if DiarioDeClasse.objects.filter(turma=turma).exists():
@@ -748,7 +762,8 @@ def duplicar_turma(request, turma_id):
     turma = get_object_or_404(
         Turma,
         id=turma_id,
-        escola=request.user.escola
+        escola=request.escola
+
     )
 
     nova_turma = Turma.objects.create(
