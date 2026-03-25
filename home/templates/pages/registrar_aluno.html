@@ -866,9 +866,23 @@
     Editar
   </button>
 
-  <button class="btn btn-primary" id="submitButton" type="button">
-    Salvar
-  </button>
+  <button 
+  class="btn btn-primary" 
+  id="submitButton" 
+  type="button"
+  style="
+    background:#0EA5E9 !important;
+    border:1px solid #0EA5E9 !important;
+    color:#fff !important;
+    font-weight:700;
+    border-radius:10px;
+    padding:8px 16px;
+  "
+  onmouseover="this.style.background='#0284C7'"
+  onmouseout="this.style.background='#0EA5E9'"
+>
+  Salvar
+</button>
 
 </div>
    </form>
@@ -877,7 +891,7 @@
 
 {% block extra_js %}
 
-  <script>
+<script>
 /* =========================
    TABS
 ========================= */
@@ -1072,6 +1086,45 @@ document.addEventListener('DOMContentLoaded', function () {
     event.preventDefault();
 
     if (!validateDataNascimento() || !validateDataIngresso()) return;
+                  // 🔥 VALIDAÇÃO CAMPOS OBRIGATÓRIOS
+const obrigatorios = [
+  'nome',
+  'data_nascimento',
+  'rua',
+  'numero',
+  'bairro',
+  'cidade',
+  'estado'
+];
+
+let erros = [];
+
+obrigatorios.forEach(id => {
+  const el = document.getElementById(id);
+  const valor = (el?.value || '').trim();
+
+  if (!valor) {
+    erros.push(id);
+
+    el.classList.add('campo-invalido');
+
+    if (typeof showFieldError === "function") {
+      showFieldError(id, 'Campo obrigatório');
+    }
+
+  } else {
+    el.classList.remove('campo-invalido');
+
+    if (typeof clearFieldError === "function") {
+      clearFieldError(id);
+    }
+  }
+});
+
+if (erros.length > 0) {
+  alert("Preencha todos os campos obrigatórios");
+  return;
+}
                   const possuiAlergia = document.getElementById('alergia_sim')?.checked === true;
                   const dados = {
 

@@ -986,3 +986,17 @@ class LoginLog(models.Model):
 
     def __str__(self):
         return f"{self.cpf} - {'OK' if self.sucesso else 'FAIL'}"
+    
+
+class UserEscola(models.Model):
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    escola = models.ForeignKey('Escola', on_delete=models.CASCADE)
+    roles = models.ManyToManyField('Role', blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'escola')
+
+    def __str__(self):
+        return f"{self.user} - {self.escola}"

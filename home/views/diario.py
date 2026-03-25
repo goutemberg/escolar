@@ -98,7 +98,8 @@ def api_listar_diario(request):
             disciplina_id=disciplina_id,
             data_ministrada__year=int(ano),
             data_ministrada__month=int(mes_num),
-            escola=request.user.escola
+            escola=request.escola
+
         )
         .order_by("data_ministrada", "hora_inicio")
     )
@@ -148,13 +149,15 @@ def salvar_diario_classe(request):
 
         turma = Turma.objects.get(
             id=turma_id,
-            escola=request.user.escola
+            escola=request.escola
+
         )
 
         # ✅ blindagem: disciplina sempre da mesma escola
         disciplina = Disciplina.objects.get(
             id=disciplina_id,
-            escola=request.user.escola
+            escola=request.escola
+
         )
 
         # =========================
@@ -165,7 +168,8 @@ def salvar_diario_classe(request):
         if request.user.role == "professor":
             professor_obj = Docente.objects.filter(
                 user=request.user,
-                escola=request.user.escola
+                escola=request.escola
+
             ).first()
 
             if not professor_obj:
@@ -178,7 +182,8 @@ def salvar_diario_classe(request):
             if not turma.turmadisciplina_set.filter(
                 professor=professor_obj,
                 disciplina=disciplina,
-                escola=request.user.escola
+                escola=request.escola
+
             ).exists():
                 return JsonResponse(
                     {"error": "Acesso não autorizado para esta turma/disciplina."},
@@ -200,11 +205,13 @@ def salvar_diario_classe(request):
         if diario_id:
             diario = DiarioDeClasse.objects.get(
                 id=diario_id,
-                escola=request.user.escola
+                escola=request.escola
+
             )
         else:
             diario = DiarioDeClasse(
-                escola=request.user.escola,
+                escola=request.escola
+,
                 criado_por=request.user
             )
 
@@ -254,7 +261,8 @@ def diario_classe_pdf(request):
         turma = get_object_or_404(
             Turma,
             id=turma_id,
-            escola=request.user.escola
+            escola=request.escola
+
         )
 
         disciplina = get_object_or_404(
@@ -267,7 +275,8 @@ def diario_classe_pdf(request):
         diarios = (
             DiarioDeClasse.objects
             .filter(
-                escola=request.user.escola,
+                escola=request.escola
+,
                 turma=turma,
                 disciplina=disciplina,
                 data_ministrada__year=ano,
@@ -339,7 +348,8 @@ def diario_classe_pdf(request):
         elements.append(
             Paragraph(
                 f"""
-                <b>{request.user.escola.nome}</b><br/>
+                <b>{request.escola
+.nome}</b><br/>
                 Turma: {turma.nome} &nbsp;|&nbsp;
                 Disciplina: {disciplina.nome}<br/>
                 Mês: {mes_formatado}<br/>
@@ -457,7 +467,8 @@ def excluir_diario_classe(request, registro_id):
         diario = get_object_or_404(
             DiarioDeClasse,
             id=registro_id,
-            escola=request.user.escola
+            escola=request.escola
+
         )
 
         # =========================
@@ -466,7 +477,8 @@ def excluir_diario_classe(request, registro_id):
         if request.user.role == "professor":
             professor_obj = Docente.objects.filter(
                 user=request.user,
-                escola=request.user.escola
+                escola=request.escola
+
             ).first()
 
             if not professor_obj:
@@ -480,7 +492,8 @@ def excluir_diario_classe(request, registro_id):
                 turma=diario.turma,
                 disciplina=diario.disciplina,
                 professor=professor_obj,
-                escola=request.user.escola
+                escola=request.escola
+
             ).exists()
 
             if not permitido:

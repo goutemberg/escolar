@@ -2,7 +2,8 @@
     <button class="toggle-btn" onclick="toggleSidebar()">☰</button>
 
     <div class="topbar-title">
-        {{ request.user.escola.nome|default:"Núcleo Escolar" }}
+        {{ request.escola
+.nome|default:"Núcleo Escolar" }}
     </div>
 
     <div class="topbar-user">

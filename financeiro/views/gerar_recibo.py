@@ -56,7 +56,8 @@ def gerar_recibo(request, mensalidade_id):
 
     elements = []
 
-    escola = request.user.escola
+    escola = request.escola
+
 
     # =========================
     # FORMATAÇÕES

@@ -142,7 +142,8 @@ def api_carregar_alunos(request, turma_id):
     """
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=request.user.escola)
+        turma = Turma.objects.get(id=turma_id, escola=request.escola
+)
     except Turma.DoesNotExist:
         return JsonResponse({"erro": "Turma não encontrada."}, status=404)
 
@@ -166,7 +167,8 @@ def api_carregar_alunos(request, turma_id):
 
     # Disciplina da mesma escola
     try:
-        disciplina = Disciplina.objects.get(id=disciplina_id, escola=request.user.escola)
+        disciplina = Disciplina.objects.get(id=disciplina_id, escola=request.escola
+)
     except Disciplina.DoesNotExist:
         return JsonResponse({"alunos": alunos})
 
@@ -174,7 +176,8 @@ def api_carregar_alunos(request, turma_id):
     diario = (
         DiarioDeClasse.objects
         .filter(
-            escola=request.user.escola,
+            escola=request.escola
+,
             turma=turma,
             disciplina=disciplina,
             data_ministrada=data_aula_dt,
@@ -250,7 +253,8 @@ def salvar_presencas(request):
 
     professor = None
     if acesso == "professor":
-        professor = Docente.objects.filter(user=request.user, escola=request.user.escola).first()
+        professor = Docente.objects.filter(user=request.user, escola=request.escola
+).first()
         if not professor:
             return JsonResponse(
                 {"status": "erro", "mensagem": "Professor não está vinculado corretamente."},
@@ -258,12 +262,14 @@ def salvar_presencas(request):
             )
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=request.user.escola)
+        turma = Turma.objects.get(id=turma_id, escola=request.escola
+)
     except Turma.DoesNotExist:
         return JsonResponse({"status": "erro", "mensagem": "Turma inválida."}, status=404)
 
     try:
-        disciplina = Disciplina.objects.get(id=disciplina_id, escola=request.user.escola)
+        disciplina = Disciplina.objects.get(id=disciplina_id, escola=request.escola
+)
     except Disciplina.DoesNotExist:
         return JsonResponse({"status": "erro", "mensagem": "Disciplina inválida."}, status=404)
 
@@ -317,7 +323,8 @@ def salvar_presencas(request):
                 obs = (item.get("observacao") or "").strip()
 
                 try:
-                    aluno = Aluno.objects.get(id=aluno_id, escola=request.user.escola)
+                    aluno = Aluno.objects.get(id=aluno_id, escola=request.escola
+)
                 except Aluno.DoesNotExist:
                     erros_alunos.append({"aluno_id": aluno_id, "mensagem": "Aluno não encontrado."})
                     continue
@@ -349,7 +356,8 @@ def disciplinas_por_turma(request, turma_id):
     turma = get_object_or_404(
         Turma,
         id=turma_id,
-        escola=request.user.escola
+        escola=request.escola
+
     )
 
     qs = TurmaDisciplina.objects.filter(
@@ -520,7 +528,8 @@ def detalhe_chamada(request, chamada_id):
             "diario__professor",
         ),
         id=chamada_id,
-        diario__turma__escola=request.user.escola
+        diario__turma__escola=request.escola
+
     )
 
     presencas = (
@@ -555,7 +564,8 @@ def pdf_chamada(request, chamada_id):
     chamada = get_object_or_404(
         Chamada,
         id=chamada_id,
-        diario__turma__escola=request.user.escola
+        diario__turma__escola=request.escola
+
     )
 
     diario = chamada.diario
@@ -641,7 +651,8 @@ def editar_chamada(request, chamada_id):
     chamada = get_object_or_404(
         Chamada,
         id=chamada_id,
-        turma__escola=request.user.escola
+        turma__escola=request.escola
+
     )
 
     presencas = (
@@ -679,7 +690,8 @@ def atualizar_chamada(request, chamada_id):
     chamada = get_object_or_404(
         Chamada,
         id=chamada_id,
-        diario__turma__escola=request.user.escola
+        diario__turma__escola=request.escola
+
     )
 
     erros = []
@@ -699,7 +711,8 @@ def atualizar_chamada(request, chamada_id):
                 obs = (item.get("observacao") or "").strip()
 
                 try:
-                    aluno = Aluno.objects.get(id=aluno_id, escola=request.user.escola)
+                    aluno = Aluno.objects.get(id=aluno_id, escola=request.escola
+)
                 except:
                     erros.append({"aluno_id": aluno_id, "mensagem": "Aluno não encontrado."})
                     continue
@@ -1159,7 +1172,8 @@ def relatorio_anual_chamadas(request):
     resumo = (
         DiarioDeClasse.objects
         .filter(
-            escola=request.user.escola,
+            escola=request.escola
+,
             data_ministrada__year=ano
         )
         .values(
@@ -1213,7 +1227,8 @@ def relatorio_anual_chamadas_pdf(request):
         Presenca.objects
         .filter(
             chamada__diario__data_ministrada__year=ano,
-            chamada__diario__turma__escola=request.user.escola
+            chamada__diario__turma__escola=request.escola
+
         )
         .values(
             "chamada__diario__turma__nome",
@@ -1246,7 +1261,7 @@ def relatorio_anual_chamadas_pdf(request):
     pdf.drawString(2 * cm, y, f"Ano: {ano}")
     y -= 0.5 * cm
 
-    pdf.drawString(2 * cm, y, f"Escola: {request.user.escola.nome}")
+    pdf.drawString(2 * cm, y, f"Escola: {request.escola.nome}")
     y -= 1.2 * cm
 
     # CABEÇALHO DA TABELA
@@ -1307,7 +1322,8 @@ def relatorio_anual_chamadas_excel(request):
         Presenca.objects
         .filter(
             chamada__diario__data_ministrada__year=ano,
-            chamada__diario__turma__escola=request.user.escola
+            chamada__diario__turma__escola=request.escola
+
         )
         .values(
             "chamada__diario__turma__nome",

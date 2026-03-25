@@ -227,7 +227,7 @@
       </div>
 
       <div class="login-body">
-        <form action="{% url 'login' %}" method="POST">
+        <form id="loginForm" action="{% url 'login' %}" method="POST">
           {% csrf_token %}
 
           {% if form.errors %}
@@ -265,6 +265,12 @@
             <a href="{% url 'reset_senha:reset_senha' %}">Esqueci minha senha</a>
           </div>
 
+        <!-- 🔥 NOVO BLOCO -->
+        <div id="escolaBox" class="mb-3" style="display:none;">
+        <label>Escolha a escola</label>
+        <select id="escolaSelect" class="form-control-custom"></select>
+        </div>
+
           <button class="btn-login" type="submit">
             Entrar
           </button>
@@ -277,5 +283,115 @@
 
     </div>
   </div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  const form = document.querySelector("#loginForm");
+  if (!form) return;
+
+  const escolaBox = document.getElementById("escolaBox");
+  const escolaSelect = document.getElementById("escolaSelect");
+
+  // 🔥 cria input hidden corretamente (ANTES NÃO EXISTIA!)
+  let escolaInput = document.getElementById("escola_id");
+  if (!escolaInput) {
+    escolaInput = document.createElement("input");
+    escolaInput.type = "hidden";
+    escolaInput.name = "escola_id";
+    escolaInput.id = "escola_id";
+    form.appendChild(escolaInput);
+  }
+
+  let multiMode = false;
+
+  function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+  }
+
+  form.addEventListener("submit", async function (e) {
+
+    e.preventDefault(); // 🔥 sempre previne
+
+    const formData = new FormData(form);
+
+    try {
+
+      const response = await fetch(form.action, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": getCSRFToken()
+        },
+        body: formData,
+        credentials: "same-origin"
+      });
+
+      let result = null;
+
+      // 🔥 tenta JSON com segurança
+      const text = await response.text();
+
+      try {
+        result = JSON.parse(text);
+      } catch (err) {
+        // 🔥 se não for JSON, é resposta normal do Django
+        document.open();
+        document.write(text);
+        document.close();
+        return;
+      }
+
+      // 🔥 MULTI ESCOLA
+      if (result.multi_escola) {
+
+        escolaBox.style.display = "block";
+        escolaSelect.innerHTML = "";
+
+        result.escolas.forEach(e => {
+          const opt = document.createElement("option");
+          opt.value = e.id;
+          opt.textContent = e.nome;
+          escolaSelect.appendChild(opt);
+        });
+
+        multiMode = true;
+        return;
+      }
+
+      // 🔥 SEGUNDA ETAPA (escola selecionada)
+      if (multiMode) {
+
+        const escolaId = escolaSelect.value;
+
+        if (!escolaId) {
+          alert("Selecione uma escola");
+          return;
+        }
+
+        escolaInput.value = escolaId;
+      }
+
+      // 🔥 REDIRECT
+      if (result.redirect) {
+        window.location.href = result.redirect;
+        return;
+      }
+
+      // 🔥 LOGIN OK
+      if (result.success) {
+        window.location.href = "/";
+        return;
+      }
+
+      alert("CPF ou senha inválidos");
+
+    } catch (error) {
+      console.error("Erro no login:", error);
+      alert("Erro ao conectar com o servidor");
+    }
+
+  });
+
+});
+</script>
 </body>
 </html>
