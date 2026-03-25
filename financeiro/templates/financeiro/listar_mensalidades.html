@@ -251,10 +251,24 @@ data-turma="{{ m.aluno.turma.id }}"
 <span class="valor-desconto">- {{ m.desconto|moeda }}</span>
 {% endif %}
 
-<strong id="valor-{{m.id}}">{{ m.valor_final|moeda }}</strong>
+<strong id="valor-{{m.id}}"
+        title="
+Valor original: {{ m.valor_final|moeda }}
+Multa: {{ m.multa_calculada|moeda }}
+Dias de atraso: {{ m.dias_atraso }}
+">
+  {{ m.valor_final|moeda }}
+</strong>
 
 {% if m.status != "pago" and m.valor_atualizado > m.valor_final %}
-<span class="valor-atualizado">{{ m.valor_atualizado|moeda }}</span>
+<span class="valor-atualizado"
+      title="
+Valor original: {{ m.valor_final|moeda }}
+Multa: {{ m.multa_calculada|moeda }}
+Dias de atraso: {{ m.dias_atraso }}
+">
+  {{ m.valor_atualizado|moeda }}
+</span>
 {% endif %}
 
 {% if m.status != "pago" %}
@@ -268,14 +282,16 @@ onchange="atualizarDesconto({{m.id}}, this)">
 
 <td>
 {% if m.status == "pago" %}
-<span style="color:#22c55e;font-weight:bold;">Pago</span>
-<small style="color:#777;">
-{{ m.pago_em|localtime|date:"d/m/Y H:i" }}
-</small>
+  <span class="badge badge-success">Pago</span>
+  <small style="color:#777; display:block;">
+    {{ m.pago_em|localtime|date:"d/m/Y H:i" }}
+  </small>
+
 {% elif m.vencimento < today %}
-<span style="color:#f87171;font-weight:bold;">Vencido</span>
+  <span class="badge badge-danger">Atrasado</span>
+
 {% else %}
-<span style="color:#fbbf24;font-weight:bold;">Pendente</span>
+  <span class="badge badge-warning">Pendente</span>
 {% endif %}
 </td>
 

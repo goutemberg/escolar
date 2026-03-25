@@ -252,6 +252,18 @@
     {% endif %}
   </select>
 </div>
+<div class="form-group short-field">
+  <label for="dia_vencimento">
+    Dia de Vencimento
+  </label>
+  <select id="dia_vencimento" name="dia_vencimento">
+    <option value="">Padrão da escola (5)</option>
+    <option value="10">Dia 10</option>
+    <option value="15">Dia 15</option>
+    <option value="20">Dia 20</option>
+    <option value="25">Dia 25</option>
+  </select>
+</div>
 </div>
  <!-- Linha com situacao_familiar / forma_acesso / dispensa_ensino_religioso -->
 <div class="form-row">
@@ -1154,6 +1166,7 @@ if (erros.length > 0) {
                     responsavel_telefone2: (document.getElementById('responsavel_telefone2').value || '').trim(),
                     pai_telefone2: (document.getElementById('pai_telefone2').value || '').trim(),
                     mae_telefone2: (document.getElementById('mae_telefone2').value || '').trim(),
+                    dia_vencimento: (document.getElementById('dia_vencimento')?.value || '').trim(),
 
                     // ===== Novos do aluno (opcionais)
                     data_ingresso: (document.getElementById('data_ingresso').value || '').trim(),

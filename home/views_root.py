@@ -706,6 +706,8 @@ def salvar_aluno(request):
                 aluno.bolsa_familia = to_bool(data.get('bolsa_familia'))
                 aluno.serie_ano = data.get('serie_ano', '')
                 aluno.turno_aluno = data.get('turno') or data.get('turno_aluno', '')
+                dia_vencimento = data.get('dia_vencimento')
+                aluno.dia_vencimento = int(dia_vencimento) if dia_vencimento else None
                 aluno.save()
 
             # ==========================================================
@@ -745,6 +747,7 @@ def salvar_aluno(request):
                     bolsa_familia=to_bool(data.get('bolsa_familia')),
                     serie_ano=data.get('serie_ano', ''),
                     turno_aluno=data.get('turno') or data.get('turno_aluno', ''),
+                    dia_vencimento=int(data.get('dia_vencimento')) if data.get('dia_vencimento') else None,
                 )
 
             # ==========================================================
@@ -1272,7 +1275,6 @@ def listar_alunos(request):
     escola = request.escola
 
     base_template = get_base_template(request)  # 👈 novo
-
     alunos = (
         Aluno.objects
         .filter(escola=escola)
@@ -1288,6 +1290,7 @@ def listar_alunos(request):
             "nome": a.nome,
             "matricula": a.matricula,
             "ativo": a.ativo,
+            "dia_vencimento": a.dia_vencimento,
             "data_nascimento": (
                 a.data_nascimento.isoformat()
                 if a.data_nascimento else None
@@ -1337,7 +1340,7 @@ def listar_alunos(request):
         request,
         "pages/listar_alunos.html",
         {
-            "base_template": base_template,  # 👈 novo
+            "base_template": base_template, 
             "alunos_json": json.dumps(lista, ensure_ascii=False),
             "turmas_usuario": json.dumps(
                 turmas_usuario,
@@ -2133,6 +2136,7 @@ def get_client_ip(request):
 
 
 def login_view(request):
+
     if request.user.is_authenticated:
         return redirect('index')
 
@@ -2145,7 +2149,7 @@ def login_view(request):
         escola_id = request.POST.get("escola_id")
         ip = get_client_ip(request)
 
-        # 🔥 tenta buscar por CPF
+        # 🔥 busca por CPF
         try:
             user_obj = User.objects.get(cpf=identificador)
             username = user_obj.username
@@ -2155,7 +2159,6 @@ def login_view(request):
 
         user = authenticate(request, username=username, password=senha)
 
-        # ❌ login inválido
         if user is None:
             LoginLog.objects.create(
                 user=user_obj,
@@ -2164,13 +2167,10 @@ def login_view(request):
                 sucesso=False
             )
 
-            if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                return JsonResponse({"success": False})
-
             form.add_error(None, "CPF ou senha inválidos")
             return render(request, 'pages/login.html', {'form': form})
 
-        # ✅ login válido
+        # ✅ login OK
         login(request, user)
 
         LoginLog.objects.create(
@@ -2182,20 +2182,14 @@ def login_view(request):
 
         vinculos = UserEscola.objects.filter(user=user)
 
-        # 🔥 MULTI ESCOLA (ANTES DE DEFINIR SESSÃO)
+        # 🔥 MULTI ESCOLA → MOSTRA TELA
         if vinculos.count() > 1 and not escola_id:
 
-            escolas = [
-                {"id": v.escola.id, "nome": v.escola.nome}
-                for v in vinculos
-            ]
-
-            return JsonResponse({
-                "multi_escola": True,
-                "escolas": escolas
+            return render(request, 'pages/escolher_escola.html', {
+                "escolas": vinculos
             })
 
-        # 🔥 DEFINIR ESCOLA NA SESSÃO (CRÍTICO)
+        # 🔥 DEFINE ESCOLA
         if escola_id:
             request.session["escola_id"] = int(escola_id)
 
@@ -2205,21 +2199,11 @@ def login_view(request):
         elif getattr(user, "escola", None):
             request.session["escola_id"] = user.escola.id
 
-        else:
-            request.session["escola_id"] = None  # 🔥 evita lixo
+        request.session.save()
 
-        # 🔥 GARANTE QUE A SESSÃO FOI SALVA
-        request.session.modified = True
-
-        # 🔥 senha temporária (DEPOIS de setar escola)
+        # 🔥 senha temporária
         if user.senha_temporaria:
-            if request.headers.get("x-requested-with") == "XMLHttpRequest":
-                return JsonResponse({"success": True, "redirect": "/trocar-senha/"})
             return redirect('trocar_senha')
-
-        # 🔥 resposta AJAX
-        if request.headers.get("x-requested-with") == "XMLHttpRequest":
-            return JsonResponse({"success": True})
 
         return redirect('index')
 
@@ -3346,3 +3330,24 @@ def excluir_nome_turma(request):
     NomeTurma.objects.filter(id=id, escola=request.escola
 ).delete()
     return JsonResponse({"success": True})
+
+
+@login_required
+def atualizar_vencimento(request, aluno_id):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+
+            aluno = Aluno.objects.get(id=aluno_id, escola=request.escola)
+
+            dia = data.get("dia_vencimento")
+            aluno.dia_vencimento = int(dia) if dia else None
+            aluno.save()
+
+            return JsonResponse({"status": "ok"})
+
+        except Exception as e:
+            return JsonResponse({
+                "status": "erro",
+                "mensagem": str(e)
+            }, status=400)

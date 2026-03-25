@@ -244,6 +244,7 @@ class Aluno(models.Model):
     ativo = models.BooleanField(default=True)
     escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True, blank=True)
     data_ingresso = models.DateField(null=True, blank=True)
+    dia_vencimento = models.IntegerField(null=True, blank=True)
 
     cor_raca = models.CharField(
         max_length=20, null=True, blank=True,

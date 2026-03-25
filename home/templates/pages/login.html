@@ -292,7 +292,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const escolaBox = document.getElementById("escolaBox");
   const escolaSelect = document.getElementById("escolaSelect");
 
-  // 🔥 cria input hidden corretamente (ANTES NÃO EXISTIA!)
   let escolaInput = document.getElementById("escola_id");
   if (!escolaInput) {
     escolaInput = document.createElement("input");
@@ -310,7 +309,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
   form.addEventListener("submit", async function (e) {
 
-    e.preventDefault(); // 🔥 sempre previne
+    e.preventDefault();
+
+    // 🔥 se já está no modo seleção → só valida e continua
+    if (multiMode) {
+
+      const escolaId = escolaSelect.value;
+
+      if (!escolaId) {
+        alert("Selecione uma escola");
+        return;
+      }
+
+      escolaInput.value = escolaId;
+
+      // 🔥 agora deixa o form seguir NORMAL (SEM FETCH)
+      form.removeEventListener("submit", arguments.callee);
+      form.submit();
+      return;
+    }
 
     const formData = new FormData(form);
 
@@ -325,15 +342,14 @@ document.addEventListener("DOMContentLoaded", function () {
         credentials: "same-origin"
       });
 
-      let result = null;
-
-      // 🔥 tenta JSON com segurança
       const text = await response.text();
+
+      let result = null;
 
       try {
         result = JSON.parse(text);
       } catch (err) {
-        // 🔥 se não for JSON, é resposta normal do Django
+        // 🔥 resposta HTML normal (login padrão Django)
         document.open();
         document.write(text);
         document.close();
@@ -357,20 +373,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      // 🔥 SEGUNDA ETAPA (escola selecionada)
-      if (multiMode) {
-
-        const escolaId = escolaSelect.value;
-
-        if (!escolaId) {
-          alert("Selecione uma escola");
-          return;
-        }
-
-        escolaInput.value = escolaId;
-      }
-
-      // 🔥 REDIRECT
+      // 🔥 REDIRECT (trocar senha)
       if (result.redirect) {
         window.location.href = result.redirect;
         return;

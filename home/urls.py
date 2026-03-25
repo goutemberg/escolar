@@ -141,8 +141,7 @@ urlpatterns = [
     #######################################
     #         API
     #######################################
-     path('api/', include('api.urls')),
+    path('api/', include('api.urls')),
 
-    
-
+    path('aluno/atualizar-vencimento/<int:aluno_id>/', views_root.atualizar_vencimento),
 ]
