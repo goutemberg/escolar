@@ -15,6 +15,7 @@ from django.db.models import Sum, DecimalField
 from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator
 from openpyxl import Workbook
+import json
 
 
 
@@ -124,6 +125,42 @@ def listar_mensalidades(request):
     paginator = Paginator(mensalidades_mes, 10)
     page = request.GET.get('page')
     mensalidades_paginadas = paginator.get_page(page)
+
+    # =========================
+    # 🔥 NOVO — MULTA AUTOMÁTICA
+    # =========================
+
+    def calcular_valor_atualizado(m):
+
+        valor = m.valor_final
+
+        if m.status == "pendente" and m.vencimento < hoje:
+
+            multa = Decimal("30.00")
+
+            dias_atraso = (hoje - m.vencimento).days
+
+            # juros existe mas não entra (multiplicado por 0)
+            juros = valor * Decimal("0.00033") * dias_atraso * Decimal("0")
+
+            valor = valor + multa + juros
+
+        return round(valor, 2)
+
+    # aplica na lista paginada
+    for m in mensalidades_paginadas:
+
+        valor_original = m.valor_final
+        multa = Decimal("0.00")
+        dias_atraso = 0
+
+    if m.status == "pendente" and m.vencimento < hoje:
+        dias_atraso = (hoje - m.vencimento).days
+        multa = Decimal("30.00")
+
+    m.dias_atraso = dias_atraso
+    m.multa_calculada = multa
+    m.valor_atualizado = valor_original + multa
 
     # =========================
     # TURMAS
@@ -308,7 +345,6 @@ def gerar_mensalidades(request):
 
     escola = request.escola
 
-
     turmas = Turma.objects.filter(escola=escola)
 
     if request.method == "POST":
@@ -354,11 +390,14 @@ def gerar_mensalidades(request):
         for mes in range(mes_inicio, mes_fim + 1):
 
             ultimo_dia = calendar.monthrange(ano, mes)[1]
-            dia = min(dia_vencimento, ultimo_dia)
 
             for aluno in alunos:
 
-                vencimento = date(ano, mes, dia)
+                # 🔥 NOVO: usa vencimento do aluno ou padrão
+                dia_aluno = aluno.dia_vencimento or dia_vencimento
+                dia_final = min(dia_aluno, ultimo_dia)
+
+                vencimento = date(ano, mes, dia_final)
 
                 # desconto automático (ex: bolsa fixa)
                 desconto_auto = aluno.desconto_mensal or Decimal("0.00")

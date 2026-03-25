@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Escolher Escola</title>
+
+  <link href="{% static 'home/css/bootstrap.min.css' %}" rel="stylesheet"/>
+</head>
+
+<body class="d-flex align-items-center justify-content-center" style="height:100vh; background:#f5f6fa;">
+
+  <div class="card p-4" style="width:400px;">
+    <h4 class="mb-3 text-center">Selecione a Escola</h4>
+
+    <form method="POST">
+      {% csrf_token %}
+
+      <select name="escola_id" class="form-control mb-3" required>
+        <option value="">Selecione</option>
+        {% for v in escolas %}
+          <option value="{{ v.escola.id }}">{{ v.escola.nome }}</option>
+        {% endfor %}
+      </select>
+
+      <button class="btn btn-primary w-100">Entrar</button>
+    </form>
+  </div>
+
+</body>
+</html>
