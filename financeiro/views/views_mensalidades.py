@@ -16,6 +16,7 @@ from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator
 from openpyxl import Workbook
 import json
+from auditoria.utils.logs import registrar_log
 
 
 
