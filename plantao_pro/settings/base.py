@@ -23,19 +23,27 @@ INSTALLED_APPS = [
     "api",
     "rest_framework",
     "financeiro",
-    "corsheaders"
+    "corsheaders",
+    "auditoria.apps.AuditoriaConfig",
 ]
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
+
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+
+    # 👇 AGORA SIM (posição correta)
+    "auditoria.middleware.AuditoriaMiddleware",
+
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+
     "plantao_pro.middleware.escola.EscolaAtivaMiddleware",
 ]
 

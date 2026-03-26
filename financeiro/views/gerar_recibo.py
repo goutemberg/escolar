@@ -8,6 +8,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from financeiro.models import Mensalidade
 from django.utils.timezone import localtime
+from auditoria.utils.logs import registrar_log
 
 
 def gerar_recibo(request, mensalidade_id):
