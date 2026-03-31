@@ -23,7 +23,6 @@ from auditoria.utils.logs import registrar_log
 def listar_mensalidades(request):
 
     escola = request.escola
-
     hoje = date.today()
 
     # =========================
@@ -57,14 +56,13 @@ def listar_mensalidades(request):
         escola=escola
     ).select_related('aluno').order_by('-vencimento')
 
-    # 🔹 COMPETÊNCIA (mês referência)
     mensalidades_mes = mensalidades.filter(
         mes_referencia=mes,
         ano_referencia=ano
     )
 
     # =========================
-    # CÁLCULOS (COMPETÊNCIA)
+    # CÁLCULOS
     # =========================
 
     total_pago = mensalidades_mes.filter(
@@ -87,10 +85,6 @@ def listar_mensalidades(request):
         total=Coalesce(Sum("valor_final"), Decimal("0.00"), output_field=DecimalField())
     )["total"]
 
-    # =========================
-    # RECEITA (CAIXA REAL)
-    # =========================
-
     receita_mes = Mensalidade.objects.filter(
         escola=escola,
         status="pago",
@@ -99,10 +93,6 @@ def listar_mensalidades(request):
     ).aggregate(
         total=Coalesce(Sum("valor_final"), Decimal("0.00"), output_field=DecimalField())
     )["total"]
-
-    # =========================
-    # INDICADORES AVANÇADOS
-    # =========================
 
     total_mes = mensalidades_mes.aggregate(
         total=Coalesce(Sum("valor_final"), Decimal("0.00"), output_field=DecimalField())
@@ -128,40 +118,22 @@ def listar_mensalidades(request):
     mensalidades_paginadas = paginator.get_page(page)
 
     # =========================
-    # 🔥 NOVO — MULTA AUTOMÁTICA
+    # MULTA
     # =========================
 
-    def calcular_valor_atualizado(m):
-
-        valor = m.valor_final
-
-        if m.status == "pendente" and m.vencimento < hoje:
-
-            multa = Decimal("30.00")
-
-            dias_atraso = (hoje - m.vencimento).days
-
-            # juros existe mas não entra (multiplicado por 0)
-            juros = valor * Decimal("0.00033") * dias_atraso * Decimal("0")
-
-            valor = valor + multa + juros
-
-        return round(valor, 2)
-
-    # aplica na lista paginada
     for m in mensalidades_paginadas:
 
         valor_original = m.valor_final
         multa = Decimal("0.00")
         dias_atraso = 0
 
-    if m.status == "pendente" and m.vencimento < hoje:
-        dias_atraso = (hoje - m.vencimento).days
-        multa = Decimal("30.00")
+        if m.status == "pendente" and m.vencimento < hoje:
+            dias_atraso = (hoje - m.vencimento).days
+            multa = Decimal("30.00")
 
-    m.dias_atraso = dias_atraso
-    m.multa_calculada = multa
-    m.valor_atualizado = valor_original + multa
+        m.dias_atraso = dias_atraso
+        m.multa_calculada = multa
+        m.valor_atualizado = valor_original + multa
 
     # =========================
     # TURMAS
@@ -183,18 +155,15 @@ def listar_mensalidades(request):
         "mensalidades": mensalidades_paginadas,
         "today": hoje,
 
-        # valores principais
         "total_pago": total_pago,
         "total_pendente": total_pendente,
         "total_vencido": total_vencido,
         "receita_mes": receita_mes,
 
-        # inteligência
         "inadimplencia": round(inadimplencia, 2),
         "previsao_receita": previsao_receita,
         "quantidade_vencidas": quantidade_vencidas,
 
-        # apoio
         "turmas": turmas,
         "mes_selecionado": mes,
         "mes_nome": mes_nome,
@@ -208,7 +177,6 @@ def listar_mensalidades(request):
         "financeiro/listar_mensalidades.html",
         context
     )
-
 # =========================
 # EXPORTAR CSV (COM FILTRO)
 # =========================

@@ -1,4 +1,3 @@
-# Usando Python slim
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -21,4 +20,4 @@ RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000
 
-CMD ["/entrypoint.sh", "gunicorn", "plantao_pro.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["/entrypoint.sh"]
