@@ -20,4 +20,8 @@ echo "=== Gerando staticfiles NOVO (do zero) ==="
 python manage.py collectstatic --clear --noinput --settings=plantao_pro.settings.prod
 
 echo "=== Iniciando servidor ==="
-exec "$@"
+echo "🔥 PORT DO RENDER = $PORT"
+
+exec gunicorn plantao_pro.wsgi:application \
+    --bind 0.0.0.0:$PORT \
+    --workers=3
