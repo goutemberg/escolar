@@ -20,6 +20,17 @@ from auditoria.utils.logs import registrar_log
 
 
 
+from datetime import date
+from decimal import Decimal
+from django.shortcuts import render
+from django.core.paginator import Paginator
+from django.db.models import Sum, DecimalField
+from django.db.models.functions import Coalesce
+
+from financeiro.models import Mensalidade
+from home.models import Turma
+
+
 def listar_mensalidades(request):
 
     escola = request.escola
@@ -128,7 +139,7 @@ def listar_mensalidades(request):
     mensalidades_paginadas = paginator.get_page(page)
 
     # =========================
-    # 🔥 NOVO — MULTA AUTOMÁTICA
+    # 🔥 MULTA AUTOMÁTICA
     # =========================
 
     def calcular_valor_atualizado(m):
@@ -155,13 +166,13 @@ def listar_mensalidades(request):
         multa = Decimal("0.00")
         dias_atraso = 0
 
-    if m.status == "pendente" and m.vencimento < hoje:
-        dias_atraso = (hoje - m.vencimento).days
-        multa = Decimal("30.00")
+        if m.status == "pendente" and m.vencimento < hoje:
+            dias_atraso = (hoje - m.vencimento).days
+            multa = Decimal("30.00")
 
-    m.dias_atraso = dias_atraso
-    m.multa_calculada = multa
-    m.valor_atualizado = valor_original + multa
+        m.dias_atraso = dias_atraso
+        m.multa_calculada = multa
+        m.valor_atualizado = valor_original + multa
 
     # =========================
     # TURMAS
