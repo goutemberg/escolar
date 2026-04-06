@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "home",
     "django_extensions",
     "api",
+    "ajuda",
     "rest_framework",
     "financeiro",
     "corsheaders",
@@ -38,7 +39,6 @@ MIDDLEWARE = [
 
     "django.contrib.auth.middleware.AuthenticationMiddleware",
 
-    # 👇 AGORA SIM (posição correta)
     "auditoria.middleware.AuditoriaMiddleware",
 
     "django.contrib.messages.middleware.MessageMiddleware",
