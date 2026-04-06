@@ -80,6 +80,29 @@
 </div>
 
 <!-- ========================= -->
+<!-- MODAL GLOBAL DE AJUDA -->
+<!-- ========================= -->
+<div id="modalAjuda" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999;">
+    
+    <div style="position:relative; width:80%; max-width:800px; margin:5% auto; background:#fff; padding:15px; border-radius:10px;">
+        
+        <span onclick="fecharAjuda()" style="position:absolute; right:10px; top:10px; cursor:pointer; font-size:20px;">✖</span>
+        
+        <h5 id="ajudaTitulo"></h5>
+        
+        <iframe id="ajudaVideo" width="100%" height="400" frameborder="0" allowfullscreen></iframe>
+        
+        <p id="ajudaDescricao"></p>
+
+        <!-- BOTÃO PLAYLIST -->
+        <div id="btnPlaylistContainer" style="display:none; margin-top:10px;">
+            <a id="btnPlaylist" target="_blank" class="btn btn-outline-primary btn-sm">
+                📚 Ver treinamento completo
+            </a>
+        </div>
+    </div>
+</div>
+<!-- ========================= -->
 <!-- SCRIPTS -->
 <!-- ========================= -->
 <script>
@@ -92,6 +115,48 @@ function toggleSubmenu(id){
     const box = document.getElementById(id);
     if (!box) return;
     box.classList.toggle("open");
+}
+
+/* ========================= */
+/* 🔥 SISTEMA DE AJUDA */
+/* ========================= */
+function abrirAjuda(modulo) {
+    fetch(`/ajuda/buscar/?modulo=${modulo}`)
+        .then(res => res.json())
+        .then(data => {
+
+            if (data.erro) {
+                alert(data.erro);
+                return;
+            }
+
+            document.getElementById("ajudaTitulo").innerText = data.titulo;
+
+            let url = data.url;
+
+            // YouTube embed
+            if (url.includes("watch?v=")) {
+                url = url.replace("watch?v=", "embed/");
+            }
+
+            document.getElementById("ajudaVideo").src = url;
+            document.getElementById("ajudaDescricao").innerText = data.descricao;
+
+            // 🔥 PLAYLIST
+            if (data.playlist_url) {
+                document.getElementById("btnPlaylist").href = data.playlist_url;
+                document.getElementById("btnPlaylistContainer").style.display = "block";
+            } else {
+                document.getElementById("btnPlaylistContainer").style.display = "none";
+            }
+
+            document.getElementById("modalAjuda").style.display = "block";
+        });
+}
+
+function fecharAjuda() {
+    document.getElementById("modalAjuda").style.display = "none";
+    document.getElementById("ajudaVideo").src = "";
 }
 </script>
 
