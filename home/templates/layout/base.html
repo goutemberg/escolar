@@ -90,11 +90,57 @@
         
         <h5 id="ajudaTitulo"></h5>
         
-        <iframe id="ajudaVideo" width="100%" height="400" frameborder="0" allowfullscreen></iframe>
+        <!-- 🎬 VIDEO -->
+        <div id="ajudaLoader" style="display:none; text-align:center; margin-top:40px;">
+    <div class="spinner-border text-warning"></div>
+    <p style="margin-top:10px;">Carregando vídeo...</p>
+</div>
+        <iframe id="ajudaVideo" width="100%" height="400" frameborder="0" allowfullscreen style="display:none;"></iframe>
+
+        <!-- 🚨 FALLBACK -->
+       <div id="fallbackContainer" style="display:none; text-align:center; margin-top:30px;">
+
+    <div style="
+        background:#f8f9fb;
+        border:1px solid #e3e6ed;
+        border-radius:12px;
+        padding:30px;
+        max-width:500px;
+        margin:0 auto;
+    ">
+
+        <div style="font-size:40px; margin-bottom:10px;">🎬</div>
+
+        <p style="
+            font-size:16px;
+            color:#555;
+            margin-bottom:20px;
+        ">
+            Não conseguimos exibir o vídeo aqui,
+            mas você pode assistir normalmente no YouTube.
+        </p>
+
+        <a id="fallbackLink" target="_blank" style="
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            background:#FF0000;
+            color:#fff;
+            padding:12px 20px;
+            border-radius:8px;
+            text-decoration:none;
+            font-weight:600;
+            transition:0.2s;
+        ">
+            ▶ Assistir no YouTube
+        </a>
+
+    </div>
+</div>
         
         <p id="ajudaDescricao"></p>
 
-        <!-- BOTÃO PLAYLIST -->
+        <!-- 📚 PLAYLIST -->
         <div id="btnPlaylistContainer" style="display:none; margin-top:10px;">
             <a id="btnPlaylist" target="_blank" class="btn btn-outline-primary btn-sm">
                 📚 Ver treinamento completo
@@ -117,9 +163,6 @@ function toggleSubmenu(id){
     box.classList.toggle("open");
 }
 
-/* ========================= */
-/* 🔥 SISTEMA DE AJUDA */
-/* ========================= */
 function abrirAjuda(modulo) {
     fetch(`/ajuda/buscar/?modulo=${modulo}`)
         .then(res => res.json())
@@ -132,17 +175,64 @@ function abrirAjuda(modulo) {
 
             document.getElementById("ajudaTitulo").innerText = data.titulo;
 
-            let url = data.url;
+            let originalUrl = data.url;
+            let embedUrl = originalUrl;
+            
 
-            // YouTube embed
-            if (url.includes("watch?v=")) {
-                url = url.replace("watch?v=", "embed/");
+            // watch?v=
+            if (embedUrl.includes("watch?v=")) {
+                embedUrl = embedUrl.replace("watch?v=", "embed/");
             }
 
-            document.getElementById("ajudaVideo").src = url;
+            // youtu.be
+            else if (embedUrl.includes("youtu.be")) {
+                let videoId = embedUrl.split("/").pop();
+                if (videoId.includes("?")) {
+                    videoId = videoId.split("?")[0];
+                }
+                embedUrl = `https://www.youtube.com/embed/${videoId}`;
+            }
+
+            const iframe = document.getElementById("ajudaVideo");
+            const fallback = document.getElementById("fallbackContainer");
+            const fallbackLink = document.getElementById("fallbackLink");
+
+            const loader = document.getElementById("ajudaLoader");
+
+            iframe.style.display = "none";
+            fallback.style.display = "none";
+            loader.style.display = "block";
+
+            iframe.src = embedUrl;
+            iframe.onload = function () {
+            loader.style.display = "none";
+            //iframe.style.display = "block";
+            };
             document.getElementById("ajudaDescricao").innerText = data.descricao;
 
-            // 🔥 PLAYLIST
+            // 🔥 fallback link sempre pronto
+            fallbackLink.href = originalUrl;
+
+            // 🔥 detecta erro do iframe
+            iframe.onerror = function () {
+                iframe.style.display = "none";
+                fallback.style.display = "block";
+            };
+
+            // 🔥 fallback por timeout (caso YouTube não dispare erro)
+            setTimeout(() => {
+                try {
+                    if (!iframe.contentWindow || iframe.contentWindow.length === 0) {
+                        iframe.style.display = "none";
+                        fallback.style.display = "block";
+                    }
+                } catch (e) {
+                    iframe.style.display = "none";
+                    fallback.style.display = "block";
+                }
+            }, 1500);
+
+            // 📚 PLAYLIST
             if (data.playlist_url) {
                 document.getElementById("btnPlaylist").href = data.playlist_url;
                 document.getElementById("btnPlaylistContainer").style.display = "block";
