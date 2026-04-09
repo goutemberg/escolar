@@ -246,6 +246,7 @@ def salvar_diario_classe(request):
             {"error": "Erro interno ao salvar diário.", "detail": str(e)},
             status=500
         )
+  
     
 @login_required
 @require_GET
@@ -262,7 +263,6 @@ def diario_classe_pdf(request):
             Turma,
             id=turma_id,
             escola=request.escola
-
         )
 
         disciplina = get_object_or_404(
@@ -275,8 +275,7 @@ def diario_classe_pdf(request):
         diarios = (
             DiarioDeClasse.objects
             .filter(
-                escola=request.escola
-,
+                escola=request.escola,
                 turma=turma,
                 disciplina=disciplina,
                 data_ministrada__year=ano,
@@ -295,49 +294,66 @@ def diario_classe_pdf(request):
         doc = SimpleDocTemplate(
             buffer,
             pagesize=A4,
-            rightMargin=2 * cm,
-            leftMargin=2 * cm,
-            topMargin=2 * cm,
-            bottomMargin=2 * cm,
+            rightMargin=1.5 * cm,
+            leftMargin=1.5 * cm,
+            topMargin=1.5 * cm,
+            bottomMargin=1.5 * cm,
         )
 
         styles = getSampleStyleSheet()
+        azul = colors.HexColor("#1E88E5")
+
+        # ============================
+        # 🎨 ESTILOS
+        # ============================
 
         titulo_style = ParagraphStyle(
             "Titulo",
             parent=styles["Heading1"],
             alignment=1,
-            spaceAfter=12,
+            spaceAfter=8,
+            fontSize=14,
         )
 
         meta_style = ParagraphStyle(
             "Meta",
             parent=styles["Normal"],
             alignment=1,
-            spaceAfter=18,
+            spaceAfter=12,
+            fontSize=9,
         )
 
         conteudo_style = ParagraphStyle(
             "Conteudo",
             parent=styles["Normal"],
             wordWrap="CJK",
-            leading=14,
+            leading=12,
+            fontSize=9,
         )
 
         status_style = ParagraphStyle(
             "Status",
             parent=styles["Normal"],
             alignment=1,
-            fontSize=9,
+            fontSize=8,
         )
 
         elements = []
 
         # ============================
-        # 🏫 CABEÇALHO
+        # 🏫 CABEÇALHO (PADRÃO NOVO)
         # ============================
 
-        elements.append(Paragraph("Diário de Classe", titulo_style))
+        elements.append(Paragraph(f"<b>{request.escola.nome.upper()}</b>", titulo_style))
+
+        elements.append(Paragraph(
+            "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
+            styles["Normal"]
+        ))
+
+        elements.append(Spacer(1, 6))
+
+        elements.append(Paragraph("<b>DIÁRIO DE CLASSE</b>", titulo_style))
 
         mes_formatado = format_date(
             date(ano, mes_num, 1),
@@ -348,10 +364,8 @@ def diario_classe_pdf(request):
         elements.append(
             Paragraph(
                 f"""
-                <b>{request.escola
-.nome}</b><br/>
-                Turma: {turma.nome} &nbsp;|&nbsp;
-                Disciplina: {disciplina.nome}<br/>
+                Turma: <b>{turma.nome}</b> &nbsp;&nbsp;|&nbsp;&nbsp;
+                Disciplina: <b>{disciplina.nome}</b><br/>
                 Mês: {mes_formatado}<br/>
                 Emissão: {timezone.localtime().strftime("%d/%m/%Y %H:%M")}
                 """,
@@ -379,7 +393,7 @@ def diario_classe_pdf(request):
             )
 
             status = Paragraph(
-                "<b>🔒 Aula Fechada</b>",
+                "<b>✔ Aula Realizada</b>",
                 status_style
             )
 
@@ -398,18 +412,19 @@ def diario_classe_pdf(request):
         )
 
         tabela.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#fab982")),
+            ("BACKGROUND", (0, 0), (-1, 0), azul),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
             ("ALIGN", (0, 0), (0, -1), "CENTER"),
             ("ALIGN", (1, 1), (2, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-            ("TOPPADDING", (0, 0), (-1, 0), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+            ("TOPPADDING", (0, 0), (-1, 0), 6),
         ]))
 
         elements.append(tabela)
-        elements.append(Spacer(1, 2 * cm))
+        elements.append(Spacer(1, 1.5 * cm))
 
         # ============================
         # ✍️ ASSINATURAS
@@ -427,7 +442,7 @@ def diario_classe_pdf(request):
 
         assinatura_tabela.setStyle(TableStyle([
             ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("TOPPADDING", (0, 0), (-1, -1), 25),
+            ("TOPPADDING", (0, 0), (-1, -1), 20),
         ]))
 
         elements.append(assinatura_tabela)
@@ -453,7 +468,6 @@ def diario_classe_pdf(request):
             f"Erro ao gerar PDF: {str(e)}",
             status=500
         )
-
 
 @login_required
 def excluir_diario_classe(request, registro_id):

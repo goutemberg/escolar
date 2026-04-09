@@ -3,6 +3,7 @@ from home.views.relatorio_individual import (
     relatorio_individual_view,
     salvar_relatorio_individual,
     buscar_relatorio_individual,
+    gerar_pdf_relatorio_individual
 )
 
 app_name = "relatorio_individual"
@@ -23,4 +24,10 @@ urlpatterns = [
         buscar_relatorio_individual,
         name="buscar_relatorio_individual",
     ),
+
+    path(
+    "relatorio-individual/pdf/",
+    gerar_pdf_relatorio_individual,
+    name="gerar_pdf_relatorio_individual"
+),
 ]

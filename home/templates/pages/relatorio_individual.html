@@ -93,22 +93,65 @@
         </div>
 
         <div class="text-end">
-            <button
-                id="btnNovo"
-                class="btn btn-outline-secondary me-2"
-                type="button"
-            >
-                Novo Registro
-            </button>
 
-            <button
-                id="btnSalvar"
-                class="btn btn-primary"
-                type="button"
-            >
-                Salvar Relatório
-            </button>
-        </div>
+    <button
+        id="btnNovo"
+        type="button"
+        class="me-2"
+        style="
+            background: transparent;
+            color: #fab982;
+            border: 1.5px solid #fab982;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: 0.2s;
+        "
+        onmouseover="this.style.backgroundColor='#fab982'; this.style.color='#fff'"
+        onmouseout="this.style.backgroundColor='transparent'; this.style.color='#fab982'"
+    >
+        <i class="bi bi-plus-circle"></i> Novo
+    </button>
+
+    <button
+        type="button"
+        class="me-2"
+        onclick="imprimirRelatorio()"
+        style="
+            background: transparent;
+            color: #fab982;
+            border: 1.5px solid #fab982;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: 0.2s;
+        "
+        onmouseover="this.style.backgroundColor='#fab982'; this.style.color='#fff'"
+        onmouseout="this.style.backgroundColor='transparent'; this.style.color='#fab982'"
+    >
+        <i class="bi bi-printer"></i> Imprimir
+    </button>
+
+    <button
+        id="btnSalvar"
+        type="button"
+        style="
+            background: #fab982;
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 500;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            transition: 0.2s;
+        "
+        onmouseover="this.style.backgroundColor='#f59e0b'"
+        onmouseout="this.style.backgroundColor='#fab982'"
+    >
+        <i class="bi bi-check-circle"></i> Salvar
+    </button>
+
+</div>
     </div>
 {% endblock content %}
 
@@ -132,6 +175,20 @@
     });
   });
 </script>
+<script>
+function imprimirRelatorio() {
+    const turma = document.getElementById("turma").value;
+    const aluno = document.getElementById("aluno").value;
+    const ano = document.getElementById("ano_letivo").value;
 
+    if (!turma || !aluno || !ano) {
+        alert("Selecione turma, aluno e ano antes de imprimir.");
+        return;
+    }
+
+    const url = `/relatorio-individual/pdf/?aluno=${aluno}&turma=${turma}&ano_letivo=${ano}`;
+    window.open(url, "_blank");
+}
+</script>
 <script src="{% static 'home/js/relatorio_individual.js' %}"></script>
 {% endblock extra_js %}

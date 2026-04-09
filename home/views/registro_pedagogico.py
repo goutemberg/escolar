@@ -7,6 +7,13 @@ from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 from django.db import transaction
 
+from django.http import HttpResponse
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.lib import colors
+
 from home.models import (
     RegistroPedagogico,
     Turma,
@@ -288,3 +295,142 @@ def buscar_registro_pedagogico(request):
         resposta[int(r["bimestre"])] = r["observacoes"] or ""
 
     return JsonResponse(resposta)
+
+
+@login_required
+def gerar_pdf_registro_pedagogico(request):
+
+    usuario = request.user
+    escola = usuario.escola
+
+    turma_id = request.GET.get("turma")
+    disciplina_id = request.GET.get("disciplina")
+    ano_letivo = request.GET.get("ano_letivo")
+
+    if not all([turma_id, disciplina_id, ano_letivo]):
+        return HttpResponse("Parâmetros inválidos", status=400)
+
+    turma = Turma.objects.get(id=turma_id, escola=escola)
+    disciplina = Disciplina.objects.get(id=disciplina_id)
+
+    registros = (
+        RegistroPedagogico.objects
+        .filter(
+            turma=turma,
+            disciplina=disciplina,
+            ano_letivo=int(ano_letivo),
+            escola=escola,
+        )
+        .order_by("bimestre")
+    )
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="registro_{turma.nome}.pdf"'
+
+    doc = SimpleDocTemplate(
+        response,
+        pagesize=A4,
+        rightMargin=1.5 * cm,
+        leftMargin=1.5 * cm,
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm
+    )
+
+    styles = getSampleStyleSheet()
+    azul = colors.HexColor("#1E88E5")
+
+    # -------------------------------
+    # ESTILOS
+    # -------------------------------
+    titulo_escola = ParagraphStyle(
+        "titulo_escola",
+        parent=styles["Title"],
+        fontSize=14,
+        spaceAfter=4,
+    )
+
+    titulo_relatorio = ParagraphStyle(
+        "titulo_relatorio",
+        parent=styles["Heading2"],
+        fontSize=12,
+        spaceAfter=8,
+    )
+
+    label = ParagraphStyle(
+        "label",
+        parent=styles["Normal"],
+        fontSize=9,
+        spaceAfter=2,
+    )
+
+    bimestre_style = ParagraphStyle(
+        "bimestre",
+        parent=styles["Heading3"],
+        fontSize=10,
+        textColor=azul,
+        spaceAfter=4,
+    )
+
+    texto_style = ParagraphStyle(
+        "texto",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=12,
+        spaceAfter=10,
+    )
+
+    story = []
+
+    # -------------------------------
+    # CABEÇALHO
+    # -------------------------------
+    story.append(Paragraph(f"<b>{escola.nome.upper()}</b>", titulo_escola))
+
+    story.append(Paragraph(
+        "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
+        styles["Normal"]
+    ))
+
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph("<b>REGISTRO PEDAGÓGICO</b>", titulo_relatorio))
+
+    # -------------------------------
+    # DADOS
+    # -------------------------------
+    story.append(Paragraph(f"<b>Turma:</b> {turma.nome}", label))
+    story.append(Paragraph(f"<b>Disciplina:</b> {disciplina.nome}", label))
+    story.append(Paragraph(f"<b>Ano Letivo:</b> {ano_letivo}", label))
+
+    story.append(Spacer(1, 10))
+
+    # -------------------------------
+    # CONTEÚDO
+    # -------------------------------
+    if not registros.exists():
+        story.append(Paragraph("Nenhum registro encontrado.", texto_style))
+    else:
+        for r in registros:
+            story.append(Paragraph(f"<b>{r.get_bimestre_display()}</b>", bimestre_style))
+
+            texto = r.observacoes or "Sem observações."
+            story.append(Paragraph(texto, texto_style))
+
+    # -------------------------------
+    # RODAPÉ
+    # -------------------------------
+    story.append(Spacer(1, 15))
+
+    story.append(Paragraph(
+        "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
+        styles["Normal"]
+    ))
+
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph("__________________________________________", styles["Normal"]))
+    story.append(Paragraph("Assinatura do Professor / Coordenação", label))
+
+    doc.build(story)
+
+    return response

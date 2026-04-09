@@ -4,6 +4,7 @@ from home.views.registro_pedagogico import (
     buscar_disciplinas_por_turma,
     salvar_registro_pedagogico,
     buscar_registro_pedagogico,
+    gerar_pdf_registro_pedagogico
 )
 
 app_name = "registro_pedagogico"
@@ -29,4 +30,10 @@ urlpatterns = [
         buscar_registro_pedagogico,
         name="buscar_registro_pedagogico",
     ),
+
+    path(
+    "registro-pedagogico/pdf/",
+    gerar_pdf_registro_pedagogico,
+    name="gerar_pdf_registro_pedagogico"
+),
 ]

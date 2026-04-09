@@ -78,12 +78,6 @@
     return true;
   }
 
-  /* ===============================
-     NOVO REGISTRO
-     - Mantém TURMA e ANO
-     - Limpa ALUNO
-     - Limpa Bimestres e DESABILITA
-  =============================== */
   function novoRegistro() {
     resetBimestres();
 
@@ -92,10 +86,6 @@
       selectAluno.dispatchEvent(new Event("change"));
     }
   }
-
-  /* ===============================
-     BUSCAR ALUNOS POR TURMA
-  =============================== */
 
   async function carregarAlunos(turmaId) {
     resetBimestres();
@@ -263,4 +253,5 @@
   =============================== */
 
   resetBimestres();
+
 })();

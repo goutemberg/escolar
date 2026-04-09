@@ -310,13 +310,16 @@ def dar_baixa_mensalidade(request, mensalidade_id):
 # GERAR MENSALIDADES
 # =========================
 
+
 def gerar_mensalidades(request):
 
     escola = request.escola
-
     turmas = Turma.objects.filter(escola=escola)
 
     if request.method == "POST":
+
+        print("\n=== DEBUG GERAÇÃO DE MENSALIDADES ===")
+        print("POST:", request.POST)
 
         turma_id = request.POST.get("turma_id")
         mes_inicio = int(request.POST.get("mes_inicio"))
@@ -325,10 +328,12 @@ def gerar_mensalidades(request):
         valor = Decimal(request.POST.get("valor"))
         dia_vencimento = int(request.POST.get("dia_vencimento"))
 
+        print(f"Turma ID: {turma_id}")
+        print(f"Período: {mes_inicio} até {mes_fim} / {ano}")
+
         # -------------------------------
         # Validações
         # -------------------------------
-
         if mes_inicio < 1 or mes_inicio > 12 or mes_fim < 1 or mes_fim > 12:
             messages.error(request, "Os meses devem estar entre 1 e 12.")
             return redirect("gerar_mensalidades")
@@ -343,11 +348,25 @@ def gerar_mensalidades(request):
             messages.error(request, "Turma não encontrada.")
             return redirect("gerar_mensalidades")
 
-        alunos = Aluno.objects.filter(
-            turma_principal=turma,
-            escola=escola,
-            ativo=True
+        print("Turma encontrada:", turma)
+
+        # -------------------------------
+        # 🔥 CORREÇÃO AQUI (ManyToMany)
+        # -------------------------------
+        alunos = turma.alunos.filter(
+            ativo=True,
+            escola=escola
         )
+
+        print("ALUNOS ENCONTRADOS:", alunos.count())
+
+        # 🚨 proteção contra bug silencioso
+        if not alunos.exists():
+            messages.warning(
+                request,
+                "Nenhum aluno vinculado à turma. Verifique a montagem da turma."
+            )
+            return redirect("gerar_mensalidades")
 
         criadas = 0
         ignoradas = 0
@@ -355,26 +374,21 @@ def gerar_mensalidades(request):
         # -------------------------------
         # Geração
         # -------------------------------
-
         for mes in range(mes_inicio, mes_fim + 1):
 
             ultimo_dia = calendar.monthrange(ano, mes)[1]
 
             for aluno in alunos:
 
-                # 🔥 NOVO: usa vencimento do aluno ou padrão
+                print(f"Processando: {aluno.nome} - {mes}/{ano}")
+
                 dia_aluno = aluno.dia_vencimento or dia_vencimento
                 dia_final = min(dia_aluno, ultimo_dia)
 
                 vencimento = date(ano, mes, dia_final)
 
-                # desconto automático (ex: bolsa fixa)
-                desconto_auto = aluno.desconto_mensal or Decimal("0.00")
+                desconto_auto = Decimal(aluno.desconto_mensal or 0)
 
-                # garante tipo Decimal
-                desconto_auto = Decimal(desconto_auto)
-
-                # cálculo seguro
                 valor_original = Decimal(valor)
                 valor_final = valor_original - desconto_auto
 
@@ -389,11 +403,9 @@ def gerar_mensalidades(request):
 
                     defaults={
                         "escola": escola,
-
                         "valor_original": valor_original,
                         "desconto": desconto_auto,
                         "valor_final": valor_final,
-
                         "vencimento": vencimento,
                         "status": "pendente"
                     }
@@ -403,6 +415,8 @@ def gerar_mensalidades(request):
                     criadas += 1
                 else:
                     ignoradas += 1
+
+        print(f"\nRESULTADO → Criadas: {criadas} | Ignoradas: {ignoradas}")
 
         messages.success(
             request,
