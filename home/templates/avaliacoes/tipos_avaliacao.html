@@ -202,7 +202,11 @@ TOAST
 {% endblock extra_head %}
 
 {% block content %}
-  <div class="titulo-pagina">Tipos de Avaliação</div>
+  <div class="titulo-pagina">Tipos de Avaliação
+    <button onclick="abrirAjuda('professor')" class="btn btn-warning btn-sm">
+        🎥 Ajuda
+    </button>
+  </div>
 
   <div class="mb-3">
     <input type="text" id="nome" placeholder="Nome (Ex: Prova)" class="form-control mb-2">
