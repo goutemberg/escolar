@@ -9,8 +9,9 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from io import BytesIO
 from django.contrib.auth import login, authenticate
-from home.utils import validar_senha_forte, get_client_ip
+from home.utils import validar_senha_forte, get_client_ip, arredondar_media_personalizada
 from home.models import User, LoginLog, UserEscola
+
 
 # ---- Django Core ----
 from django.conf import settings
@@ -1977,7 +1978,7 @@ def registrar_notas(request):
             getattr(turma, "sistema_avaliacao", None) or "NUM"
         ).upper()
 
-        alunos = turma.alunos.only('id', 'nome').order_by('nome')
+        alunos = Aluno.objects.filter(turma_principal=turma, escola=escola).only('id', 'nome').order_by('nome')
 
         try:
             bimestre = int(bimestre)
@@ -1985,11 +1986,6 @@ def registrar_notas(request):
             bimestre = None
 
         if bimestre:
-
-            # ------------------------------------------------
-            # MELHORIA IMPORTANTE
-            # Evita duplicação de avaliações
-            # ------------------------------------------------
 
             if not Avaliacao.objects.filter(
                 turma=turma,
@@ -2036,7 +2032,6 @@ def registrar_notas(request):
             pesos_por_avaliacao = {}
 
             for av in avaliacoes:
-
                 try:
                     pesos_por_avaliacao[av.id] = Decimal(
                         str(av.tipo.peso if av.tipo and av.tipo.peso else 1)
@@ -2051,7 +2046,6 @@ def registrar_notas(request):
                     avaliacao__bimestre=bimestre,
                     aluno_id__in=[a.id for a in alunos],
                     avaliacao_id__in=avaliacoes_ids
-
                 ).only(
                     'aluno_id',
                     'avaliacao_id',
@@ -2059,7 +2053,6 @@ def registrar_notas(request):
                 )
 
                 for n in todas_notas:
-
                     if n.aluno_id not in notas_dict:
                         notas_dict[n.aluno_id] = {}
 
@@ -2093,24 +2086,24 @@ def registrar_notas(request):
 
                     if denominador > 0:
 
-                        medias[aluno.id] = (
+                        media_calculada = (
                             numerador / denominador
                         ).quantize(
                             Decimal("0.1"),
                             rounding=ROUND_HALF_UP
                         )
 
-                    else:
+                        # 🔥 AQUI A CORREÇÃO CERTA
+                        medias[aluno.id] = arredondar_media_personalizada(media_calculada)
 
+                    else:
                         medias[aluno.id] = None
 
             else:
-
                 for aluno in alunos:
                     medias[aluno.id] = None
 
     context = {
-
         'turmas': turmas,
         'disciplinas': disciplinas,
         'alunos': alunos,
@@ -2120,7 +2113,6 @@ def registrar_notas(request):
         'notas': notas_dict,
         'medias': medias,
         'turma_sistema_avaliacao': turma_sistema_avaliacao,
-
     }
 
     return render(request, 'pages/registrar_notas.html', context)
@@ -2444,6 +2436,9 @@ def listar_turmas_para_boletim(request):
     })
 
 
+from collections import defaultdict
+from datetime import datetime
+
 @login_required
 @role_required(['diretor', 'coordenador'])
 def visualizar_boletim(request, aluno_id):
@@ -2461,39 +2456,67 @@ def visualizar_boletim(request, aluno_id):
         'avaliacao__turma'
     )
 
-    # 🔥 DEFINE A TURMA BASEADA NAS NOTAS (NÃO MAIS turma_principal)
+    # 🔥 DEFINE A TURMA BASEADA NAS NOTAS
     turma = None
     if notas.exists():
         turma = notas.first().avaliacao.turma
 
+    # 🔥 ESTRUTURA BASE (AGORA COM NOTAS)
     dados = defaultdict(lambda: {
         "bimestres": {1: None, 2: None, 3: None, 4: None},
+        "notas": {1: [], 2: [], 3: [], 4: []},  # 👈 NOVO
         "media_final": None
     })
 
-    # 🔥 ORGANIZA AS NOTAS
+    # 🔥 ORGANIZA AS NOTAS (AGORA AGRUPANDO)
     for nota in notas:
 
         disciplina = nota.avaliacao.disciplina.nome
         bimestre = nota.avaliacao.bimestre
 
-        dados[disciplina]["bimestres"][bimestre] = nota.valor
+        if nota.valor is not None:
+
+            # 👇 adiciona na lista (NÃO sobrescreve mais)
+            dados[disciplina]["notas"][bimestre].append({
+                "tipo": getattr(nota.avaliacao.tipo, "nome", "Avaliação"),
+                "valor": float(nota.valor)
+            })
 
     boletim = []
 
+    # 🔥 PROCESSA MÉDIAS
     for disciplina, info in dados.items():
 
-        valores = [
-            v for v in info["bimestres"].values()
+        medias_bimestre = {}
+
+        for bimestre in [1, 2, 3, 4]:
+
+            lista_notas = info["notas"][bimestre]
+
+            if lista_notas:
+                valores = [n["valor"] for n in lista_notas]
+                media = sum(valores) / len(valores)
+                medias_bimestre[bimestre] = arredondar_media_personalizada(media)
+            else:
+                medias_bimestre[bimestre] = None
+
+        # 🔥 MÉDIA FINAL
+        valores_validos = [
+            v for v in medias_bimestre.values()
             if v is not None
         ]
 
-        media = round(sum(valores)/len(valores), 2) if valores else None
+        media_final = None
+        if valores_validos:
+            media_final = sum(valores_validos) / len(valores_validos)
+            media_final = arredondar_media_personalizada(media_final)
 
         boletim.append({
             "disciplina": disciplina,
-            "bimestres": info["bimestres"],
-            "media_final": media
+            "bimestres": medias_bimestre,
+            "notas": info["notas"],  # 👈 ESSENCIAL
+            "media_final": media_final,
+            "faltas": 0  # mantém compatibilidade com template
         })
 
     return render(request, 'pages/boletim.html', {

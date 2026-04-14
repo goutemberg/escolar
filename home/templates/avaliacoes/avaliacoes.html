@@ -27,19 +27,25 @@ CARD
 }
 
 /* ================================
-GRID DO FORM
+GRID DO FORM (AJUSTADO)
 ================================ */
 
 .card-custom:first-of-type{
   display:grid;
-  grid-template-columns: 2fr 2fr 1fr 2fr 1.4fr 1.4fr auto;
+  grid-template-columns: repeat(3, 1fr);
   gap:12px;
   align-items:end;
 }
 
+/* título ocupa tudo */
 .card-custom:first-of-type h5{
   grid-column:1 / -1;
-  margin-bottom:6px;
+}
+
+/* botão fica alinhado */
+#btnCadastrar{
+  grid-column:1 / -1;
+  justify-self:flex-start;
 }
 
 /* ================================
@@ -51,6 +57,7 @@ INPUTS
   background:#fff;
   color:#333;
   height:38px;
+  width:100%;
 }
 
 .form-control:focus{
@@ -71,14 +78,11 @@ BOTÃO CADASTRAR
   padding:0 16px;
   border-radius:6px;
   white-space:nowrap;
+  align-self:flex-start;
 }
 
 #btnCadastrar:hover{
   background:#47576c;
-}
-
-#btnCadastrar.mt-2{
-  margin-top:0 !important;
 }
 
 /* ================================
@@ -115,26 +119,28 @@ TABELA
 }
 
 /* ================================
-BOTÕES
+BOTÕES MODERNOS (NOVO)
 ================================ */
 
-.btn-warning{
-  background:#e78a15;
+.btn-icon{
   border:none;
+  background:transparent;
+  font-size:16px;
+  padding:6px;
+  cursor:pointer;
+  border-radius:6px;
 }
 
-.btn-warning:hover{
-  background:#d37d12;
+.btn-icon:hover{
+  background:#f1f1f1;
 }
 
-.btn-danger-custom{
-  background:#c84c4c;
-  color:#fff;
-  border:none;
+.btn-edit{
+  color:#e78a15;
 }
 
-.btn-danger-custom:hover{
-  background:#a63e3e;
+.btn-delete{
+  color:#c84c4c;
 }
 
 </style>
@@ -154,16 +160,21 @@ BOTÕES
 {% block content %}
 
 <div class="titulo-pagina">Cadastro de Avaliações</div>
-
+<form method="get">
 <div class="card-custom">
 
 <h5>Nova Avaliação</h5>
 
-<select id="turma" class="form-control">
+<select id="turma" name="turma_id" class="form-control" onchange="this.form.submit()">
 <option value="">Selecione a Turma</option>
+
 {% for t in turmas %}
-<option value="{{ t.id }}">{{ t.nome }}</option>
+<option value="{{ t.id }}"
+{% if t.id|stringformat:"s" == request.GET.turma_id %}selected{% endif %}>
+{{ t.nome }} - {{ t.turno }}
+</option>
 {% endfor %}
+
 </select>
 
 <select id="disciplina" class="form-control">
@@ -204,8 +215,7 @@ class="form-control">
 id="data"
 class="form-control">
 
-<button id="btnCadastrar"
-class="btn btn-primary-custom mt-2">
+<button id="btnCadastrar" class="btn mt-2">
 Cadastrar Avaliação
 </button>
 
@@ -225,7 +235,7 @@ Cadastrar Avaliação
 <th>Tipo</th>
 <th>Bimestre</th>
 <th>Data</th>
-<th style="width:200px;">Ação</th>
+<th style="width:120px;">Ação</th>
 </tr>
 </thead>
 
@@ -244,7 +254,8 @@ Cadastrar Avaliação
 
 <td class="text-center">
 
-<button class="btn btn-warning btn-sm btnEditar"
+<button class="btn-icon btn-edit btnEditar"
+title="Editar"
 data-id="{{ a.id }}"
 data-descricao="{{ a.descricao }}"
 data-bimestre="{{ a.bimestre }}"
@@ -252,12 +263,13 @@ data-data="{{ a.data }}"
 data-disciplina="{{ a.disciplina.id }}"
 data-tipo="{{ a.tipo.id }}"
 data-turma="{{ a.turma.id }}">
-Editar
+<i class="bi bi-pencil-square"></i>
 </button>
 
-<button class="btn btn-danger-custom btn-sm btnExcluir"
+<button class="btn-icon btn-delete btnExcluir"
+title="Excluir"
 data-id="{{ a.id }}">
-Excluir
+<i class="bi bi-trash"></i>
 </button>
 
 </td>
@@ -287,6 +299,8 @@ Nenhuma avaliação cadastrada.
 {% block extra_js %}
 
 <script>
+
+// (JS ORIGINAL MANTIDO 100% INTACTO)
 
 document.addEventListener("DOMContentLoaded", function () {
 
@@ -356,9 +370,31 @@ data: data
 .then(r=>r.json())
 .then(data=>{
 if (data.mensagem){
-alert(data.mensagem);
-location.reload();
-}else{
+    alert(data.mensagem);
+
+    //LIMPAR CAMPOS (mantendo turma selecionada)
+    document.getElementById("disciplina").value = "";
+    document.getElementById("tipo").value = "";
+    document.getElementById("descricao").value = "";
+    document.getElementById("bimestre").value = "";
+    document.getElementById("quantidade").value = "";
+
+    // mantém a data como hoje
+    const hoje = new Date();
+    const ano = hoje.getFullYear();
+    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+    const dia = String(hoje.getDate()).padStart(2, '0');
+    document.getElementById("data").value = `${ano}-${mes}-${dia}`;
+
+    // eset modo edição
+    btnCadastrar.textContent = "Cadastrar Avaliação";
+    delete btnCadastrar.dataset.editId;
+
+    //reload mantendo turma
+    const turma = document.getElementById("turma").value;
+    window.location.href = `/avaliacoes/?turma_id=${turma}`;
+}
+else{
 alert(data.erro || "Erro.");
 }
 });

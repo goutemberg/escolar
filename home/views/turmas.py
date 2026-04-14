@@ -206,13 +206,11 @@ def excluir_nome_turma(request):
     return JsonResponse({"success": True})
 
 
-
 @login_required
 @role_required(['diretor', 'coordenador'])
 def cadastro_turma(request, turma_id=None):
 
     escola = request.escola
-
 
     if request.method == "POST":
 
@@ -354,7 +352,7 @@ def cadastro_turma(request, turma_id=None):
                             nome="Prova",
                             tipo=tipo_prova,
                             peso=7,
-                            quantidade=3,  # 🔥 MULTIPLAS PROVAS
+                            quantidade=3,
                             escola=escola,
                             disciplina=disciplina,
                             ativo=True
@@ -371,46 +369,42 @@ def cadastro_turma(request, turma_id=None):
                         )
 
                 # =========================================================
-                # 🔥 GERAR AVALIAÇÕES
+                # 🔥 GERAR AVALIAÇÕES (CORRIGIDO)
                 # =========================================================
 
-                ja_existe = Avaliacao.objects.filter(turma=turma).exists()
+                bimestres = [1, 2, 3, 4]
 
-                if not ja_existe:
+                for disciplina in disciplinas_turma:
 
-                    bimestres = [1, 2, 3, 4]
+                    modelos = ModeloAvaliacao.objects.filter(
+                        escola=escola,
+                        disciplina=disciplina,
+                        ativo=True
+                    )
 
-                    for disciplina in disciplinas_turma:
+                    for bimestre in bimestres:
 
-                        modelos = ModeloAvaliacao.objects.filter(
-                            escola=escola,
-                            disciplina=disciplina,
-                            ativo=True
-                        )
+                        for modelo in modelos:
 
-                        for bimestre in bimestres:
+                            for i in range(1, modelo.quantidade + 1):
 
-                            for modelo in modelos:
+                                nome_avaliacao = (
+                                    f"{modelo.nome} {i}"
+                                    if modelo.quantidade > 1
+                                    else modelo.nome
+                                )
 
-                                for i in range(1, modelo.quantidade + 1):
-
-                                    nome_avaliacao = (
-                                        f"{modelo.nome} {i}"
-                                        if modelo.quantidade > 1
-                                        else modelo.nome
-                                    )
-
-                                    Avaliacao.objects.get_or_create(
-                                        turma=turma,
-                                        disciplina=disciplina,
-                                        bimestre=bimestre,
-                                        descricao=nome_avaliacao,
-                                        escola=escola,
-                                        defaults={
-                                            "tipo": modelo.tipo,
-                                            "data": timezone.now().date()
-                                        }
-                                    )
+                                Avaliacao.objects.get_or_create(
+                                    turma=turma,
+                                    disciplina=disciplina,
+                                    bimestre=bimestre,
+                                    descricao=nome_avaliacao,
+                                    escola=escola,
+                                    defaults={
+                                        "tipo": modelo.tipo,
+                                        "data": timezone.now().date()
+                                    }
+                                )
 
             turma.refresh_from_db()
 
@@ -458,10 +452,6 @@ def cadastro_turma(request, turma_id=None):
         'nomes_turma': nomes_turma,
         'turma': turma
     })
-
-# ======================================================
-    # Remover aluno da turma
-# ======================================================
 
 
 @login_required
