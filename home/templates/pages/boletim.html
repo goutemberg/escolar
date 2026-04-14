@@ -1,5 +1,6 @@
 {% extends "layout/base.html" %}
 {% load static %}
+{% load custom_tags %}
 
 {% block extra_head %}
 
@@ -109,7 +110,7 @@ background:white;
 }
 
 /* ============================= */
-/* CORREÇÃO BOTÃO PDF */
+/* BOTÕES */
 /* ============================= */
 
 .btn-primary{
@@ -121,19 +122,6 @@ color:#fff !important;
 .btn-primary:hover{
 background:#f3a96d !important;
 border-color:#f3a96d !important;
-color:#fff !important;
-}
-
-/* ============================= */
-/* CORREÇÃO BOTÕES BOLETIM */
-/* ============================= */
-
-.btn-primary{
-color:white !important;
-}
-
-.btn-secondary{
-color:white !important;
 }
 
 .btn-print{
@@ -145,7 +133,6 @@ color:white !important;
 .btn-print:hover{
 background:#f3a96d;
 border-color:#f3a96d;
-color:white !important;
 }
 
 </style>
@@ -220,7 +207,74 @@ Boletim Escolar {{ ano }}
 
 
 <!-- ============================= -->
-<!-- TABELA DO BOLETIM -->
+<!-- BOLETIM VERTICAL -->
+<!-- ============================= -->
+
+{% for bimestre in "1234" %}
+<div class="card mt-4 p-3">
+
+<h5 style="color:#fab982;">
+{{ bimestre }}º Bimestre
+</h5>
+
+<div class="row g-3">
+
+{% for item in boletim %}
+
+<div class="col-12 col-md-6 col-lg-4">
+
+<div style="
+    border:1px solid #eee;
+    border-radius:10px;
+    padding:15px;
+    background:#fff;
+">
+
+<div style="font-weight:600; margin-bottom:10px;">
+    {{ item.disciplina }}
+</div>
+
+{% with notas=item.notas|get_item:bimestre %}
+
+{% if notas %}
+
+    {% for nota in notas %}
+        <div style="margin-bottom:5px;">
+            <span class="badge bg-secondary">
+                {{ nota.tipo }}
+            </span>
+            <strong>{{ nota.valor }}</strong>
+        </div>
+    {% endfor %}
+
+{% else %}
+    <div>-</div>
+{% endif %}
+
+{% endwith %}
+
+<hr>
+
+<div style="font-weight:600;">
+Média: 
+{% with media=item.bimestres|get_item:bimestre %}
+    {{ media|default:"-"|floatformat:1 }}
+{% endwith %}
+</div>
+
+</div>
+
+</div>
+
+{% endfor %}
+
+</div>
+</div>
+
+{% endfor %}
+
+<!-- ============================= -->
+<!-- RESUMO FINAL -->
 <!-- ============================= -->
 
 <div class="table-responsive mt-4">
@@ -228,18 +282,12 @@ Boletim Escolar {{ ano }}
 <table class="table table-bordered tabela-boletim">
 
 <thead>
-
 <tr>
 <th>Disciplina</th>
-<th>1º</th>
-<th>2º</th>
-<th>3º</th>
-<th>4º</th>
-<th>Média</th>
+<th>Média Final</th>
 <th>Faltas</th>
 <th>Situação</th>
 </tr>
-
 </thead>
 
 <tbody>
@@ -252,39 +300,6 @@ Boletim Escolar {{ ano }}
 {{ item.disciplina }}
 </td>
 
-<td>
-{% if item.bimestres.1 %}
-{{ item.bimestres.1|floatformat:1 }}
-{% else %}
--
-{% endif %}
-</td>
-
-<td>
-{% if item.bimestres.2 %}
-{{ item.bimestres.2|floatformat:1 }}
-{% else %}
--
-{% endif %}
-</td>
-
-<td>
-{% if item.bimestres.3 %}
-{{ item.bimestres.3|floatformat:1 }}
-{% else %}
--
-{% endif %}
-</td>
-
-<td>
-{% if item.bimestres.4 %}
-{{ item.bimestres.4|floatformat:1 }}
-{% else %}
--
-{% endif %}
-</td>
-
-
 <td class="media">
 
 {% if item.media_final %}
@@ -295,42 +310,26 @@ Boletim Escolar {{ ano }}
 
 </td>
 
-
 <td>
-
 {{ item.faltas|default:"0" }}
-
 </td>
-
 
 <td>
 
 {% if item.media_final %}
 
 {% if item.media_final >= 7 %}
-
-<span class="badge-aprovado">
-Aprovado
-</span>
+<span class="badge-aprovado">Aprovado</span>
 
 {% elif item.media_final >= 5 %}
-
-<span class="badge-recuperacao">
-Recuperação
-</span>
+<span class="badge-recuperacao">Recuperação</span>
 
 {% else %}
-
-<span class="badge-reprovado">
-Reprovado
-</span>
-
+<span class="badge-reprovado">Reprovado</span>
 {% endif %}
 
 {% else %}
-
 -
-
 {% endif %}
 
 </td>
@@ -340,13 +339,9 @@ Reprovado
 {% empty %}
 
 <tr>
-
-<td colspan="8" class="text-center text-muted">
-
+<td colspan="4" class="text-center text-muted">
 Nenhuma nota registrada.
-
 </td>
-
 </tr>
 
 {% endfor %}
@@ -366,29 +361,20 @@ Nenhuma nota registrada.
 <div class="d-flex justify-content-between mt-4 no-print">
 
 <a href="{% url 'listar_turmas_boletim' %}" class="btn btn-secondary">
-
-<i class="bi bi-arrow-left"></i>
-Voltar
-
+<i class="bi bi-arrow-left"></i> Voltar
 </a>
-
 
 <div>
 
 <button onclick="window.print()" class="btn btn-print">
-
-<i class="bi bi-printer"></i>
-Imprimir
-
+<i class="bi bi-printer"></i> Imprimir
 </button>
 
-
-<a href="{% url 'boletim:boletim_pdf' aluno.id %}" class="btn btn-primary">
-
-<i class="bi bi-file-earmark-pdf"></i>
-Gerar PDF
-
-</a>
+<button type="button"
+        class="btn btn-primary"
+        onclick="abrirPdfSeguro()">
+    <i class="bi bi-file-earmark-pdf"></i> Gerar PDF
+</button>
 
 </div>
 
@@ -401,13 +387,23 @@ Gerar PDF
 {% block extra_js %}
 
 <script>
-
 document.addEventListener("DOMContentLoaded", function(){
-
 console.log("Boletim carregado");
-
 });
+let pdfAberto = false;
 
+function abrirPdfSeguro(){
+
+    if(pdfAberto) return;
+
+    pdfAberto = true;
+
+    window.open("{% url 'boletim:boletim_pdf' aluno.id %}", "_blank");
+
+    setTimeout(() => {
+        pdfAberto = false;
+    }, 3000);
+}
 </script>
 
 {% endblock extra_js %}

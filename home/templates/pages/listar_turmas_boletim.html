@@ -16,12 +16,12 @@
   <label class="mr-2" for="turma">Turma:</label>
 
   <select class="form-control mr-2" id="turma" name="turma" onchange="this.form.submit()">
- <option value="">-- Selecione --</option>
+    <option value="">-- Selecione --</option>
 
     {% for turma in turmas %}
       <option value="{{ turma.id }}"
         {% if turma.id|stringformat:'s' == turma_id %}selected{% endif %}>
-        {{ turma.nome }}
+        {{ turma.nome }} - {{ turma.turno }}
       </option>
     {% endfor %}
   </select>
@@ -45,7 +45,6 @@
 
   {% for aluno in alunos %}
     <tr>
-
       <td>{{ aluno.nome }}</td>
 
       <td>
@@ -54,7 +53,6 @@
            Visualizar Boletim
         </a>
       </td>
-
     </tr>
   {% endfor %}
 

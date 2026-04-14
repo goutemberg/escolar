@@ -306,6 +306,26 @@ return;
 
 }
 
+function arredondarMediaPersonalizada(media){
+
+    if (media === null || isNaN(media)) return "-";
+
+    media = Number(media);
+
+    const inteiro = Math.floor(media);
+
+    // 🔥 CORREÇÃO AQUI
+    const decimal = Number((media - inteiro).toFixed(2));
+
+    if (decimal <= 0.2){
+        return inteiro;
+    } else if (decimal <= 0.7){
+        return inteiro + 0.5;
+    } else {
+        return inteiro + 1;
+    }
+}
+
 function atualizarMediaAluno(alunoId){
 
 const cell = document.querySelector(`[data-media="${alunoId}"]`);
@@ -341,7 +361,9 @@ return;
 }
 
 const media = soma / quantidade;
-cell.textContent = media.toFixed(1);
+const mediaFinal = arredondarMediaPersonalizada(media);
+
+cell.textContent = mediaFinal;
 
 }
 

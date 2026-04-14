@@ -100,3 +100,22 @@ def get_escola_ativa(request):
             return None
 
     return None
+
+
+def arredondar_media_personalizada(media):
+    if media is None:
+        return None
+
+    media = float(media)
+
+    # 🔥 REGRA ESPECIAL SÓ PARA 7.x
+    if 7.0 <= media < 8.0:
+        if media <= 7.2:
+            return 7.0
+        elif media <= 7.7:
+            return 7.5
+        else:
+            return 8.0
+
+    # 🔥 ACIMA DISSO NÃO MEXE (OU ARREDONDA NORMAL)
+    return round(media)

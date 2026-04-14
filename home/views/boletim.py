@@ -11,17 +11,20 @@ from datetime import datetime
 from decimal import Decimal
 
 from home.models import Aluno, Avaliacao, Disciplina, Nota, Presenca, Turma, Chamada
+from home.utils import arredondar_media_personalizada
+from django.contrib.auth.decorators import login_required
 
 
 # =========================================
 # PDF DO BOLETIM
 # =========================================
 
+@login_required
 def gerar_pdf_boletim(request, aluno_id):
 
     aluno = get_object_or_404(Aluno, id=aluno_id)
     escola = aluno.escola
-    turma = aluno.turma
+    turma = aluno.turma_principal
 
     disciplinas = Disciplina.objects.filter(
         turmadisciplina__turma=turma,
@@ -38,24 +41,25 @@ def gerar_pdf_boletim(request, aluno_id):
         avaliacao__in=avaliacoes
     ).select_related("avaliacao")
 
+    # 🔥 AGORA COM DETALHE DAS NOTAS
     notas_por_disciplina = defaultdict(lambda: defaultdict(list))
 
     for nota in notas:
-
         disciplina_id = nota.avaliacao.disciplina_id
         bimestre = nota.avaliacao.bimestre
         peso = nota.avaliacao.tipo.peso if nota.avaliacao.tipo else 1
 
         if nota.valor is not None:
-            notas_por_disciplina[disciplina_id][bimestre].append(
-                (float(nota.valor), float(peso))
-            )
+            notas_por_disciplina[disciplina_id][bimestre].append({
+                "valor": float(nota.valor),
+                "peso": float(peso),
+                "tipo": nota.avaliacao.tipo.nome if nota.avaliacao.tipo else "Avaliação"
+            })
 
+    # FALTAS
     faltas_por_disciplina = defaultdict(int)
 
-    chamadas = Chamada.objects.filter(
-        diario__turma=turma
-    )
+    chamadas = Chamada.objects.filter(diario__turma=turma)
 
     presencas = Presenca.objects.filter(
         aluno=aluno,
@@ -66,35 +70,31 @@ def gerar_pdf_boletim(request, aluno_id):
         if not p.presente:
             faltas_por_disciplina[p.chamada.diario.disciplina_id] += 1
 
+    # 🔥 MONTA ESTRUTURA FINAL
     boletim = []
 
     for disciplina in disciplinas:
 
         bimestres = {}
+        notas_detalhadas = {}
 
         for b in [1, 2, 3, 4]:
 
-            valores = notas_por_disciplina[disciplina.id][b]
+            lista = notas_por_disciplina[disciplina.id][b]
+            notas_detalhadas[b] = lista
 
-            if valores:
-
-                soma = 0
-                peso_total = 0
-
-                for nota, peso in valores:
-                    soma += nota * peso
-                    peso_total += peso
-
-                bimestres[b] = round(soma / peso_total, 2)
-
+            if lista:
+                soma = sum(n["valor"] * n["peso"] for n in lista)
+                peso_total = sum(n["peso"] for n in lista)
+                media = soma / peso_total
+                bimestres[b] = arredondar_media_personalizada(round(media, 2))
             else:
                 bimestres[b] = None
 
         medias_validas = [v for v in bimestres.values() if v is not None]
-
         media_final = round(sum(medias_validas) / len(medias_validas), 2) if medias_validas else None
+        media_final = arredondar_media_personalizada(media_final)
 
-        # Situação do aluno na disciplina
         if media_final is None:
             status = "-"
         elif media_final >= 7:
@@ -106,71 +106,99 @@ def gerar_pdf_boletim(request, aluno_id):
 
         boletim.append({
             "disciplina": disciplina.nome,
-            "b1": bimestres[1] or "-",
-            "b2": bimestres[2] or "-",
-            "b3": bimestres[3] or "-",
-            "b4": bimestres[4] or "-",
-            "media": media_final or "-",
+            "bimestres": bimestres,
+            "notas": notas_detalhadas,
+            "media_final": media_final,
             "faltas": faltas_por_disciplina.get(disciplina.id, 0),
             "status": status
         })
+
+    # ================================
+    # PDF
+    # ================================
 
     response = HttpResponse(content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="boletim_{aluno.nome}.pdf"'
 
     doc = SimpleDocTemplate(response)
-
     elements = []
     styles = getSampleStyleSheet()
 
-    # Cabeçalho
+    AZUL_NUCLEO = colors.HexColor("#1E88E5")
+
+    # HEADER
     elements.append(Paragraph(f"<b>BOLETIM ESCOLAR - {datetime.now().year}</b>", styles["Title"]))
-    elements.append(Spacer(1, 15))
+    elements.append(Spacer(1, 10))
 
     elements.append(Paragraph(f"<b>Escola:</b> {escola.nome}", styles["Normal"]))
     elements.append(Paragraph(f"<b>Aluno:</b> {aluno.nome}", styles["Normal"]))
     elements.append(Paragraph(f"<b>Turma:</b> {turma.nome}", styles["Normal"]))
-    elements.append(Paragraph(f"<b>Data de emissão:</b> {datetime.now().strftime('%d/%m/%Y')}", styles["Normal"]))
+    elements.append(Paragraph(f"<b>Data:</b> {datetime.now().strftime('%d/%m/%Y')}", styles["Normal"]))
 
     elements.append(Spacer(1, 20))
 
-    data = [["Disciplina", "1º", "2º", "3º", "4º", "Média", "Faltas", "Situação"]]
+    # 🔥 BLOCOS POR BIMESTRE (NOVO LAYOUT)
+    for b in [1, 2, 3, 4]:
+
+        elements.append(Paragraph(f"<b>{b}º BIMESTRE</b>", styles["Heading2"]))
+        elements.append(Spacer(1, 10))
+
+        data = [["Disciplina", "Notas", "Média"]]
+
+        for item in boletim:
+
+            notas_texto = ""
+
+            if item["notas"][b]:
+                for n in item["notas"][b]:
+                    notas_texto += f"{n['tipo']}: {n['valor']}<br/>"
+            else:
+                notas_texto = "-"
+
+            media = item["bimestres"][b] if item["bimestres"][b] else "-"
+
+            data.append([
+                item["disciplina"],
+                Paragraph(notas_texto, styles["Normal"]),
+                str(media)
+            ])
+
+        table = Table(data, colWidths=[150, 220, 60])
+
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), AZUL_NUCLEO),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ]))
+
+        elements.append(table)
+        elements.append(Spacer(1, 20))
+
+    # 🔥 RESUMO FINAL
+    elements.append(Paragraph("<b>Resumo Final</b>", styles["Heading2"]))
+    elements.append(Spacer(1, 10))
+
+    data_final = [["Disciplina", "Média Final", "Faltas", "Situação"]]
 
     for item in boletim:
-
-        data.append([
+        data_final.append([
             item["disciplina"],
-            item["b1"],
-            item["b2"],
-            item["b3"],
-            item["b4"],
-            item["media"],
-            item["faltas"],
+            str(item["media_final"] or "-"),
+            str(item["faltas"]),
             item["status"]
         ])
 
-    table = Table(data, repeatRows=1)
+    table_final = Table(data_final)
 
-    table.setStyle(TableStyle([
-
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#fab982")),
+    table_final.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), AZUL_NUCLEO),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-
-        ("ALIGN", (1, 1), (-2, -1), "CENTER"),
-        ("ALIGN", (-1, 1), (-1, -1), "CENTER"),
-
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [
-            colors.whitesmoke,
-            colors.lightgrey
-        ]),
-
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
     ]))
 
-    elements.append(table)
+    elements.append(table_final)
 
     elements.append(Spacer(1, 30))
 
@@ -190,7 +218,7 @@ def gerar_pdf_boletim(request, aluno_id):
 # =========================================
 # BOLETIM DA TURMA
 # =========================================
-
+@login_required
 def boletim_turma(request, turma_id):
 
     turma = get_object_or_404(Turma, id=turma_id)
@@ -237,6 +265,7 @@ def boletim_turma(request, turma_id):
             peso_total += Decimal(peso)
 
         media_final = round(soma / peso_total, 2) if peso_total > 0 else None
+        media_final = arredondar_media_personalizada(media_final)
 
         resultado.append({
             "aluno": aluno,

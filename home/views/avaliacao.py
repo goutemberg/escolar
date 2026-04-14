@@ -9,6 +9,7 @@ from collections import defaultdict
 from decimal import Decimal
 from django.db import transaction
 from decimal import Decimal, InvalidOperation
+from home.utils import arredondar_media_personalizada
 
 from home.models import (
     Turma,
@@ -234,9 +235,17 @@ def avaliacoes(request):
 
     turmas = Turma.objects.filter(escola=escola).order_by("nome")
 
-    disciplinas = Disciplina.objects.filter(
-        escola=escola
-    ).order_by("nome")
+    turma_id = request.GET.get("turma_id")
+
+    if turma_id:
+        disciplinas = Disciplina.objects.filter(
+            turmadisciplina__turma_id=turma_id,
+            escola=escola
+        ).distinct().order_by("nome")
+    else:
+        disciplinas = Disciplina.objects.filter(
+            escola=escola
+        ).order_by("nome")
 
     tipos = TipoAvaliacao.objects.filter(
         escola=escola,
@@ -249,7 +258,7 @@ def avaliacoes(request):
         "turma",
         "disciplina",
         "tipo"
-    ).order_by("-data")
+    ).order_by("turma__nome", "bimestre", "data", "descricao")
 
     return render(request, "avaliacoes/avaliacoes.html", {
         "turmas": turmas,
@@ -514,7 +523,9 @@ def lancar_notas(request):
                         soma += dec * peso
                         peso_total += peso
 
-                medias[aluno.id] = (soma / peso_total).quantize(Decimal("0.01")) if peso_total > 0 else None
+                media_calculada = (soma / peso_total).quantize(Decimal("0.01")) if peso_total > 0 else None
+
+                medias[aluno.id] = arredondar_media_personalizada(media_calculada)
 
     context = {
         "turmas": turmas,
@@ -605,6 +616,7 @@ def boletim_aluno(request, aluno_id):
         notas_validas = [m for m in medias_bimestre.values() if m is not None]
 
         media_final = round(sum(notas_validas) / len(notas_validas), 2) if notas_validas else None
+        media_final = arredondar_media_personalizada(media_final)
 
         situacao = "Aprovado" if media_final and media_final >= 7 else "Reprovado"
 
