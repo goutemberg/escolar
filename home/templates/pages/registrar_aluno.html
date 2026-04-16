@@ -14,14 +14,14 @@
   <div class="titulo-pagina">
   {% if modo == "edit" %}
     Editar Aluno
-   <button onclick="abrirAjuda('aluno')" class="btn btn-warning btn-sm">
+   {% comment %} <button onclick="abrirAjuda('aluno')" class="btn btn-warning btn-sm">
         🎥 Ajuda Editar
-    </button>
+    </button> {% endcomment %}
   {% else %}
     Matricular Aluno
-    <button onclick="abrirAjuda('aluno')" class="btn btn-warning btn-sm">
+    {% comment %} <button onclick="abrirAjuda('aluno')" class="btn btn-warning btn-sm">
         🎥 Ajuda Matricular
-    </button>
+    </button> {% endcomment %}
   {% endif %}
   </div>
    <div class="tab-buttons" style="padding-top: 1 !important; margin-top: 0 !important;">

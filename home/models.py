@@ -1001,3 +1001,13 @@ class UserEscola(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.escola}"
+
+
+class AvisoPublico(models.Model):
+    titulo = models.CharField(max_length=200)
+    mensagem = models.TextField()
+    ativo = models.BooleanField(default=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.titulo

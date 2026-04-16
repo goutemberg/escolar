@@ -1,0 +1,293 @@
+{% extends "layout/base_public.html" %}
+{% load static %}
+
+{% block content %}
+
+<!-- 🔔 AVISO DINÂMICO -->
+{% if aviso %}
+<div style="
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  z-index:9999;
+  background:#f9fafb;
+  border-bottom:1px solid #e5e7eb;
+  color:#0f172a;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+
+  padding:10px;
+  text-align:center;
+  
+  font-size:14px;
+">
+  <strong>🔔 {{ aviso.titulo }}</strong>
+  <span style="margin-left:8px;">{{ aviso.mensagem }}</span>
+</div>
+<div style="padding-top:{% if aviso %}60px{% else %}0{% endif %};">
+{% endif %}
+
+<!-- HEADER PREMIUM -->
+<header style="
+  position:fixed;
+  top:{% if aviso %}50px{% else %}0{% endif %};
+  left:0;
+  width:100%;
+  z-index:9998;
+  margin-top:-11px;
+  padding:12px 30px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:rgba(255,255,255,0.9);
+  backdrop-filter:blur(8px);
+">
+
+  <div style="display:flex; align-items:center; gap:10px;">
+    <img 
+      src="{% static 'themes/nucleo/logo.png' %}" 
+      style="height:40px;"
+    >
+    <strong style="color:#0f172a;">Núcleo Escolar</strong>
+  </div>
+
+  <div>
+    <a href="{% url 'login' %}" style="
+      background:#1565C0;
+      color:#fff;
+      padding:10px 18px;
+      border-radius:8px;
+      text-decoration:none;
+      font-weight:500;
+    ">
+      🔐 Acessar
+    </a>
+  </div>
+<style>
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(21,101,192,0.35);
+}
+</style>
+
+</header>
+
+<!-- HERO ULTRA PREMIUM -->
+<section style="
+  padding: 60px 16px 40px;
+  min-height: 100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+">
+
+  <div style="max-width:1000px; margin:auto;">
+
+    <!-- LOGO GRANDE -->
+    <img
+    src="{% static 'themes/' %}{{ user.escola.tema|default:'nucleo' }}/hero-logo.png"
+    style="
+    width:100%;
+    max-width:390px;
+    transform: scale(1.15);
+    margin-bottom:30px;
+    filter: drop-shadow(0 10px 30px rgba(0,0,0,0.08));
+  "
+>
+
+    {% if user.is_authenticated %}
+
+      <a href="/" style="
+        background:#1565C0;
+        color:#fff;
+        padding:16px 32px;
+        border-radius:12px;
+        font-weight:600;
+        text-decoration:none;
+        box-shadow:0 10px 25px rgba(21,101,192,0.3);
+      ">
+        🚀 Ir para o sistema
+      </a>
+
+    {% else %}
+
+      <!-- HEADLINE -->
+      <h1 style="
+        font-size:48px;
+        font-weight:800;
+        color:#0f172a;
+        line-height:1.15;
+      ">
+        Tenha controle total da sua escola
+        <br>
+        <span style="color:#1565C0;">
+          em um único sistema
+        </span>
+      </h1>
+
+      <!-- SUB -->
+      <p style="
+        margin-top:10px;
+        font-size:18px;
+        color:#64748b;
+        max-width:700px;
+        margin-left:auto;
+        margin-right:auto;
+        line-height:1.6;
+      ">
+        Gerencie alunos, professores, financeiro e diário de classe com organização, eficiência e total controle.
+      </p>
+
+      <!-- CTA -->
+      <div style="
+        margin-top:35px;
+        display:flex;
+        justify-content:center;
+        gap:15px;
+        flex-wrap:wrap;
+      ">
+
+        <a href="{% url 'login' %}" style="
+          background:#1565C0;
+          color:#fff;
+          padding:16px 32px;
+          border-radius:12px;
+          font-size:17px;
+          font-weight:600;
+          text-decoration:none;
+          box-shadow:0 10px 25px rgba(21,101,192,0.3);
+        ">
+          🔐 Acessar Sistema
+        </a>
+
+        <button disabled style="
+          background:#e5e7eb;
+          color:#6b7280;
+          padding:16px 26px;
+          border-radius:12px;
+          border:none;
+        ">
+          📱 App em breve
+        </button>
+
+      </div>
+
+      <!-- PROVA SOCIAL -->
+      <div style="
+        margin-top:25px;
+        font-size:16px;
+        color:#6b7280;
+      ">
+        <strong style="font-size:20px; color:#0f172a;">
+          +{{ total_escolas|default:0 }}
+        </strong>
+        escolas já utilizam 🚀
+      </div>
+
+    {% endif %}
+
+  </div>
+</section>
+
+<!-- 🎥 VIDEO DEMO -->
+<section style="padding:70px 16px; text-align:center;">
+  <div style="max-width:900px; margin:auto;">
+
+    <h3 style="font-weight:700; color:#0f172a;">
+      Veja como funciona
+    </h3>
+
+    <p style="color:#64748b; margin-top:10px;">
+      Uma visão rápida da plataforma em ação
+    </p>
+
+    <div style="
+      margin-top:30px;
+      border-radius:14px;
+      overflow:hidden;
+      box-shadow:0 15px 40px rgba(0,0,0,0.12);
+    ">
+<iframe 
+  width="100%" 
+  height="420" 
+  src="https://www.youtube.com/watch?v=Z_tBetx6Tq0"
+  frameborder="0" 
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowfullscreen>
+</iframe>
+    </div>
+
+  </div>
+</section>
+
+<!-- BENEFÍCIOS -->
+{% if not user.is_authenticated %}
+<section style="padding:70px 16px; background:#f9fafb;">
+  <div class="container">
+
+   <div class="row text-center">
+
+  <div class="col-md-4 mb-4 d-flex">
+    <div style="
+      background:#fff;
+      padding:30px;
+      border-radius:14px;
+      box-shadow:0 8px 25px rgba(0,0,0,0.05);
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+    ">
+      <div>
+        <h5>📊 Gestão Completa</h5>
+        <p>Alunos, turmas e professores organizados em um só lugar.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4 mb-4 d-flex">
+    <div style="
+      background:#fff;
+      padding:30px;
+      border-radius:14px;
+      box-shadow:0 8px 25px rgba(0,0,0,0.05);
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+    ">
+      <div>
+        <h5>💰 Financeiro</h5>
+        <p>Controle total de mensalidades e receita.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4 mb-4 d-flex">
+    <div style="
+      background:#fff;
+      padding:30px;
+      border-radius:14px;
+      box-shadow:0 8px 25px rgba(0,0,0,0.05);
+      width:100%;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+    ">
+      <div>
+        <h5>📘 Diário</h5>
+        <p>Notas e presença em tempo real.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

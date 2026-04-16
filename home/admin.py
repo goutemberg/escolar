@@ -131,3 +131,10 @@ class LoginLogAdmin(admin.ModelAdmin):
     list_display = ('cpf', 'ip', 'sucesso', 'created_at')
     list_filter = ('sucesso', 'created_at')
     search_fields = ('cpf',)
+
+from .models import AvisoPublico
+
+@admin.register(AvisoPublico)
+class AvisoPublicoAdmin(admin.ModelAdmin):
+    list_display = ('titulo', 'ativo', 'criado_em')
+    list_filter = ('ativo',)

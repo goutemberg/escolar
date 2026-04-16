@@ -1,29 +1,37 @@
 {% load static %}
 <head>
  <meta charset="utf-8"/>
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+
  <title>
-  Pequeno Aprendiz
+  Núcleo Escolar
  </title>
+
+ <!-- FAVICON -->
+ <link rel="icon" type="image/png" href="{% static 'themes/nucleo/favicon.png' %}">
+ <link rel="shortcut icon" href="{% static 'themes/nucleo/favicon.ico' %}?v=2">
+
  <!-- Bootstrap -->
  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet"/>
+
  <!-- Sua identidade visual -->
-  <link href="{% static 'home/css/identidade.css' %}" rel="stylesheet"/>
- 
+ <link href="{% static 'home/css/identidade.css' %}" rel="stylesheet"/>
+
  <style>
   body, html {
-            height: 100%;
-            margin: 0;
-            padding-top: 56px;
-        }
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
 
-        .flex-wrapper {
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
+  .flex-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
 
-        .content {
-            flex: 1;
-        }
+  .content {
+    flex: 1;
+  }
  </style>
 </head>

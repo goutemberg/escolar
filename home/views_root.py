@@ -82,6 +82,7 @@ from .models import (
     ModeloAvaliacao,
     TipoAvaliacao,
     PasswordResetToken,
+    AvisoPublico,
     
 )
 
@@ -136,12 +137,19 @@ def _buscar_pai_mae(aluno):
 
 User = get_user_model()
 
-def index(request):
-    return render(
-        request,
-        'pages/index.html'
-    )
 
+def index(request):
+    if request.user.is_authenticated:
+        return render(request, 'pages/index.html')  # sistema
+
+    aviso = AvisoPublico.objects.filter(ativo=True).order_by('-criado_em').first()
+    total_escolas = Escola.objects.count()
+
+    return render(request, 'pages/public.html', {
+        'aviso': aviso,
+        'total_escolas': total_escolas
+    })
+    
 
 @login_required
 def cadastro_escola(request):
@@ -2202,9 +2210,11 @@ def login_view(request):
     return render(request, 'pages/login.html', {'form': form})
 
 
+
 def logout_view(request):
     logout(request)
-    return redirect('login')
+    return redirect('/')
+
 
 @csrf_exempt
 def cadastrar_funcionario_banco(request):

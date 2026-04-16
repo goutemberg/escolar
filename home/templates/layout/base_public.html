@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+
+<style>
+
+  html, body {
+    overflow-x: hidden;
+  }
+
+</style>
+    {% load static %}
+    {% include 'partials/_head.html' %}
+
+    <link rel="stylesheet" href="{% static 'css/layout.css' %}">
+    <link rel="stylesheet" href="{% static 'css/design-system.css' %}">
+
+    <!-- tema padrão -->
+    <link rel="stylesheet" href="{% static 'nucleo/css/1_tokens.css' %}">
+    <link rel="stylesheet" href="{% static 'nucleo/css/2_base.css' %}">
+    <link rel="stylesheet" href="{% static 'nucleo/css/3_layout.css' %}">
+    <link rel="stylesheet" href="{% static 'nucleo/css/4_components.css' %}">
+
+
+</head>
+
+<body class="theme-nucleo">
+
+<main>
+    {% block content %}{% endblock %}
+</main>
+
+</body>
+</html>

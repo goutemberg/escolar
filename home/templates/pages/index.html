@@ -14,11 +14,11 @@
       ">
         <div style="padding: 22px 18px 20px; text-align:center;">
           <img
-            src="{% static 'themes/' %}{{ user.escola.tema|default:'legacy' }}/hero-logo.png"
+            src="{% static 'themes/' %}{{ user.escola.tema|default:'nucleo' }}/hero-logo.png"
             alt="Logo"
             {% comment %} style="width:100%; max-width: 520px; height:auto; object-fit:contain;" {% endcomment %}
             style="width:min(900px, 92%); max-height: 70vh; height:auto; object-fit:contain;"
-            onerror="this.onerror=null; this.src='{% static 'themes/' %}{{ user.escola.tema|default:'legacy' }}/logo.png';"
+            onerror="this.onerror=null; this.src='{% static 'themes/' %}{{ user.escola.tema|default:'nucleo' }}/logo.png';"
           >
 
           <div style="margin-top: 10px; color:#64748b; font-size: 14px;">
