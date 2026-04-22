@@ -188,15 +188,48 @@
                    style="background:#f1f1f1" type="text">
           </div>
         </div>
-
         <div class="form-footer">
-          <button class="btn btn-primary" id="submitButton" type="submit">
-            Cadastrar
-          </button>
-          <button class="btn btn-secondary" type="button"
-                  onclick="window.location.href='{% url 'index' %}'">
-            Cancelar
-          </button>
+
+    <button
+        class="me-2"
+        id="submitButton"
+        type="submit"
+        style="
+            background: #fab982;
+            color: #fff;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 500;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            transition: 0.2s;
+        "
+        onmouseover="this.style.backgroundColor='#f59e0b'"
+        onmouseout="this.style.backgroundColor='#fab982'"
+    >
+        <i class="bi bi-check-circle"></i> Cadastrar
+    </button>
+
+    <button
+        type="button"
+        onclick="window.location.href='{% url 'index' %}'"
+        style="
+            background: transparent;
+            color: #fab982;
+            border: 1.5px solid #fab982;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: 0.2s;
+        "
+        onmouseover="this.style.backgroundColor='#fab982'; this.style.color='#fff'"
+        onmouseout="this.style.backgroundColor='transparent'; this.style.color='#fab982'"
+    >
+        <i class="bi bi-x-circle"></i> Cancelar
+    </button>
+
+</div>
+      
         </div>
       </form>
     </div>
