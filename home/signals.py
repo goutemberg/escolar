@@ -10,15 +10,3 @@ def preencher_escola_docente(sender, instance, created, **kwargs):
         instance.escola = instance.user.escola
         instance.save()
 
-@receiver(post_save, sender=User)
-def criar_docente_para_professor(sender, instance, created, **kwargs):
-    if instance.role == "professor":
-        Docente.objects.get_or_create(
-            user=instance,
-            defaults={
-                "nome": instance.get_full_name() or instance.username,
-                "cpf": instance.cpf or "",
-                "email": instance.email or "",
-                "escola": instance.escola,
-            }
-        )

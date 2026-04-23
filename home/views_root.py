@@ -371,12 +371,13 @@ def cadastrar_professor_banco(request):
             escola=escola
         )
 
-        # 🔥 3️⃣ DOCENTE (POR ESCOLA)
+        # DOCENTE (POR ESCOLA)
         docente, created_docente = Docente.objects.get_or_create(
             cpf=cpf,
             escola=escola,
             defaults={
                 "user": usuario,
+                "escola": escola,
                 "nome": nome,
                 "nascimento": nascimento,
                 "email": email,
@@ -1896,16 +1897,22 @@ def lancar_notas(request):
 
                 salvas += 1
 
+        total_alunos = len(notas or {})
+
         if salvas == 0:
-            return JsonResponse(
-                {"erro": "Nenhuma nota foi salva."},
-                status=400
-            )
+            return JsonResponse({
+                "mensagem": "Nenhuma nota foi informada. Você pode salvar parcialmente."
+            })
+
+        if salvas < total_alunos:
+            faltantes = total_alunos - salvas
+            return JsonResponse({
+                "mensagem": f"Notas salvas com sucesso ({salvas} lançadas). {faltantes} aluno(s) sem nota."
+             })
 
         return JsonResponse({
-            "mensagem": f"Notas salvas com sucesso. ({salvas} lançadas)"
-        })
-
+            "mensagem": f"Notas salvas com sucesso ({salvas} lançadas)."
+})
     except Exception as e:
         return JsonResponse(
             {"erro": f"Erro ao processar: {str(e)}"},
