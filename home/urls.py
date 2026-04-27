@@ -172,6 +172,7 @@ urlpatterns = [
     path('boletins/<int:aluno_id>/', boletim_aluno_redirect),
     path('boletim/<int:aluno_id>/<int:turma_id>/', boletim, name='boletim'),
     path("boletim/", include(("home.routes.boletim", "boletim"), namespace="boletim")),
+    path('boletins/<int:aluno_id>/', views_root.visualizar_boletim, name='visualizar_boletim'),
 
     
 ]
