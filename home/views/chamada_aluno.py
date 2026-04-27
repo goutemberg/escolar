@@ -409,9 +409,9 @@ def listar_chamadas(request):
     ).first()
 
     # =====================================================
-    # PERFIL PROFESSOR
+    # PERFIL PROFESSOR (🔥 CORRIGIDO AQUI)
     # =====================================================
-    if professor:
+    if user.role == "professor" and professor:
 
         # ✅ pega as turmas/disciplinas que esse professor leciona
         turmas = Turma.objects.filter(
@@ -428,16 +428,15 @@ def listar_chamadas(request):
         disciplinas_ids = list(disciplinas.values_list("id", flat=True))
 
         # ✅ base: histórico limitado às turmas/disciplinas dele
-        # (isso evita ficar dependente de diario__professor estar preenchido corretamente)
         base = Chamada.objects.filter(
             diario__turma__escola=user.escola,
             diario__turma_id__in=turmas_ids,
             diario__disciplina_id__in=disciplinas_ids,
         )
 
-        # ✅ se o diário tiver professor gravado, mantém compatibilidade (não quebra)
-        # e melhora a precisão quando estiver correto
-        base = base.filter(Q(diario__professor=professor) | Q(diario__professor__isnull=True))
+        base = base.filter(
+            Q(diario__professor=professor) | Q(diario__professor__isnull=True)
+        )
 
     # =====================================================
     # PERFIL DIRETOR / COORDENADOR
