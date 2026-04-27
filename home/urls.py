@@ -166,8 +166,10 @@ urlpatterns = [
     path('editar-item/<int:id>/', views_avaliacao_infantil.editar_item),
     path('excluir-item/<int:id>/', views_avaliacao_infantil.excluir_item),
     path('salvar-ordem-avaliacao/', views_avaliacao_infantil.salvar_ordem),
+    path("salvar-observacao-infantil/", views_avaliacao_infantil.salvar_observacao_infantil),
     
     path('boletim-infantil/<int:aluno_id>/<int:turma_id>/', views_avaliacao_infantil.boletim_infantil, name='boletim_infantil'),
+    path("boletim-infantil-pdf/<int:aluno_id>/<int:turma_id>/", views_avaliacao_infantil.boletim_infantil_pdf, name="boletim_infantil_pdf"),
 
 
     

@@ -1,53 +1,262 @@
 {% extends "layout/base.html" %}
+{% load custom_filters %}
+{% load static %}
+
+{% block extra_head %}
+<style>
+.boletim-container {
+    max-width: 800px;
+    margin: auto;
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+}
+
+/* 🔥 HEADER COM LOGO */
+.boletim-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.boletim-logo {
+    height: 60px;
+}
+
+.boletim-info {
+    text-align: right;
+    font-size: 13px;
+    color: #555;
+}
+
+.boletim-header {
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+.periodo-card {
+    border-left: 4px solid #1565c0;
+    padding-left: 15px;
+}
+
+.categoria-card {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.categoria-titulo {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.linha-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.linha-item:last-child {
+    border-bottom: none;
+}
+
+.descricao {
+    font-size: 14px;
+}
+
+.conceito {
+    font-size: 13px;
+    padding: 6px 10px;
+    border-radius: 8px;
+}
+
+/* 🔥 LEGENDA */
+.legenda {
+    margin-top: 20px;
+    display: flex;
+    gap: 15px;
+    font-size: 13px;
+}
+
+.legenda span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* 🔥 OBSERVAÇÃO */
+.observacao-card {
+    margin-top: 25px;
+    padding: 20px;
+    border-radius: 12px;
+    background: #fff8e1;
+    border-left: 5px solid #fab982;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.observacao-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #1565c0;
+}
+
+.observacao-texto {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #444;
+    white-space: pre-line;
+}
+
+/* 🔥 ASSINATURAS */
+.assinaturas {
+    margin-top: 40px;
+    display: flex;
+    justify-content: space-between;
+    text-align: center;
+}
+
+.assinatura-linha {
+    width: 45%;
+    border-top: 1px solid #000;
+    padding-top: 5px;
+    font-size: 13px;
+}
+
+/* ============================================
+🔥 IMPRESSÃO
+============================================ */
+@media print {
+
+    nav,
+    aside,
+    header,
+    footer,
+    .sidebar,
+    .menu,
+    .titulo-pagina {
+        display: none !important;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+    }
+
+    .boletim-container {
+        max-width: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 10px;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .observacao-card,
+    .categoria-card {
+        box-shadow: none;
+    }
+
+    .periodo-card {
+        page-break-inside: avoid;
+    }
+}
+</style>
+{% endblock %}
+
 
 {% block content %}
 
 <div class="titulo-pagina">Boletim Infantil</div>
 
-<div class="card p-4 mb-3">
+<div class="boletim-container">
 
-    <h4>{{ aluno.nome }}</h4>
-    <p><strong>Turma:</strong> {{ turma.nome }}</p>
+    <!-- 🔥 TOPO COM LOGO E DATA -->
+    <div class="boletim-topo">
+        <img src="{% static 'img/logo.png' %}" class="boletim-logo" alt="Logo">
+        <div class="boletim-info">
+            <div><strong>Escola:</strong> {{ aluno.escola.nome }}</div>
+            <div><strong>Data de emissão:</strong> {% now "d/m/Y" %}</div>
+        </div>
+    </div>
 
-</div>
+    <!-- HEADER -->
+    <div class="boletim-header mb-4">
+        <h3 class="mb-2">Relatório de Desenvolvimento Infantil</h3>
+        <p><strong>Aluno:</strong> {{ aluno.nome }}</p>
+        <p><strong>Turma:</strong> {{ turma.nome }}</p>
+    </div>
 
+    {% for periodo, categorias in dados.items %}
+    <div class="periodo-card mb-4">
 
-{% for periodo, categorias in dados.items %}
-<div class="card p-3 mb-3">
+        <h5 class="mb-3">{{ periodo }}</h5>
 
-    <h5>{{ periodo }}</h5>
+        {% for categoria, itens in categorias.items %}
+        <div class="categoria-card mb-3">
 
-    {% for categoria, itens in categorias.items %}
-        <h6 class="mt-3">{{ categoria }}</h6>
+            <h6 class="categoria-titulo">{{ categoria }}</h6>
 
-        <table class="table table-sm">
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th style="width: 80px;">Conceito</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in itens %}
-                <tr>
-                    <td>{{ item.descricao }}</td>
-                    <td>
-                        <span class="
-                            {% if item.valor == 'O' %}badge bg-success
-                            {% elif item.valor == 'B' %}badge bg-primary
-                            {% else %}badge bg-warning text-dark{% endif %}
-                        ">
-                            {{ item.valor }}
-                        </span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            {% for item in itens %}
+            <div class="linha-item">
 
+                <span class="descricao">{{ item.descricao }}</span>
+
+                <span class="
+                    badge conceito
+                    {% if item.valor == 'O' %}bg-success
+                    {% elif item.valor == 'B' %}bg-primary
+                    {% else %}bg-warning text-dark{% endif %}
+                ">
+                    {{ item.valor }}
+                </span>
+
+            </div>
+            {% endfor %}
+
+        </div>
+        {% endfor %}
+
+        <!-- OBSERVAÇÃO -->
+        <div class="observacao-card">
+            
+            <div class="observacao-header">
+                <i class="bi bi-chat-left-text"></i>
+                <span>Observação Pedagógica</span>
+            </div>
+
+            <div class="observacao-texto">
+                {{ observacoes|get_item:periodo|default:"Sem observações registradas." }}
+            </div>
+
+        </div>
+
+    </div>
     {% endfor %}
 
+    <!-- 🔥 LEGENDA -->
+    <div class="legenda">
+        <span><span class="badge bg-success">O</span> Ótimo</span>
+        <span><span class="badge bg-primary">B</span> Bom</span>
+        <span><span class="badge bg-warning text-dark">E</span> Evolução</span>
+    </div>
+
+    <!-- ASSINATURAS -->
+    <div class="assinaturas">
+        <div class="assinatura-linha">
+            Professor(a)
+        </div>
+        <div class="assinatura-linha">
+            Coordenação
+        </div>
+    </div>
+
 </div>
-{% endfor %}
 
 {% endblock %}

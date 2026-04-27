@@ -6,6 +6,15 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.decorators import login_required
+from home.models import ObservacaoInfantil
+from django.http import HttpResponse
+from django.template.loader import get_template
+from django.http import HttpResponse
+
+from django.template.loader import render_to_string
+from django.http import HttpResponse
+from weasyprint import HTML
+
 
 from home.models import (
     AvaliacaoInfantil,
@@ -34,6 +43,7 @@ def salvar_avaliacao_infantil(request):
         for av in dados.get("avaliacoes", []):
             aluno_id = av.get("aluno_id")
 
+            # 🔥 CRIA/PEGA A AVALIAÇÃO
             avaliacao, _ = AvaliacaoInfantil.objects.get_or_create(
                 aluno_id=aluno_id,
                 turma_id=turma_id,
@@ -41,12 +51,31 @@ def salvar_avaliacao_infantil(request):
                 ano=ano
             )
 
+            # 🔥 SALVA RESPOSTAS (SEM ALTERAÇÃO)
             for item_id, valor in av.get("respostas", {}).items():
 
                 AvaliacaoResposta.objects.update_or_create(
                     avaliacao=avaliacao,
                     item_id=int(item_id),
                     defaults={"valor": valor}
+                )
+
+            # =========================
+            # 🔥 NOVO: SALVAR OBSERVAÇÃO
+            # =========================
+            observacao_texto = av.get("observacao", "")
+
+            if observacao_texto:  # só salva se tiver conteúdo
+
+                ObservacaoInfantil.objects.update_or_create(
+                    aluno_id=aluno_id,
+                    turma_id=turma_id,
+                    bimestre=bimestre,
+                    ano=ano,
+                    defaults={
+                        "texto": observacao_texto,
+                        "escola": request.user.escola
+                    }
                 )
 
         return JsonResponse({"ok": True})
@@ -56,7 +85,6 @@ def salvar_avaliacao_infantil(request):
 
 
 
-import json
 
 @login_required
 def tela_avaliacao_infantil(request):
@@ -142,8 +170,25 @@ def buscar_avaliacoes_infantil(request):
 
             resposta_dict[aluno_id][r.item_id] = r.valor
 
+        # =========================
+        # 🔥 NOVO: BUSCAR OBSERVAÇÕES
+        # =========================
+        from home.models import ObservacaoInfantil
+
+        observacoes_qs = ObservacaoInfantil.objects.filter(
+            turma_id=turma_id,
+            bimestre=bimestre,
+            ano=ano,
+            aluno__escola=request.user.escola
+        )
+
+        observacoes_dict = {
+            o.aluno_id: o.texto for o in observacoes_qs
+        }
+
         return JsonResponse({
-            "avaliacoes": resposta_dict
+            "avaliacoes": resposta_dict,
+            "observacoes": observacoes_dict  # 🔥 NOVO
         })
 
     except Exception as e:
@@ -359,6 +404,7 @@ def salvar_ordem(request):
         return JsonResponse({"erro": str(e)}, status=500)
 
 
+
 @login_required
 def boletim_infantil(request, aluno_id, turma_id):
 
@@ -374,7 +420,6 @@ def boletim_infantil(request, aluno_id, turma_id):
         escola=request.user.escola
     )
 
-    # 🔥 AGORA FILTRA POR ALUNO + TURMA
     avaliacoes = AvaliacaoInfantil.objects.filter(
         aluno=aluno,
         turma=turma
@@ -402,8 +447,132 @@ def boletim_infantil(request, aluno_id, turma_id):
             "valor": r.valor
         })
 
+    # =========================
+    # OBSERVAÇÕES POR PERÍODO
+    # =========================
+    observacoes_por_periodo = {}
+
+    observacoes = ObservacaoInfantil.objects.filter(
+        aluno=aluno,
+        turma=turma,
+        escola=request.user.escola
+    )
+
+    for obs in observacoes:
+        chave = f"{obs.bimestre}/{obs.ano}"
+        observacoes_por_periodo[chave] = obs.texto
+
     return render(request, "pages/boletim_infantil.html", {
         "aluno": aluno,
-        "turma": turma,  # 🔥 agora é a correta
-        "dados": dados
+        "turma": turma,
+        "dados": dados,
+        "observacoes": observacoes_por_periodo 
     })
+
+
+@csrf_exempt
+@login_required
+def salvar_observacao_infantil(request):
+
+    if request.method != "POST":
+        return JsonResponse({"erro": "Método inválido"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+
+        aluno_id = data.get("aluno_id")
+        turma_id = data.get("turma_id")
+        bimestre = data.get("bimestre")
+        texto = data.get("texto")
+
+        ano = datetime.now().year
+
+        observacao, _ = ObservacaoInfantil.objects.update_or_create(
+            aluno_id=aluno_id,
+            turma_id=turma_id,
+            bimestre=bimestre,
+            ano=ano,
+            defaults={
+                "texto": texto,
+                "escola": request.user.escola
+            }
+        )
+
+        return JsonResponse({"ok": True})
+
+    except Exception as e:
+        return JsonResponse({"erro": str(e)}, status=500)
+
+
+@login_required
+def boletim_infantil_pdf(request, aluno_id, turma_id):
+
+    aluno = get_object_or_404(
+        Aluno,
+        id=aluno_id,
+        escola=request.user.escola
+    )
+
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=request.user.escola
+    )
+
+    avaliacoes = AvaliacaoInfantil.objects.filter(
+        aluno=aluno,
+        turma=turma
+    ).order_by('-ano', '-bimestre')
+
+    respostas = AvaliacaoResposta.objects.filter(
+        avaliacao__in=avaliacoes
+    ).select_related('item__categoria', 'avaliacao')
+
+    dados = {}
+
+    for r in respostas:
+        chave = f"{r.avaliacao.bimestre}/{r.avaliacao.ano}"
+
+        if chave not in dados:
+            dados[chave] = {}
+
+        categoria = r.item.categoria.nome
+
+        if categoria not in dados[chave]:
+            dados[chave][categoria] = []
+
+        dados[chave][categoria].append({
+            "descricao": r.item.descricao,
+            "valor": r.valor
+        })
+
+    # 🔥 OBSERVAÇÃO
+    observacoes = ObservacaoInfantil.objects.filter(
+        aluno=aluno,
+        turma=turma,
+        escola=request.user.escola
+    )
+
+    observacoes_dict = {
+        f"{o.bimestre}/{o.ano}": o.texto for o in observacoes
+    }
+
+    html_string = render_to_string(
+        "pages/boletim_infantil.html",
+        {
+            "aluno": aluno,
+            "turma": turma,
+            "dados": dados,
+            "observacoes": observacoes_dict,
+            "user": request.user
+
+        }
+    )
+
+    html = HTML(string=html_string)
+    pdf = html.write_pdf()
+
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="boletim_{aluno.id}.pdf"'
+
+    return response
