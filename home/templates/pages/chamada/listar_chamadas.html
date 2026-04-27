@@ -375,9 +375,9 @@ label{
 });
   });
     const datasComChamada = [
-    {% for c in chamadas %}
-      "{{ c.diario.data_ministrada|date:'Y-m-d' }}",
-    {% endfor %}
+  {% for d in datas_chamadas %}
+    "{{ d|date:'Y-m-d' }}",
+  {% endfor %}
   ];
 </script>
 {% endblock extra_js %}

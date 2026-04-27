@@ -409,11 +409,10 @@ def listar_chamadas(request):
     ).first()
 
     # =====================================================
-    # PERFIL PROFESSOR (🔥 CORRIGIDO AQUI)
+    # PERFIL PROFESSOR (CORRIGIDO)
     # =====================================================
     if user.role == "professor" and professor:
 
-        # ✅ pega as turmas/disciplinas que esse professor leciona
         turmas = Turma.objects.filter(
             turmadisciplina__professor=professor,
             escola=user.escola
@@ -427,7 +426,6 @@ def listar_chamadas(request):
         turmas_ids = list(turmas.values_list("id", flat=True))
         disciplinas_ids = list(disciplinas.values_list("id", flat=True))
 
-        # ✅ base: histórico limitado às turmas/disciplinas dele
         base = Chamada.objects.filter(
             diario__turma__escola=user.escola,
             diario__turma_id__in=turmas_ids,
@@ -453,6 +451,14 @@ def listar_chamadas(request):
         disciplinas = Disciplina.objects.filter(
             escola=user.escola
         ).order_by("nome")
+
+    # =====================================================
+    # 🔥 NOVO: DATAS COMPLETAS PARA O CALENDÁRIO
+    # (independente da paginação)
+    # =====================================================
+    datas_chamadas = Chamada.objects.filter(
+        diario__turma__escola=user.escola
+    ).values_list("diario__data_ministrada", flat=True).distinct()
 
     # =====================================================
     # FILTROS
@@ -517,6 +523,7 @@ def listar_chamadas(request):
             "filtro_data": filtro_data or "",
             "filtro_turma": filtro_turma or "",
             "filtro_disciplina": filtro_disciplina or "",
+            "datas_chamadas": datas_chamadas,  # 👈 ESSENCIAL PRO CALENDÁRIO
         }
     )
 
