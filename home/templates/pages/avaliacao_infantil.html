@@ -161,7 +161,7 @@ input[type="radio"]:checked + .opcao-E {
     >
         <i class="bi bi-x-circle"></i> Cancelar
     </button>
-
+    
 </div>
 
 </div>
@@ -177,7 +177,7 @@ let itens = JSON.parse('{{ itens|escapejs }}');
 
 
 // =========================
-// CARREGAR TURMAS (VOLTOU 🔥)
+// CARREGAR TURMAS
 // =========================
 function carregarTurmas() {
 
@@ -185,15 +185,12 @@ function carregarTurmas() {
     .then(res => res.json())
     .then(data => {
 
-        console.log("TURMAS:", data); // DEBUG
-
         if (data.erro) {
             alert(data.erro);
             return;
         }
 
         let select = document.getElementById("turma");
-
         select.innerHTML = '<option value="">Selecione a turma</option>';
 
         data.turmas.forEach(turma => {
@@ -208,7 +205,7 @@ function carregarTurmas() {
 
 
 // =========================
-// CARREGAR DADOS (ALUNOS + AVALIAÇÕES)
+// CARREGAR DADOS
 // =========================
 function carregarDados() {
 
@@ -229,9 +226,6 @@ function carregarDados() {
         const dataAlunos = await resAlunos.json();
         const dataAvaliacoes = await resAvaliacoes.json();
 
-        console.log("ALUNOS:", dataAlunos);
-        console.log("AVALIAÇÕES:", dataAvaliacoes);
-
         if (dataAlunos.erro) {
             alert(dataAlunos.erro);
             return;
@@ -239,6 +233,7 @@ function carregarDados() {
 
         alunos = dataAlunos.alunos;
         window.avaliacoesSalvas = dataAvaliacoes.avaliacoes || {};
+        window.observacoes = dataAvaliacoes.observacoes || {}; // 🔥 NOVO
 
         montarTela();
     });
@@ -255,10 +250,8 @@ function montarTela() {
 
     itens.forEach(item => {
 
-        // 🔥 NOVA CATEGORIA
         if (categoriaAtual !== item.categoria_id) {
 
-            // fecha card anterior
             if (categoriaAtual !== null) {
                 html += `</div>`;
             }
@@ -271,24 +264,49 @@ function montarTela() {
             `;
         }
 
-        // 🔥 DESCRIÇÃO DO ITEM
         html += `
             <div class="mt-3 mb-2">
                 <strong>${item.descricao}</strong>
             </div>
         `;
 
-        // 🔥 LISTA DE ALUNOS
         alunos.forEach(aluno => {
 
             let valorSalvo = window.avaliacoesSalvas?.[aluno.id]?.[item.id] || '';
+            let obs = window.observacoes?.[aluno.id] || '';
 
             html += `
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    
-                    <span>${aluno.nome}</span>
+                <div class="mb-2">
 
-                    <div class="avaliacao-opcoes">
+                    <!-- 🔥 HEADER (nome + botão) -->
+                    <div class="d-flex justify-content-between align-items-center">
+
+                        <span>${aluno.nome}</span>
+
+                        <button
+                            type="button"
+                            onclick="abrirPdfAluno(${aluno.id})"
+                            title="Gerar boletim em PDF"
+                            style="
+                                background: transparent;
+                                color: #1565c0;
+                                border: 1.5px solid #1565c0;
+                                padding: 4px 10px;
+                                border-radius: 6px;
+                                font-size: 12px;
+                                font-weight: 500;
+                                transition: 0.2s;
+                            "
+                            onmouseover="this.style.backgroundColor='#1565c0'; this.style.color='#fff'"
+                            onmouseout="this.style.backgroundColor='transparent'; this.style.color='#1565c0'"
+                        >
+                            <i class="bi bi-file-earmark-pdf"></i>
+                        </button>
+
+                    </div>
+
+                    <!-- 🔥 AVALIAÇÃO -->
+                    <div class="avaliacao-opcoes mt-2">
 
                         <input type="radio"
                             id="O_${item.id}_${aluno.id}"
@@ -313,17 +331,26 @@ function montarTela() {
 
                     </div>
 
+                    <!-- 🔥 OBSERVAÇÃO -->
+                    <div class="mt-2 mb-3">
+                        <textarea 
+                            class="form-control observacao"
+                            data-aluno="${aluno.id}"
+                            placeholder="Observação do professor..."
+                            style="font-size: 13px; padding: 8px; border-radius: 8px;"
+                        >${obs}</textarea>
+                    </div>
+
                 </div>
             `;
         });
 
     });
 
-    // 🔥 fecha último card
     html += `</div>`;
-
     document.getElementById("avaliacoesContainer").innerHTML = html;
 }
+
 
 // =========================
 // SALVAR
@@ -338,6 +365,7 @@ function salvar() {
     alunos.forEach(aluno => {
 
         let respostas = {};
+        let textarea = document.querySelector(`textarea[data-aluno='${aluno.id}']`);
 
         itens.forEach(item => {
 
@@ -353,8 +381,10 @@ function salvar() {
 
         avaliacoes.push({
             aluno_id: aluno.id,
-            respostas: respostas
+            respostas: respostas,
+            observacao: textarea ? textarea.value : ""
         });
+
     });
 
     fetch("/salvar-avaliacao-infantil/", {
@@ -394,9 +424,19 @@ function getCSRFToken() {
 // INIT
 // =========================
 document.addEventListener("DOMContentLoaded", function() {
-    console.log("Página carregada");
-
-    carregarTurmas(); // 🔥 ESSENCIAL
+    carregarTurmas();
 });
+
+function abrirPdfAluno(alunoId){
+
+    const turmaId = document.getElementById("turma").value;
+
+    if(!turmaId){
+        alert("Selecione a turma");
+        return;
+    }
+
+    window.open(`/boletim-infantil-pdf/${alunoId}/${turmaId}/`, '_blank');
+}
 </script>
 {% endblock extra_js %}
