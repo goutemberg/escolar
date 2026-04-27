@@ -398,7 +398,7 @@ function abrirPdfSeguro(){
 
     pdfAberto = true;
 
-    window.open("{% url 'boletim:gerar_pdf_boletim' aluno.id turma.id %}", "_blank");
+    window.open("{% url 'gerar_pdf_boletim' aluno.id turma.id %}", "_blank");
 
     setTimeout(() => {
         pdfAberto = false;
