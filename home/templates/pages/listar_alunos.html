@@ -392,6 +392,12 @@
         onclick="window.open('/alunos/${a.id}/pdf/', '_blank')">
     <i class="bi bi-printer-fill"></i>
   </span>
+{% comment %} <span <a href="{% url 'boletim:boletim_turma' turma.id %}" 
+   class="action-icon action-boletim" 
+   title="Boletim">
+  <i class="bi bi-file-earmark-text"></i>
+</a>
+</span> {% endcomment %}
 
   <span class="action-icon ${a.ativo ? "action-disable" : "action-enable"}"
         title="${a.ativo ? "Inativar aluno" : "Ativar aluno"}"

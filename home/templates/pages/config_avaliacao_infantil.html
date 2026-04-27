@@ -1,0 +1,352 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<!-- SORTABLE -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<style>
+.card-categoria {
+    border-left: 4px solid #fab982;
+    cursor: grab;
+}
+
+.item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    cursor: grab;
+}
+
+.btn-laranja {
+    background: transparent;
+    color: #fab982;
+    border: 1.5px solid #fab982;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: 0.2s;
+}
+
+.btn-laranja:hover {
+    background: #fab982;
+    color: #fff;
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="pagina-disciplina">
+
+<div class="titulo-pagina">Configuração Avaliação Infantil</div>
+
+<!-- NOVA CATEGORIA -->
+<div class="card p-3 mb-3">
+    <input id="novaCategoria" class="form-control mb-2" placeholder="Nome da nova categoria">
+
+    <button onclick="criarCategoria()" class="btn-laranja">
+        <i class="bi bi-plus-circle"></i> Criar Categoria
+    </button>
+</div>
+
+
+<!-- LISTAGEM -->
+<div id="categoriasContainer">
+
+{% for categoria in categorias %}
+<div class="card card-categoria categoria p-3 mb-3" data-id="{{ categoria.id }}">
+
+    <!-- HEADER -->
+    <div class="d-flex justify-content-between align-items-center">
+        <h5 id="cat_nome_{{ categoria.id }}">{{ categoria.nome }}</h5>
+
+        <div>
+            <button onclick="editarCategoria({{ categoria.id }})" class="btn-laranja me-1">
+                <i class="bi bi-pencil"></i>
+            </button>
+
+            <button onclick="excluirCategoria({{ categoria.id }})" class="btn-laranja">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- NOVO ITEM -->
+    <div class="d-flex gap-2 mt-3">
+        <input id="item_{{ categoria.id }}" class="form-control" placeholder="Novo item">
+
+        <button onclick="criarItem({{ categoria.id }})" class="btn-laranja">
+            <i class="bi bi-plus"></i>
+        </button>
+    </div>
+
+    <!-- ITENS -->
+    <div class="mt-3 itens-lista">
+
+        {% for item in categoria.itens.all %}
+        <div class="item-row item" data-id="{{ item.id }}">
+
+            <span id="item_nome_{{ item.id }}">{{ item.descricao }}</span>
+
+            <div>
+                <button onclick="editarItem({{ item.id }})" class="btn-laranja me-1">
+                    <i class="bi bi-pencil"></i>
+                </button>
+
+                <button onclick="excluirItem({{ item.id }})" class="btn-laranja">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+
+        </div>
+        {% endfor %}
+
+    </div>
+
+</div>
+{% endfor %}
+
+</div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+
+// =========================
+// CSRF
+// =========================
+function getCSRFToken() {
+    return document.cookie.split('; ')
+        .find(row => row.startsWith('csrftoken'))
+        ?.split('=')[1];
+}
+
+
+// =========================
+// FEEDBACK VISUAL
+// =========================
+function mostrarStatus(mensagem, cor="#fab982"){
+
+    let el = document.getElementById("statusSave");
+
+    if(!el){
+        el = document.createElement("div");
+        el.id = "statusSave";
+        el.style.position = "fixed";
+        el.style.bottom = "20px";
+        el.style.right = "20px";
+        el.style.padding = "10px 16px";
+        el.style.borderRadius = "8px";
+        el.style.fontWeight = "500";
+        el.style.zIndex = "9999";
+        el.style.boxShadow = "0 2px 10px rgba(0,0,0,0.1)";
+        document.body.appendChild(el);
+    }
+
+    el.innerText = mensagem;
+    el.style.background = cor;
+    el.style.color = "#fff";
+    el.style.opacity = "1";
+
+    clearTimeout(el.timeout);
+
+    el.timeout = setTimeout(() => {
+        el.style.opacity = "0";
+    }, 1500);
+}
+
+
+// =========================
+// CATEGORIA
+// =========================
+function criarCategoria(){
+
+    const nome = document.getElementById("novaCategoria").value;
+
+    fetch("/salvar-categoria-avaliacao/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken()
+        },
+        body: JSON.stringify({ nome })
+    })
+    .then(() => location.reload());
+}
+
+
+function editarCategoria(id){
+
+    const nomeAtual = document.getElementById(`cat_nome_${id}`).innerText;
+    const novoNome = prompt("Editar categoria:", nomeAtual);
+
+    if(!novoNome) return;
+
+    fetch(`/editar-categoria/${id}/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken()
+        },
+        body: JSON.stringify({ nome: novoNome })
+    })
+    .then(() => location.reload());
+}
+
+
+function excluirCategoria(id){
+
+    if(!confirm("Excluir categoria e todos os itens?")) return;
+
+    fetch(`/excluir-categoria/${id}/`)
+    .then(() => location.reload());
+}
+
+
+// =========================
+// ITEM
+// =========================
+function criarItem(categoriaId){
+
+    const input = document.getElementById(`item_${categoriaId}`);
+    const descricao = input.value;
+
+    fetch("/salvar-item-avaliacao/", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken()
+        },
+        body: JSON.stringify({
+            categoria_id: categoriaId,
+            descricao
+        })
+    })
+    .then(() => location.reload());
+}
+
+
+function editarItem(id){
+
+    const atual = document.getElementById(`item_nome_${id}`).innerText;
+    const novo = prompt("Editar item:", atual);
+
+    if(!novo) return;
+
+    fetch(`/editar-item/${id}/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken()
+        },
+        body: JSON.stringify({ descricao: novo })
+    })
+    .then(() => location.reload());
+}
+
+
+function excluirItem(id){
+
+    if(!confirm("Excluir item?")) return;
+
+    fetch(`/excluir-item/${id}/`)
+    .then(() => location.reload());
+}
+
+
+// =========================
+// DRAG & DROP
+// =========================
+function iniciarDragDrop(){
+
+    const containerCategorias = document.querySelector("#categoriasContainer");
+
+    if(containerCategorias){
+        new Sortable(containerCategorias, {
+            animation: 150,
+            draggable: ".categoria",
+            handle: ".card-categoria",
+            onEnd: salvarOrdem
+        });
+    }
+
+    document.querySelectorAll(".itens-lista").forEach(lista => {
+
+        new Sortable(lista, {
+            group: "itens",
+            animation: 150,
+            draggable: ".item",
+            onEnd: salvarOrdem
+        });
+
+    });
+}
+
+
+// =========================
+// SALVAR ORDEM
+// =========================
+let timeoutSave;
+
+function salvarOrdem(){
+
+    mostrarStatus("Salvando...", "#999");
+
+    clearTimeout(timeoutSave);
+
+    timeoutSave = setTimeout(() => {
+
+        let categorias = [];
+
+        document.querySelectorAll(".categoria").forEach(catEl => {
+
+            let catId = catEl.dataset.id;
+            let itens = [];
+
+            catEl.querySelectorAll(".item").forEach(item => {
+                itens.push(item.dataset.id);
+            });
+
+            categorias.push({
+                id: catId,
+                itens: itens
+            });
+
+        });
+
+        fetch("/salvar-ordem-avaliacao/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken()
+            },
+            body: JSON.stringify({ categorias })
+        })
+        .then(() => {
+            mostrarStatus("✔ Ordem salva");
+        })
+        .catch(() => {
+            mostrarStatus("Erro ao salvar", "#dc3545");
+        });
+
+    }, 400);
+}
+
+
+// =========================
+// INIT
+// =========================
+document.addEventListener("DOMContentLoaded", function(){
+    iniciarDragDrop();
+});
+
+</script>
+{% endblock %}

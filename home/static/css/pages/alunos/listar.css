@@ -112,3 +112,13 @@ table tbody tr:hover{ background:#fafafa; }
   border: 2px solid #ef4444 !important;
   background: #fff5f5;
 }
+
+.action-boletim {
+    color: #fab982;
+}
+
+.action-boletim:hover {
+    color: #fff;
+    background: #fab982;
+    border-radius: 6px;
+}

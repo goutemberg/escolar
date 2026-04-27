@@ -284,9 +284,6 @@ class Aluno(models.Model):
     turno_aluno = models.CharField(max_length=20, blank=True)
     possui_necessidade_especial = models.BooleanField(default=False)
 
-    # -------------------------------------------------
-    # NOVO CAMPO (DESCONTO AUTOMÁTICO DA MENSALIDADE)
-    # -------------------------------------------------
     desconto_mensal = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -301,6 +298,39 @@ class Aluno(models.Model):
         blank=True,
         related_name="alunos_principais"
     )
+
+    # =========================================================
+    # 🔥 VALIDAÇÃO E CONSISTÊNCIA
+    # =========================================================
+
+    def save(self, *args, **kwargs):
+
+        # 🔥 REGRA 1: aluno precisa ter turma
+        if not self.turma_principal:
+
+            # tenta recuperar da relação M2M
+            turma = self.turmas.first()
+
+            if turma:
+                self.turma_principal = turma
+            else:
+                raise ValidationError("Aluno precisa ter uma turma principal.")
+
+        super().save(*args, **kwargs)
+
+        # 🔥 REGRA 2: garantir que turma_principal esteja no M2M
+        if self.turma_principal and not self.turmas.filter(id=self.turma_principal.id).exists():
+            self.turmas.add(self.turma_principal)
+
+        # 🔥 REGRA 3: garantir apenas UMA turma ativa
+        turmas_ids = list(self.turmas.values_list('id', flat=True))
+
+        if len(turmas_ids) > 1:
+            self.turmas.clear()
+            self.turmas.add(self.turma_principal)
+
+    def __str__(self):
+        return f"{self.nome} ({self.matricula})"
 
     @property
     def turma(self):
@@ -397,6 +427,13 @@ class Turma(models.Model):
         ("INATIVA", "Inativa"),
     ]
 
+    # 🔥 NOVO CAMPO
+    TIPO_TURMA_CHOICES = [
+        ("INF", "Infantil"),
+        ("FUN", "Fundamental"),
+        ("MED", "Médio"),
+    ]
+
     nome = models.CharField(max_length=100)
     turno = models.CharField(max_length=20)
     ano = models.IntegerField()
@@ -407,6 +444,13 @@ class Turma(models.Model):
         max_length=3,
         choices=AVALIACAO_CHOICES,
         default="NUM",
+    )
+
+    # 🔥 NOVO CAMPO AQUI
+    tipo_turma = models.CharField(
+        max_length=3,
+        choices=TIPO_TURMA_CHOICES,
+        default="FUN",  # 🔥 não quebra produção
     )
 
     status = models.CharField(
@@ -428,7 +472,6 @@ class Turma(models.Model):
         blank=True
     )
 
-   
     def __str__(self):
         return f"{self.nome} - {self.turno} ({self.ano})"
 
@@ -1011,3 +1054,58 @@ class AvisoPublico(models.Model):
 
     def __str__(self):
         return self.titulo
+
+
+
+class AvaliacaoCategoria(models.Model):
+    nome = models.CharField(max_length=100)
+    escola = models.ForeignKey('Escola', on_delete=models.CASCADE)
+    ordem = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.nome
+
+
+class AvaliacaoItem(models.Model):
+    escola = models.ForeignKey('Escola', on_delete=models.CASCADE)
+
+    categoria = models.ForeignKey(
+        AvaliacaoCategoria,
+        on_delete=models.CASCADE,
+        related_name="itens"  # 🔥 AQUI
+    )
+
+    descricao = models.CharField(max_length=255)
+    ordem = models.IntegerField(default=0)
+    ativo = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.descricao
+
+
+class AvaliacaoInfantil(models.Model):
+    aluno = models.ForeignKey('Aluno', on_delete=models.CASCADE)
+    turma = models.ForeignKey('Turma', on_delete=models.CASCADE)
+
+    bimestre = models.IntegerField()
+    ano = models.IntegerField()
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('aluno', 'turma', 'bimestre', 'ano')
+
+
+class AvaliacaoResposta(models.Model):
+    OPCOES = [
+        ('O', 'Ótimo'),
+        ('B', 'Bom'),
+        ('E', 'Em evolução'),
+    ]
+
+    avaliacao = models.ForeignKey(AvaliacaoInfantil, on_delete=models.CASCADE)
+    item = models.ForeignKey(AvaliacaoItem, on_delete=models.CASCADE)
+    valor = models.CharField(max_length=1, choices=OPCOES)
+
+    class Meta:
+        unique_together = ('avaliacao', 'item')

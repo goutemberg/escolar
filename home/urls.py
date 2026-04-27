@@ -1,5 +1,8 @@
 from django.urls import path, include
 from . import views_root
+from home.views.boletim import boletim
+from .views.boletim import boletim_aluno_redirect
+from home.views import views_avaliacao_infantil
 
 urlpatterns = [
 
@@ -73,7 +76,6 @@ urlpatterns = [
     path('lancar_notas/', views_root.lancar_notas, name='lancar_notas'),
 
     path('boletins/', views_root.listar_turmas_para_boletim, name='listar_turmas_boletim'),
-    path('boletins/<int:aluno_id>/', views_root.visualizar_boletim, name='visualizar_boletim'),
 
     # --------------------------------
     # Disciplinas
@@ -129,7 +131,6 @@ urlpatterns = [
     path("",include(("home.routes.registro_pedagogico", "registro_pedagogico"), namespace="registro_pedagogico")),
     path("relatorios/", include(("home.routes.relatorios", "relatorios"), namespace="relatorios")),
     path("avaliacoes/", include(("home.routes.avaliacoes", "avaliacoes"), namespace="avaliacoes")),
-    path("boletim/", include(("home.routes.boletim", "boletim"), namespace="boletim")),
 
      #######################################
     #         RESET SENHA
@@ -146,4 +147,31 @@ urlpatterns = [
     path('aluno/atualizar-vencimento/<int:aluno_id>/', views_root.atualizar_vencimento),
 
     path("ajuda/", include("ajuda.urls")),
+
+    #######################################
+    #         Avaliacao Infantil
+    #######################################
+
+    path('avaliacao-infantil/', views_avaliacao_infantil.tela_avaliacao_infantil, name='avaliacao_infantil'),
+    path('salvar-avaliacao-infantil/', views_avaliacao_infantil.salvar_avaliacao_infantil, name='salvar_avaliacao_infantil'),
+    path('buscar-alunos-por-turma/', views_avaliacao_infantil.buscar_alunos_por_turma, name='buscar_alunos_por_turma'),
+    path('buscar-avaliacoes-infantil/', views_avaliacao_infantil.buscar_avaliacoes_infantil, name='buscar_avaliacoes_infantil'),
+    path('buscar-turmas/', views_avaliacao_infantil.buscar_turmas, name='buscar_turmas'),
+    path('config-avaliacao-infantil/', views_avaliacao_infantil.configuracao_avaliacao_infantil, name='config_avaliacao_infantil'),
+    path('salvar-item-avaliacao/', views_avaliacao_infantil.salvar_item_avaliacao),
+    path('salvar-categoria-avaliacao/', views_avaliacao_infantil.salvar_categoria),
+    path('editar-categoria/<int:id>/', views_avaliacao_infantil.editar_categoria),
+    path('excluir-categoria/<int:id>/', views_avaliacao_infantil.excluir_categoria),
+    path('editar-item/<int:id>/', views_avaliacao_infantil.editar_item),
+    path('excluir-item/<int:id>/', views_avaliacao_infantil.excluir_item),
+    path('salvar-ordem-avaliacao/', views_avaliacao_infantil.salvar_ordem),
+    
+    path('boletim-infantil/<int:aluno_id>/<int:turma_id>/', views_avaliacao_infantil.boletim_infantil, name='boletim_infantil'),
+
+
+    path('boletins/<int:aluno_id>/', boletim_aluno_redirect),
+    path('boletim/<int:aluno_id>/<int:turma_id>/', boletim, name='boletim'),
+    path("boletim/", include(("home.routes.boletim", "boletim"), namespace="boletim")),
+
+    
 ]

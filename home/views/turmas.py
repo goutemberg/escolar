@@ -285,7 +285,7 @@ def cadastro_turma(request, turma_id=None):
                     ).delete()
 
                 # =========================================================
-                # 🔹 ALUNOS
+                # 🔹 ALUNOS (CORRIGIDO)
                 # =========================================================
 
                 if alunos_ids:
@@ -296,9 +296,15 @@ def cadastro_turma(request, turma_id=None):
                         ativo=True
                     )
 
-                    turma.alunos.add(*alunos)
-
                     for aluno in alunos:
+
+                        # 🔥 REMOVE DE TODAS AS OUTRAS TURMAS
+                        aluno.turmas.clear()
+
+                        # 🔥 ADICIONA NA TURMA ATUAL
+                        aluno.turmas.add(turma)
+
+                        # 🔥 DEFINE COMO PRINCIPAL
                         aluno.turma_principal = turma
                         aluno.save(update_fields=["turma_principal"])
 
@@ -369,7 +375,7 @@ def cadastro_turma(request, turma_id=None):
                         )
 
                 # =========================================================
-                # 🔥 GERAR AVALIAÇÕES (CORRIGIDO)
+                # 🔥 GERAR AVALIAÇÕES
                 # =========================================================
 
                 bimestres = [1, 2, 3, 4]
