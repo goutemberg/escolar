@@ -120,6 +120,16 @@ def tela_chamada(request):
         key=lambda d: d.nome
     )
 
+    # -------------------------------------------------
+    # 🔥 NOVO: DATAS COM CHAMADA (para o calendário)
+    # -------------------------------------------------
+    datas_chamadas = Chamada.objects.filter(
+        diario__turma__escola=user.escola
+    ).values_list("diario__data_ministrada", flat=True).distinct()
+
+    # -------------------------------------------------
+    # RENDER
+    # -------------------------------------------------
     return render(
         request,
         "pages/chamada/realizar_chamadas.html",
@@ -127,6 +137,7 @@ def tela_chamada(request):
             "turmas": turmas,
             "disciplinas": disciplinas,
             "data_hoje": hoje,
+            "datas_chamadas": datas_chamadas,  # 👈 ESSA LINHA É A CHAVE
         }
     )
 
