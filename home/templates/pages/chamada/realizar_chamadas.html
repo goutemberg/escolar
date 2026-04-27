@@ -3,6 +3,8 @@
 
 {% block extra_head %}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
   {% with tema=user.escola.tema|default:"legacy" %}
     {% if tema == "nucleo" %}
@@ -194,7 +196,7 @@
   <div class="row mb-2">
     <div class="form-group col-md-4">
       <label>Data da aula</label>
-      <input type="date" id="data_aula" class="form-control" value="{{ data_hoje }}">
+      <input type="text" id="data_aula" class="form-control" value="{{ data_hoje }}" placeholder="Selecione a data">
     </div>
 
     <div class="form-group col-md-4">
@@ -537,6 +539,24 @@
       }
 
     });
+    flatpickr("#data_aula", {
+    dateFormat: "Y-m-d",
+
+    onDayCreate: function(dObj, dStr, fp, dayElem) {
+        const date = dayElem.dateObj.toISOString().split("T")[0];
+
+        if (datasComChamada.includes(date)) {
+            dayElem.style.backgroundColor = "#fab982";
+            dayElem.style.color = "#fff";
+            dayElem.style.borderRadius = "6px";
+        }
+    }
+});
   });
+   const datasComChamada = [
+    {% for d in datas_chamadas %}
+      "{{ d|date:'Y-m-d' }}",
+    {% endfor %}
+  ];
 </script>
 {% endblock extra_js %}

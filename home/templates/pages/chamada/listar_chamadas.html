@@ -150,6 +150,8 @@ label{
 
 </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
   {% with tema=user.escola.tema|default:"legacy" %}
     {% if tema == "nucleo" %}
@@ -174,11 +176,12 @@ label{
 
                     <div class="col-md-3">
                         <label><strong>Data</strong></label>
-                        <input type="date"
-                               id="filtroData"
-                               name="data"
-                               value="{{ filtro_data }}"
-                               class="form-control">
+                        <input type="text"
+                          id="filtroData"
+                          name="data"
+                          value="{{ filtro_data }}"
+                          class="form-control"
+                          placeholder="Selecione a data">
                     </div>
 
                     <div class="col-md-4">
@@ -355,8 +358,26 @@ label{
 
   document.addEventListener("DOMContentLoaded", function () {
     ensureFuse(function() {
-      // Seu JS aqui
+      
     });
+    flatpickr("#filtroData", {
+    dateFormat: "Y-m-d",
+
+    onDayCreate: function(dObj, dStr, fp, dayElem) {
+        const date = dayElem.dateObj.toISOString().split("T")[0];
+
+        if (datasComChamada.includes(date)) {
+            dayElem.style.backgroundColor = "#fab982";
+            dayElem.style.color = "#fff";
+            dayElem.style.borderRadius = "6px";
+        }
+    }
+});
   });
+    const datasComChamada = [
+    {% for c in chamadas %}
+      "{{ c.diario.data_ministrada|date:'Y-m-d' }}",
+    {% endfor %}
+  ];
 </script>
 {% endblock extra_js %}
