@@ -113,14 +113,29 @@
         <i class="bi bi-plus-circle"></i>
         <span>Cadastrar Avaliação</span>
       </a>
-      {% endif %}
+    {% endif %}
 
-      {% if user|has_role:'professor,diretor,coordenador' %}
-      <a href="{% url 'registrar_notas' %}"
-         class="nav-item {% if current_view == 'registrar_notas' %}active{% endif %}">
-        <i class="bi bi-pencil-square"></i>
-        <span>Lançar Notas</span>
-      </a>
+     {% if user|has_role:'professor,diretor,coordenador' %}
+
+<a href="{% url 'registrar_notas' %}"
+   class="nav-item {% if current_view == 'registrar_notas' %}active{% endif %}">
+  <i class="bi bi-pencil-square"></i>
+  <span>Lançar Notas</span>
+</a>
+
+  <a href="{% url 'avaliacao_infantil' %}"
+    class="nav-item {% if current_view == 'avaliacao_infantil' %}active{% endif %}">
+    <i class="bi bi-emoji-smile"></i>
+    <span>Avaliação Infantil</span>
+</a>
+
+{% if user|has_role:'diretor,coordenador' %}
+<a href="{% url 'config_avaliacao_infantil' %}"
+   class="nav-item {% if current_view == 'config_avaliacao_infantil' %}active{% endif %}">
+  <i class="bi bi-sliders"></i>
+  <span>Config. Avaliação Infantil</span>
+</a>
+{% endif %}
 
       {% if user|has_role:'diretor,coordenador' %}
       <a href="{% url 'listar_turmas_boletim' %}"

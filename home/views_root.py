@@ -2642,6 +2642,9 @@ def salvar_turma(request):
         sala = data.get('sala', '').strip()
         descricao = data.get('descricao', '').strip()
 
+        # 🔥 NOVO CAMPO (AQUI ESTÁ A MÁGICA)
+        tipo_turma = data.get('tipo_turma', 'FUN')
+
         turma_id = data.get('turma_id') or request.GET.get('turma_id')
 
         if turma_id:
@@ -2673,6 +2676,10 @@ def salvar_turma(request):
             turma.ano = ano
             turma.sala = sala
             turma.descricao = descricao
+
+            # 🔥 SALVANDO O NOVO CAMPO
+            turma.tipo_turma = tipo_turma
+
             turma.save()
 
         else:
@@ -2683,6 +2690,7 @@ def salvar_turma(request):
                 ano=ano,
                 sala=sala,
                 descricao=descricao,
+                tipo_turma=tipo_turma,  # 🔥 AQUI TAMBÉM
                 escola=escola
             )
 

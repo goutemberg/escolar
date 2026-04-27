@@ -125,7 +125,20 @@ class="form-control"></textarea>
 </div>
 
 </div>
+<div class="form-row">
 
+<div class="form-group short-field">
+<label for="tipoTurma">Tipo de Turma *</label>
+
+<select id="tipoTurma" name="tipo_turma" class="form-control" required>
+    <option value="INF">Infantil</option>
+    <option value="FUN" selected>Fundamental</option>
+    <option value="MED">Médio</option>
+</select>
+
+</div>
+
+</div>
 
 <div class="form-row">
 
@@ -391,6 +404,8 @@ if(btnCancelar){
 ================================ */
 
 {% if turma %}
+
+document.getElementById("tipoTurma").value = "{{ turma.tipo_turma|default:'FUN' }}";
 
 const nomeTurma = "{{ turma.nome|escapejs }}";
 const selectNome = document.getElementById("nomeTurmaSelect");

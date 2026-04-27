@@ -1,0 +1,53 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+
+<div class="titulo-pagina">Boletim Infantil</div>
+
+<div class="card p-4 mb-3">
+
+    <h4>{{ aluno.nome }}</h4>
+    <p><strong>Turma:</strong> {{ turma.nome }}</p>
+
+</div>
+
+
+{% for periodo, categorias in dados.items %}
+<div class="card p-3 mb-3">
+
+    <h5>{{ periodo }}</h5>
+
+    {% for categoria, itens in categorias.items %}
+        <h6 class="mt-3">{{ categoria }}</h6>
+
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th style="width: 80px;">Conceito</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in itens %}
+                <tr>
+                    <td>{{ item.descricao }}</td>
+                    <td>
+                        <span class="
+                            {% if item.valor == 'O' %}badge bg-success
+                            {% elif item.valor == 'B' %}badge bg-primary
+                            {% else %}badge bg-warning text-dark{% endif %}
+                        ">
+                            {{ item.valor }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+    {% endfor %}
+
+</div>
+{% endfor %}
+
+{% endblock %}

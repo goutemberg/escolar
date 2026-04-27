@@ -13,18 +13,18 @@ from decimal import Decimal
 from home.models import Aluno, Avaliacao, Disciplina, Nota, Presenca, Turma, Chamada
 from home.utils import arredondar_media_personalizada
 from django.contrib.auth.decorators import login_required
-
+from django.shortcuts import render, redirect
 
 # =========================================
 # PDF DO BOLETIM
 # =========================================
 
 @login_required
-def gerar_pdf_boletim(request, aluno_id):
+def gerar_pdf_boletim(request, aluno_id, turma_id):
 
     aluno = get_object_or_404(Aluno, id=aluno_id)
-    escola = aluno.escola
-    turma = aluno.turma_principal
+    turma = get_object_or_404(Turma, id=turma_id)
+    escola = turma.escola  # 🔥 agora vem da turma correta
 
     disciplinas = Disciplina.objects.filter(
         turmadisciplina__turma=turma,
@@ -41,7 +41,7 @@ def gerar_pdf_boletim(request, aluno_id):
         avaliacao__in=avaliacoes
     ).select_related("avaliacao")
 
-    # 🔥 AGORA COM DETALHE DAS NOTAS
+    # 🔥 NOTAS POR DISCIPLINA
     notas_por_disciplina = defaultdict(lambda: defaultdict(list))
 
     for nota in notas:
@@ -56,7 +56,7 @@ def gerar_pdf_boletim(request, aluno_id):
                 "tipo": nota.avaliacao.tipo.nome if nota.avaliacao.tipo else "Avaliação"
             })
 
-    # FALTAS
+    # 🔥 FALTAS
     faltas_por_disciplina = defaultdict(int)
 
     chamadas = Chamada.objects.filter(diario__turma=turma)
@@ -70,7 +70,7 @@ def gerar_pdf_boletim(request, aluno_id):
         if not p.presente:
             faltas_por_disciplina[p.chamada.diario.disciplina_id] += 1
 
-    # 🔥 MONTA ESTRUTURA FINAL
+    # 🔥 BOLETIM FINAL
     boletim = []
 
     for disciplina in disciplinas:
@@ -126,7 +126,6 @@ def gerar_pdf_boletim(request, aluno_id):
 
     AZUL_NUCLEO = colors.HexColor("#1E88E5")
 
-    # HEADER
     elements.append(Paragraph(f"<b>BOLETIM ESCOLAR - {datetime.now().year}</b>", styles["Title"]))
     elements.append(Spacer(1, 10))
 
@@ -137,7 +136,6 @@ def gerar_pdf_boletim(request, aluno_id):
 
     elements.append(Spacer(1, 20))
 
-    # 🔥 BLOCOS POR BIMESTRE (NOVO LAYOUT)
     for b in [1, 2, 3, 4]:
 
         elements.append(Paragraph(f"<b>{b}º BIMESTRE</b>", styles["Heading2"]))
@@ -170,44 +168,10 @@ def gerar_pdf_boletim(request, aluno_id):
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
         ]))
 
         elements.append(table)
         elements.append(Spacer(1, 20))
-
-    # 🔥 RESUMO FINAL
-    elements.append(Paragraph("<b>Resumo Final</b>", styles["Heading2"]))
-    elements.append(Spacer(1, 10))
-
-    data_final = [["Disciplina", "Média Final", "Faltas", "Situação"]]
-
-    for item in boletim:
-        data_final.append([
-            item["disciplina"],
-            str(item["media_final"] or "-"),
-            str(item["faltas"]),
-            item["status"]
-        ])
-
-    table_final = Table(data_final)
-
-    table_final.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), AZUL_NUCLEO),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
-    ]))
-
-    elements.append(table_final)
-
-    elements.append(Spacer(1, 30))
-
-    elements.append(
-        Paragraph(
-            "Documento gerado automaticamente pelo sistema Núcleo Escolar",
-            styles["Normal"]
-        )
-    )
 
     doc.build(elements)
 
@@ -221,12 +185,18 @@ def gerar_pdf_boletim(request, aluno_id):
 @login_required
 def boletim_turma(request, turma_id):
 
-    turma = get_object_or_404(Turma, id=turma_id)
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=request.user.escola  # 🔥 garante isolamento multi-escola
+    )
+
     escola = turma.escola
 
     alunos = Aluno.objects.filter(
         turma_principal=turma,
-        escola=escola
+        escola=escola,
+        ativo=True  # 🔥 evita lixo
     ).order_by("nome")
 
     avaliacoes = Avaliacao.objects.filter(
@@ -277,3 +247,71 @@ def boletim_turma(request, turma_id):
         "turma": turma,
         "resultado": resultado
     })
+
+
+@login_required
+def boletim(request, aluno_id, turma_id):
+
+    aluno = get_object_or_404(
+        Aluno,
+        id=aluno_id,
+        escola=request.user.escola
+    )
+
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=request.user.escola
+    )
+
+    # DECIDE COM BASE NA TURMA ESCOLHIDA
+    if turma.sistema_avaliacao == "CON":
+        return redirect("boletim_infantil", aluno_id=aluno.id, turma_id=turma.id)
+
+    else:
+        return redirect("gerar_pdf_boletim", aluno_id=aluno.id, turma_id=turma.id)
+
+
+
+@login_required
+def escolher_turma_boletim(request, aluno_id):
+
+    aluno = get_object_or_404(
+        Aluno,
+        id=aluno_id,
+        escola=request.user.escola
+    )
+
+    # 🔥 pega TODAS as turmas do aluno
+    turmas = Turma.objects.filter(
+        alunos=aluno,
+        escola=request.user.escola
+    )
+
+    return render(request, "pages/escolher_turma_boletim.html", {
+        "aluno": aluno,
+        "turmas": turmas
+    })
+
+
+@login_required
+def boletim_aluno_redirect(request, aluno_id):
+
+    aluno = get_object_or_404(
+        Aluno,
+        id=aluno_id,
+        escola=request.user.escola
+    )
+
+    # 🔥 GARANTE TURMA
+    turma = aluno.turma_principal or aluno.turmas.first()
+
+    if not turma:
+        return HttpResponse("Aluno sem turma definida.")
+
+    # 🔥 REDIRECIONA CORRETAMENTE
+    return redirect(
+        "boletim",
+        aluno_id=aluno.id,
+        turma_id=turma.id
+    )
