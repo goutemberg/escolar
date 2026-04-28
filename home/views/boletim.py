@@ -14,7 +14,7 @@ from home.models import Aluno, Avaliacao, Disciplina, Nota, Presenca, Turma, Cha
 from home.utils import arredondar_media_personalizada
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
-
+from django.db.models import Q
 # =========================================
 # PDF DO BOLETIM
 # =========================================
@@ -299,11 +299,11 @@ def escolher_turma_boletim(request, aluno_id):
         escola=request.user.escola
     )
 
-    # 🔥 pega TODAS as turmas do aluno
+    # 🔥 pega TODAS as turmas do aluno (principal + adicionais)
     turmas = Turma.objects.filter(
-        alunos=aluno,
+        Q(alunos=aluno) | Q(id=aluno.turma_principal_id),
         escola=request.user.escola
-    )
+    ).distinct().order_by("nome")
 
     return render(request, "pages/escolher_turma_boletim.html", {
         "aluno": aluno,
