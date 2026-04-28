@@ -143,18 +143,9 @@ border-color:#f3a96d;
 
 {% block content %}
 
-<!-- ============================= -->
-<!-- TÍTULO -->
-<!-- ============================= -->
-
 <div class="titulo-pagina">
 Boletim Escolar {{ ano }}
 </div>
-
-
-<!-- ============================= -->
-<!-- DADOS DA ESCOLA -->
-<!-- ============================= -->
 
 <div class="info-grid">
 
@@ -174,11 +165,6 @@ Boletim Escolar {{ ano }}
 </div>
 
 </div>
-
-
-<!-- ============================= -->
-<!-- DADOS DO ALUNO -->
-<!-- ============================= -->
 
 <div class="info-grid">
 
@@ -203,12 +189,6 @@ Boletim Escolar {{ ano }}
 </div>
 
 </div>
-
-
-
-<!-- ============================= -->
-<!-- BOLETIM VERTICAL -->
-<!-- ============================= -->
 
 {% for bimestre in "1234" %}
 <div class="card mt-4 p-3">
@@ -243,13 +223,10 @@ Boletim Escolar {{ ano }}
             <span class="badge bg-secondary">
                 {{ nota.tipo }}
             </span>
-            <strong>
-    {% if nota.conceito %}
-        {{ nota.conceito }}
-    {% else %}
-        {{ nota.valor }}
-    {% endif %}
-</strong>
+
+            <!-- 🔥 CORREÇÃO 1 -->
+            <strong>{{ nota.valor }}</strong>
+
         </div>
     {% endfor %}
 
@@ -262,26 +239,32 @@ Boletim Escolar {{ ano }}
 <hr>
 
 <div style="font-weight:600;">
+
+<!-- 🔥 CORREÇÃO 2 -->
+{% if turma.sistema_avaliacao == "CON" %}
+Conceito: 
+{% with media=item.bimestres|get_item:bimestre %}
+    {{ media|default:"-" }}
+{% endwith %}
+{% else %}
 Média: 
 {% with media=item.bimestres|get_item:bimestre %}
     {{ media|default:"-"|floatformat:1 }}
 {% endwith %}
-</div>
+{% endif %}
 
 </div>
 
 </div>
 
-{% endfor %}
-
-</div>
 </div>
 
 {% endfor %}
 
-<!-- ============================= -->
-<!-- RESUMO FINAL -->
-<!-- ============================= -->
+</div>
+</div>
+
+{% endfor %}
 
 <div class="table-responsive mt-4">
 
@@ -290,7 +273,16 @@ Média:
 <thead>
 <tr>
 <th>Disciplina</th>
-<th>Média Final</th>
+
+<!-- 🔥 CORREÇÃO 3 -->
+<th>
+{% if turma.sistema_avaliacao == "CON" %}
+Conceito Final
+{% else %}
+Média Final
+{% endif %}
+</th>
+
 <th>Faltas</th>
 <th>Situação</th>
 </tr>
@@ -308,10 +300,15 @@ Média:
 
 <td class="media">
 
-{% if item.media_final %}
-{{ item.media_final|floatformat:1 }}
+<!-- 🔥 CORREÇÃO 4 -->
+{% if turma.sistema_avaliacao == "CON" %}
+    {{ item.media_final|default:"-" }}
 {% else %}
--
+    {% if item.media_final %}
+        {{ item.media_final|floatformat:1 }}
+    {% else %}
+        -
+    {% endif %}
 {% endif %}
 
 </td>
@@ -322,20 +319,27 @@ Média:
 
 <td>
 
-{% if item.media_final %}
-
-{% if item.media_final >= 7 %}
-<span class="badge-aprovado">Aprovado</span>
-
-{% elif item.media_final >= 5 %}
-<span class="badge-recuperacao">Recuperação</span>
-
+<!-- 🔥 CORREÇÃO 5 -->
+{% if turma.sistema_avaliacao == "CON" %}
+    -
 {% else %}
-<span class="badge-reprovado">Reprovado</span>
-{% endif %}
 
-{% else %}
--
+    {% if item.media_final %}
+
+        {% if item.media_final >= 7 %}
+        <span class="badge-aprovado">Aprovado</span>
+
+        {% elif item.media_final >= 5 %}
+        <span class="badge-recuperacao">Recuperação</span>
+
+        {% else %}
+        <span class="badge-reprovado">Reprovado</span>
+        {% endif %}
+
+    {% else %}
+        -
+    {% endif %}
+
 {% endif %}
 
 </td>
@@ -357,12 +361,6 @@ Nenhuma nota registrada.
 </table>
 
 </div>
-
-
-
-<!-- ============================= -->
-<!-- BOTÕES -->
-<!-- ============================= -->
 
 <div class="d-flex justify-content-between mt-4 no-print">
 
@@ -388,14 +386,9 @@ Nenhuma nota registrada.
 
 {% endblock content %}
 
-
-
 {% block extra_js %}
 
 <script>
-document.addEventListener("DOMContentLoaded", function(){
-console.log("Boletim carregado");
-});
 let pdfAberto = false;
 
 function abrirPdfSeguro(){
@@ -404,7 +397,11 @@ function abrirPdfSeguro(){
 
     pdfAberto = true;
 
-    window.open("{% url 'gerar_pdf_boletim' aluno.id turma.id %}", "_blank");
+    {% if turma and turma.id %}
+        window.open("{% url 'gerar_pdf_boletim' aluno.id turma.id %}", "_blank");
+    {% else %}
+        alert("Turma não definida.");
+    {% endif %}
 
     setTimeout(() => {
         pdfAberto = false;

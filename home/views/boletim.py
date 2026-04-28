@@ -269,39 +269,55 @@ def boletim_turma(request, turma_id):
 @login_required
 def boletim(request, aluno_id, turma_id=None):
 
+    print("\n==============================")
+    print("🔥 VISUALIZAR BOLETIM")
+    print("==============================")
+
     aluno = get_object_or_404(
         Aluno,
         id=aluno_id,
         escola=request.user.escola
     )
 
+    print("👤 ALUNO:", aluno.nome)
+    print("📥 TURMA_ID RECEBIDO:", turma_id)
+
     turma = None
 
+    # 🔥 tenta pegar da URL
     if turma_id:
         turma = Turma.objects.filter(
             id=turma_id,
             escola=request.user.escola
         ).first()
+        print("👉 TURMA VIA URL:", turma)
 
-    # 🔥 fallback completo
+    # 🔥 fallback 1
     if not turma:
-        turma = aluno.turma_principal or aluno.turmas.first()
+        turma = aluno.turma_principal
+        print("👉 TURMA VIA PRINCIPAL:", turma)
 
+    # 🔥 fallback 2
     if not turma:
-        turma = Turma.objects.filter(
-            alunos=aluno,
-            escola=request.user.escola
-        ).first()
+        turma = aluno.turmas.first()
+        print("👉 TURMA VIA M2M:", turma)
 
-    # 🔥 se ainda não tiver → não segue
+    # 🔥 fallback final
     if not turma:
-        print("⚠️ SEM TURMA PARA ALUNO:", aluno.id)
-        return redirect("escolher_turma_boletim", aluno_id=aluno.id)
+        print("🚨 ERRO: ALUNO SEM TURMA")
+        return redirect("listar_turmas_para_boletim")
 
-    print("TURMA FINAL:", turma.id)
+    print("✅ TURMA FINAL:", turma.id)
 
     sistema = (getattr(turma, "sistema_avaliacao", None) or "NUM").upper()
+    print("📊 SISTEMA:", sistema)
 
+    # 🔥 PROTEÇÃO CRÍTICA (corrige teu erro)
+    if not turma.id:
+        print("🚨 TURMA SEM ID (EVITANDO QUEBRA)")
+        return redirect("listar_turmas_para_boletim")
+
+    # 🔥 REDIRECIONAMENTO CORRETO
     if sistema == "CON":
         return redirect("boletim_infantil", aluno_id=aluno.id, turma_id=turma.id)
 
@@ -312,17 +328,42 @@ def boletim(request, aluno_id, turma_id=None):
 @login_required
 def escolher_turma_boletim(request, aluno_id):
 
+    print("\n==============================")
+    print("🔥 ESCOLHER TURMA BOLETIM")
+    print("==============================")
+
     aluno = get_object_or_404(
         Aluno,
         id=aluno_id,
         escola=request.user.escola
     )
 
-    # 🔥 pega TODAS as turmas do aluno (principal + adicionais)
+    print("👤 ALUNO:", aluno.nome)
+    print("🏫 ESCOLA:", request.user.escola)
+    print("📌 TURMA_PRINCIPAL:", aluno.turma_principal_id)
+
+    print("\n--- 🔎 BUSCANDO TURMAS ---")
+
+    # 🔥 CONSULTA MAIS SEGURA
     turmas = Turma.objects.filter(
-        Q(alunos=aluno) | Q(id=aluno.turma_principal_id),
+        Q(alunos=aluno) | Q(alunos_principais=aluno),
         escola=request.user.escola
     ).distinct().order_by("nome")
+
+    print("📚 TOTAL TURMAS ENCONTRADAS:", turmas.count())
+
+    if turmas.count() == 0:
+        print("🚨 NENHUMA TURMA ENCONTRADA PARA O ALUNO")
+        print("👉 POSSÍVEL PROBLEMA:")
+        print("   - aluno sem turma vinculada")
+        print("   - turma_principal não setada")
+        print("   - M2M não sincronizado")
+
+    for t in turmas:
+        print(f"   - {t.nome} | ID: {t.id} | Sistema: {t.sistema_avaliacao}")
+
+    print("--- FIM BUSCA TURMAS ---")
+    print("==============================\n")
 
     return render(request, "pages/escolher_turma_boletim.html", {
         "aluno": aluno,
