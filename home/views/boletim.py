@@ -24,7 +24,7 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
 
     aluno = get_object_or_404(Aluno, id=aluno_id)
     turma = get_object_or_404(Turma, id=turma_id)
-    escola = turma.escola  # 🔥 agora vem da turma correta
+    escola = turma.escola
 
     disciplinas = Disciplina.objects.filter(
         turmadisciplina__turma=turma,
@@ -49,12 +49,21 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
         bimestre = nota.avaliacao.bimestre
         peso = nota.avaliacao.tipo.peso if nota.avaliacao.tipo else 1
 
+        # 🔥 TRATAMENTO COMPLETO (NUM + CON)
         if nota.valor is not None:
-            notas_por_disciplina[disciplina_id][bimestre].append({
-                "valor": float(nota.valor),
-                "peso": float(peso),
-                "tipo": nota.avaliacao.tipo.nome if nota.avaliacao.tipo else "Avaliação"
-            })
+            valor_exibicao = float(nota.valor)
+
+        elif nota.conceito:
+            valor_exibicao = nota.conceito
+
+        else:
+            continue
+
+        notas_por_disciplina[disciplina_id][bimestre].append({
+            "valor": valor_exibicao,
+            "peso": float(peso),
+            "tipo": nota.avaliacao.tipo.nome if nota.avaliacao.tipo else "Avaliação"
+        })
 
     # 🔥 FALTAS
     faltas_por_disciplina = defaultdict(int)
@@ -83,16 +92,24 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
             lista = notas_por_disciplina[disciplina.id][b]
             notas_detalhadas[b] = lista
 
-            if lista:
-                soma = sum(n["valor"] * n["peso"] for n in lista)
-                peso_total = sum(n["peso"] for n in lista)
+            # 🔥 SÓ CALCULA MÉDIA SE FOR NUMÉRICO
+            valores_validos = [n for n in lista if isinstance(n["valor"], (int, float))]
+
+            if valores_validos:
+                soma = sum(n["valor"] * n["peso"] for n in valores_validos)
+                peso_total = sum(n["peso"] for n in valores_validos)
                 media = soma / peso_total
                 bimestres[b] = arredondar_media_personalizada(round(media, 2))
             else:
                 bimestres[b] = None
 
         medias_validas = [v for v in bimestres.values() if v is not None]
-        media_final = round(sum(medias_validas) / len(medias_validas), 2) if medias_validas else None
+
+        media_final = (
+            round(sum(medias_validas) / len(medias_validas), 2)
+            if medias_validas else None
+        )
+
         media_final = arredondar_media_personalizada(media_final)
 
         if media_final is None:

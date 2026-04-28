@@ -1794,13 +1794,11 @@ def impressao_dados(request):
     return render(request, 'pages/print.html', context)
 
 
-
 @csrf_exempt
 @login_required
 @role_required(['professor', 'diretor', 'coordenador'])
 def lancar_notas(request):
 
-    # GET apenas renderiza página
     if request.method == "GET":
         return render(request, "pages/registrar_notas.html")
 
@@ -1808,7 +1806,6 @@ def lancar_notas(request):
         return JsonResponse({"erro": "Método não permitido."}, status=405)
 
     try:
-
         dados = json.loads(request.body)
 
         turma_id = dados.get("turma_id")
@@ -1835,7 +1832,6 @@ def lancar_notas(request):
 
         escola = request.escola
 
-
         try:
             turma = Turma.objects.get(id=turma_id, escola=escola, status="ATIVA")
             disciplina = Disciplina.objects.get(id=disciplina_id, escola=escola)
@@ -1843,6 +1839,13 @@ def lancar_notas(request):
             return JsonResponse({"erro": "Turma ou disciplina inválida."}, status=400)
 
         salvas = 0
+
+        # 🔥 MAPA DEFINITIVO DO FRONT → BACK
+        mapa_conceito = {
+            "1": "B",
+            "2": "O",
+            "3": "E"
+        }
 
         for aluno_id_str, notas_aluno in (notas or {}).items():
 
@@ -1862,7 +1865,6 @@ def lancar_notas(request):
                 except (ValueError, TypeError):
                     continue
 
-                # busca avaliação válida
                 avaliacao = Avaliacao.objects.filter(
                     id=avaliacao_id,
                     turma=turma,
@@ -1874,23 +1876,46 @@ def lancar_notas(request):
                 if not avaliacao:
                     continue
 
-                # bloqueia valor vazio
                 if valor is None or str(valor).strip() == "":
                     continue
 
-                valor_str = str(valor).strip().replace(",", ".")
+                valor_str = str(valor).strip()
+
+                # ======================================================
+                # 🔥 TRATAMENTO DE CONCEITO (INFANTIL)
+                # ======================================================
+                conceito = mapa_conceito.get(valor_str)
+
+                if conceito:
+                    Nota.objects.update_or_create(
+                        aluno=aluno,
+                        avaliacao=avaliacao,
+                        defaults={
+                            "conceito": conceito,
+                            "valor": None,
+                            "escola": escola
+                        }
+                    )
+
+                    salvas += 1
+                    continue
+
+                # ======================================================
+                # 🔥 TRATAMENTO NUMÉRICO
+                # ======================================================
+                valor_str = valor_str.replace(",", ".")
 
                 try:
                     valor_dec = Decimal(valor_str)
                 except (InvalidOperation, TypeError, ValueError):
                     continue
 
-                # salva nota
                 Nota.objects.update_or_create(
                     aluno=aluno,
                     avaliacao=avaliacao,
                     defaults={
                         "valor": valor_dec,
+                        "conceito": None,
                         "escola": escola
                     }
                 )
@@ -1907,18 +1932,19 @@ def lancar_notas(request):
         if salvas < total_alunos:
             faltantes = total_alunos - salvas
             return JsonResponse({
-                "mensagem": f"Notas salvas com sucesso ({salvas} lançadas). {faltantes} aluno(s) sem nota."
-             })
+                "mensagem": f"Notas salvas com sucesso ({salvas}). {faltantes} aluno(s) sem nota."
+            })
 
         return JsonResponse({
-            "mensagem": f"Notas salvas com sucesso ({salvas} lançadas)."
-})
+            "mensagem": f"Notas salvas com sucesso ({salvas})."
+        })
+
     except Exception as e:
         return JsonResponse(
             {"erro": f"Erro ao processar: {str(e)}"},
             status=400
         )
-
+    
 
 @login_required
 @role_required(['professor', 'diretor', 'coordenador'])
@@ -1934,44 +1960,33 @@ def registrar_notas(request):
     professor = Docente.objects.filter(user=user, escola=escola).first()
 
     if professor and user.role == 'professor':
-
         relacoes = TurmaDisciplina.objects.filter(
             professor=professor,
             turma__escola=escola
         ).select_related('turma', 'disciplina')
-
     else:
-
         relacoes = TurmaDisciplina.objects.filter(
             turma__escola=escola
         ).select_related('turma', 'disciplina')
 
-    # LISTA DE TURMAS
     turmas = Turma.objects.filter(
         turmadisciplina__in=relacoes,
         escola=escola
     ).distinct().order_by('nome')
 
-    # DISCIPLINAS
     if turma_id:
-
         if professor and user.role == 'professor':
-
             disciplinas = Disciplina.objects.filter(
                 turmadisciplina__turma_id=turma_id,
                 turmadisciplina__professor=professor,
                 escola=escola
             ).distinct().order_by('nome')
-
         else:
-
             disciplinas = Disciplina.objects.filter(
                 turmadisciplina__turma_id=turma_id,
                 escola=escola
             ).distinct().order_by('nome')
-
     else:
-
         disciplinas = Disciplina.objects.filter(
             turmadisciplina__in=relacoes,
             escola=escola
@@ -1993,41 +2008,17 @@ def registrar_notas(request):
             getattr(turma, "sistema_avaliacao", None) or "NUM"
         ).upper()
 
-        alunos = Aluno.objects.filter(turma_principal=turma, escola=escola).only('id', 'nome').order_by('nome')
+        alunos = Aluno.objects.filter(
+            Q(turma_principal=turma) | Q(turmas=turma),
+            escola=escola
+        ).distinct().only('id', 'nome').order_by('nome')
 
         try:
             bimestre = int(bimestre)
-        except (ValueError, TypeError):
+        except:
             bimestre = None
 
         if bimestre:
-
-            if not Avaliacao.objects.filter(
-                turma=turma,
-                disciplina=disciplina,
-                escola=escola,
-                bimestre=bimestre
-            ).exists():
-
-                modelos = ModeloAvaliacao.objects.filter(
-                    disciplina=disciplina,
-                    escola=escola,
-                    ativo=True
-                )
-
-                for modelo in modelos:
-
-                    Avaliacao.objects.get_or_create(
-                        turma=turma,
-                        disciplina=disciplina,
-                        tipo=modelo.tipo,
-                        descricao=modelo.nome,
-                        bimestre=bimestre,
-                        defaults={
-                            "data": timezone.now().date(),
-                            "escola": escola
-                        }
-                    )
 
             avaliacoes = Avaliacao.objects.filter(
                 turma=turma,
@@ -2040,54 +2031,62 @@ def registrar_notas(request):
                 'tipo__peso'
             ).order_by('data')
 
-            avaliacoes_ids = list(
-                avaliacoes.values_list('id', flat=True)
-            )
-
-            pesos_por_avaliacao = {}
-
-            for av in avaliacoes:
-                try:
-                    pesos_por_avaliacao[av.id] = Decimal(
-                        str(av.tipo.peso if av.tipo and av.tipo.peso else 1)
-                    )
-                except:
-                    pesos_por_avaliacao[av.id] = Decimal("1")
+            avaliacoes_ids = list(avaliacoes.values_list('id', flat=True))
 
             if avaliacoes_ids:
 
                 todas_notas = Nota.objects.filter(
                     escola=escola,
+                    avaliacao__turma=turma,
+                    avaliacao__disciplina=disciplina,
                     avaliacao__bimestre=bimestre,
-                    aluno_id__in=[a.id for a in alunos],
-                    avaliacao_id__in=avaliacoes_ids
+                    aluno_id__in=[a.id for a in alunos]
                 ).only(
                     'aluno_id',
                     'avaliacao_id',
-                    'valor'
+                    'valor',
+                    'conceito'
                 )
 
                 for n in todas_notas:
+
                     if n.aluno_id not in notas_dict:
                         notas_dict[n.aluno_id] = {}
 
-                    notas_dict.setdefault(n.aluno_id, {})[n.avaliacao_id] = n.valor
+                    valor = n.valor if n.valor is not None else n.conceito
+
+                    # 🔥 NORMALIZAÇÃO + CONVERSÃO FINAL
+                    if valor is not None:
+                        valor = str(valor).strip()
+
+                        if valor.endswith(".0"):
+                            valor = valor[:-2]
+
+                        # 🔥 CONVERSÃO PARA O SELECT
+                        mapa_reverse = {
+                            "B": "1",
+                            "O": "2",
+                            "E": "3"
+                        }
+
+                        valor = mapa_reverse.get(valor, valor)
+
+                    notas_dict.setdefault(n.aluno_id, {})[n.avaliacao_id] = valor
 
             if turma_sistema_avaliacao == "NUM":
+
+                pesos_por_avaliacao = {
+                    av.id: Decimal(str(av.tipo.peso if av.tipo and av.tipo.peso else 1))
+                    for av in avaliacoes
+                }
 
                 for aluno in alunos:
 
                     aluno_notas = notas_dict.get(aluno.id, {})
-
                     numerador = Decimal("0")
                     denominador = Decimal("0")
 
-                    for av_id in avaliacoes_ids:
-
-                        v = aluno_notas.get(av_id)
-
-                        if v is None:
-                            continue
+                    for av_id, v in aluno_notas.items():
 
                         try:
                             valor_dec = Decimal(str(v))
@@ -2095,24 +2094,13 @@ def registrar_notas(request):
                             continue
 
                         peso = pesos_por_avaliacao.get(av_id, Decimal("1"))
-
-                        numerador += (valor_dec * peso)
+                        numerador += valor_dec * peso
                         denominador += peso
 
-                    if denominador > 0:
-
-                        media_calculada = (
-                            numerador / denominador
-                        ).quantize(
-                            Decimal("0.1"),
-                            rounding=ROUND_HALF_UP
-                        )
-
-                        # 🔥 AQUI A CORREÇÃO CERTA
-                        medias[aluno.id] = arredondar_media_personalizada(media_calculada)
-
-                    else:
-                        medias[aluno.id] = None
+                    medias[aluno.id] = (
+                        (numerador / denominador).quantize(Decimal("0.1"))
+                        if denominador > 0 else None
+                    )
 
             else:
                 for aluno in alunos:
@@ -2131,7 +2119,6 @@ def registrar_notas(request):
     }
 
     return render(request, 'pages/registrar_notas.html', context)
-
 
 
 def get_client_ip(request):
@@ -2642,7 +2629,6 @@ def salvar_turma(request):
         sala = data.get('sala', '').strip()
         descricao = data.get('descricao', '').strip()
 
-        # 🔥 NOVO CAMPO (AQUI ESTÁ A MÁGICA)
         tipo_turma = data.get('tipo_turma', 'FUN')
 
         turma_id = data.get('turma_id') or request.GET.get('turma_id')
@@ -2662,7 +2648,6 @@ def salvar_turma(request):
 
         escola = request.escola
 
-
         # =========================================================
         # 🔹 CRIAR OU ATUALIZAR TURMA
         # =========================================================
@@ -2676,8 +2661,6 @@ def salvar_turma(request):
             turma.ano = ano
             turma.sala = sala
             turma.descricao = descricao
-
-            # 🔥 SALVANDO O NOVO CAMPO
             turma.tipo_turma = tipo_turma
 
             turma.save()
@@ -2690,7 +2673,7 @@ def salvar_turma(request):
                 ano=ano,
                 sala=sala,
                 descricao=descricao,
-                tipo_turma=tipo_turma,  # 🔥 AQUI TAMBÉM
+                tipo_turma=tipo_turma,
                 escola=escola
             )
 
@@ -2722,6 +2705,17 @@ def salvar_turma(request):
                     professor_id=int(item["professor_id"]),
                     disciplina_id=int(item["disciplina_id"]),
                     escola=escola
+                )
+
+        else:
+            # 🔥 NOVO: fallback automático
+            disciplinas_escola = Disciplina.objects.filter(escola=escola)
+
+            for disciplina in disciplinas_escola:
+                TurmaDisciplina.objects.get_or_create(
+                    turma=turma,
+                    disciplina=disciplina,
+                    defaults={"escola": escola}
                 )
 
         # =========================================================
@@ -2808,8 +2802,6 @@ def salvar_turma(request):
                                 "data": timezone.now().date()
                             }
                         )
-
-        # =========================================================
 
         return JsonResponse({
             'success': True,
