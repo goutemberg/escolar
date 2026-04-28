@@ -293,8 +293,12 @@ def boletim(request, aluno_id, turma_id=None):
             escola=request.user.escola
         ).first()
 
+    # 🔥 se ainda não tiver → não segue
     if not turma:
+        print("⚠️ SEM TURMA PARA ALUNO:", aluno.id)
         return redirect("escolher_turma_boletim", aluno_id=aluno.id)
+
+    print("TURMA FINAL:", turma.id)
 
     sistema = (getattr(turma, "sistema_avaliacao", None) or "NUM").upper()
 
