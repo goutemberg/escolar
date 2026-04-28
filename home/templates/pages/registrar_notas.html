@@ -312,22 +312,20 @@ return;
 
 function arredondarMediaPersonalizada(media){
 
-    if (media === null || isNaN(media)) return "-";
+if (media === null || isNaN(media)) return "-";
 
-    media = Number(media);
+media = Number(media);
 
-    const inteiro = Math.floor(media);
+const inteiro = Math.floor(media);
+const decimal = Number((media - inteiro).toFixed(2));
 
-    // 🔥 CORREÇÃO AQUI
-    const decimal = Number((media - inteiro).toFixed(2));
-
-    if (decimal <= 0.2){
-        return inteiro;
-    } else if (decimal <= 0.7){
-        return inteiro + 0.5;
-    } else {
-        return inteiro + 1;
-    }
+if (decimal <= 0.2){
+    return inteiro;
+} else if (decimal <= 0.7){
+    return inteiro + 0.5;
+} else {
+    return inteiro + 1;
+}
 }
 
 function atualizarMediaAluno(alunoId){
@@ -383,9 +381,6 @@ if (alunoId) atualizarMediaAluno(alunoId);
 
 });
 
-
-// ENTER DESCE PARA O PRÓXIMO ALUNO (MESMA COLUNA)
-
 document.addEventListener("keydown", function(e){
 
 if(!e.target.classList.contains("nota-input")) return;
@@ -410,7 +405,6 @@ inputs[index + 1].focus();
 
 });
 
-
 window.salvarNotas = async function(){
 
 console.log("BOTAO SALVAR CLICADO");
@@ -429,23 +423,15 @@ alert("Selecione o bimestre antes de lançar notas.");
 return;
 }
 
-const inputs = form.querySelectorAll('input.nota-input');
+let inputs;
 
-inputs.forEach(input => {
-
-const val = (input.value || "").trim();
-
-// apenas limpa borda (sem bloquear)
-if (val === ""){
-    input.style.border = "";
-}else{
-    input.style.border = "";
+if (sistema === "CON") {
+    inputs = form.querySelectorAll('select.conceito-input');
+} else {
+    inputs = form.querySelectorAll('input.nota-input');
 }
 
-});
-
 const btn = document.querySelector(".btn-salvar");
-
 if (btn) btn.disabled = true;
 
 try {
@@ -454,29 +440,32 @@ const turmaId = form.querySelector('input[name="turma_id"]').value;
 const disciplinaId = form.querySelector('input[name="disciplina_id"]').value;
 
 const dados = {
-turma_id: turmaId,
-disciplina_id: disciplinaId,
-bimestre: bimestre,   // ✔ correção adicionada
-notas: {}
+    turma_id: turmaId,
+    disciplina_id: disciplinaId,
+    bimestre: bimestre,
+    notas: {}
 };
 
 inputs.forEach(input => {
 
-const [avaliacaoId, alunoId] = input.name.split('_');
-const val = (input.value || "").trim();
+    const avaliacaoId = input.getAttribute("data-avaliacao");
+    const alunoId = input.getAttribute("data-aluno");
+    const val = (input.value || "").trim();
 
-if (!dados.notas[alunoId]) dados.notas[alunoId] = {};
+    if (!dados.notas[alunoId]) dados.notas[alunoId] = {};
 
-dados.notas[alunoId][avaliacaoId] = val;
+    dados.notas[alunoId][avaliacaoId] = val;
 
 });
+
+console.log("DADOS ENVIADOS:", dados);
 
 const resp = await fetch('{% url "lancar_notas" %}', {
 method: 'POST',
 headers: {
-'Content-Type': 'application/json',
-'X-CSRFToken': '{{ csrf_token }}',
-'X-Requested-With': 'XMLHttpRequest'
+    'Content-Type': 'application/json',
+    'X-CSRFToken': '{{ csrf_token }}',
+    'X-Requested-With': 'XMLHttpRequest'
 },
 body: JSON.stringify(dados)
 });
@@ -489,6 +478,7 @@ location.reload();
 }
 
 catch (error){
+console.error(error);
 alert("Erro ao salvar notas");
 }
 

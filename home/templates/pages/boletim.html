@@ -243,7 +243,13 @@ Boletim Escolar {{ ano }}
             <span class="badge bg-secondary">
                 {{ nota.tipo }}
             </span>
-            <strong>{{ nota.valor }}</strong>
+            <strong>
+    {% if nota.conceito %}
+        {{ nota.conceito }}
+    {% else %}
+        {{ nota.valor }}
+    {% endif %}
+</strong>
         </div>
     {% endfor %}
 
