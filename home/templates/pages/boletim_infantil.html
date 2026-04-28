@@ -179,7 +179,8 @@
 
     <!-- 🔥 TOPO COM LOGO E DATA -->
     <div class="boletim-topo">
-        <img src="{% static 'img/logo.png' %}" class="boletim-logo" alt="Logo">
+        {% comment %} <img src="{% static 'themes/nucleo/logo.png' %}" class="boletim-logo" alt="Logo"> {% endcomment %}
+
         <div class="boletim-info">
             <div><strong>Escola:</strong> {{ aluno.escola.nome }}</div>
             <div><strong>Data de emissão:</strong> {% now "d/m/Y" %}</div>
