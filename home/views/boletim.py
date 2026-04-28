@@ -267,7 +267,7 @@ def boletim_turma(request, turma_id):
 
 
 @login_required
-def boletim(request, aluno_id, turma_id):
+def boletim(request, aluno_id, turma_id=None):
 
     aluno = get_object_or_404(
         Aluno,
@@ -275,18 +275,33 @@ def boletim(request, aluno_id, turma_id):
         escola=request.user.escola
     )
 
-    turma = get_object_or_404(
-        Turma,
-        id=turma_id,
-        escola=request.user.escola
-    )
+    turma = None
 
-    # DECIDE COM BASE NA TURMA ESCOLHIDA
-    if turma.sistema_avaliacao == "CON":
+    if turma_id:
+        turma = Turma.objects.filter(
+            id=turma_id,
+            escola=request.user.escola
+        ).first()
+
+    # 🔥 fallback completo
+    if not turma:
+        turma = aluno.turma_principal or aluno.turmas.first()
+
+    if not turma:
+        turma = Turma.objects.filter(
+            alunos=aluno,
+            escola=request.user.escola
+        ).first()
+
+    if not turma:
+        return redirect("escolher_turma_boletim", aluno_id=aluno.id)
+
+    sistema = (getattr(turma, "sistema_avaliacao", None) or "NUM").upper()
+
+    if sistema == "CON":
         return redirect("boletim_infantil", aluno_id=aluno.id, turma_id=turma.id)
 
-    else:
-        return redirect("gerar_pdf_boletim", aluno_id=aluno.id, turma_id=turma.id)
+    return redirect("gerar_pdf_boletim", aluno_id=aluno.id, turma_id=turma.id)
 
 
 
