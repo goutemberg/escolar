@@ -2496,19 +2496,48 @@ def visualizar_boletim(request, aluno_id):
         'avaliacao__turma'
     )
 
-    # 🔥 DEFINE A TURMA BASEADA NAS NOTAS
+    # =====================================================
+    # 🔥 DEFINIÇÃO CORRETA DA TURMA (CORRIGIDO AQUI)
+    # =====================================================
+
+    turma_id = request.GET.get("turma")
+
     turma = None
-    if notas.exists():
+
+    # 1️⃣ tenta pegar da URL
+    if turma_id:
+        turma = Turma.objects.filter(
+            id=turma_id,
+            escola=escola
+        ).first()
+
+    # 2️⃣ fallback: vínculo do aluno
+    if not turma:
+        turma = aluno.turma_principal or aluno.turmas.first()
+
+    # 3️⃣ fallback final: notas
+    if not turma and notas.exists():
         turma = notas.first().avaliacao.turma
 
+    # 4️⃣ proteção final
+    if not turma:
+        print("🚨 ERRO: ALUNO SEM TURMA:", aluno.id)
+        return redirect("listar_turmas_para_boletim")
+
+    # =====================================================
     # 🔥 ESTRUTURA BASE (AGORA COM NOTAS)
+    # =====================================================
+
     dados = defaultdict(lambda: {
         "bimestres": {1: None, 2: None, 3: None, 4: None},
-        "notas": {1: [], 2: [], 3: [], 4: []},  # 👈 NOVO
+        "notas": {1: [], 2: [], 3: [], 4: []},
         "media_final": None
     })
 
-    # 🔥 ORGANIZA AS NOTAS (AGORA AGRUPANDO)
+    # =====================================================
+    # 🔥 ORGANIZA AS NOTAS
+    # =====================================================
+
     for nota in notas:
 
         disciplina = nota.avaliacao.disciplina.nome
@@ -2516,7 +2545,6 @@ def visualizar_boletim(request, aluno_id):
 
         if nota.valor is not None:
 
-            # 👇 adiciona na lista (NÃO sobrescreve mais)
             dados[disciplina]["notas"][bimestre].append({
                 "tipo": getattr(nota.avaliacao.tipo, "nome", "Avaliação"),
                 "valor": float(nota.valor)
@@ -2524,7 +2552,12 @@ def visualizar_boletim(request, aluno_id):
 
     boletim = []
 
-    # 🔥 PROCESSA MÉDIAS
+    sistema = (getattr(turma, "sistema_avaliacao", None) or "NUM").upper()
+
+    # =====================================================
+    # 🔥 PROCESSA MÉDIAS / CONCEITO
+    # =====================================================
+
     for disciplina, info in dados.items():
 
         medias_bimestre = {}
@@ -2533,35 +2566,49 @@ def visualizar_boletim(request, aluno_id):
 
             lista_notas = info["notas"][bimestre]
 
-            if lista_notas:
-                valores = [n["valor"] for n in lista_notas]
-                media = sum(valores) / len(valores)
-                medias_bimestre[bimestre] = arredondar_media_personalizada(media)
+            if sistema == "CON":
+                # 🔥 INFANTIL (conceito)
+                if lista_notas:
+                    medias_bimestre[bimestre] = lista_notas[-1]["valor"]
+                else:
+                    medias_bimestre[bimestre] = None
             else:
-                medias_bimestre[bimestre] = None
+                # 🔥 NUMÉRICO
+                if lista_notas:
+                    valores = [n["valor"] for n in lista_notas]
+                    media = sum(valores) / len(valores)
+                    medias_bimestre[bimestre] = arredondar_media_personalizada(media)
+                else:
+                    medias_bimestre[bimestre] = None
 
-        # 🔥 MÉDIA FINAL
-        valores_validos = [
-            v for v in medias_bimestre.values()
-            if v is not None
-        ]
-
+        # 🔥 MÉDIA FINAL (SÓ NUM)
         media_final = None
-        if valores_validos:
-            media_final = sum(valores_validos) / len(valores_validos)
-            media_final = arredondar_media_personalizada(media_final)
+
+        if sistema != "CON":
+            valores_validos = [
+                v for v in medias_bimestre.values()
+                if v is not None
+            ]
+
+            if valores_validos:
+                media_final = sum(valores_validos) / len(valores_validos)
+                media_final = arredondar_media_personalizada(media_final)
 
         boletim.append({
             "disciplina": disciplina,
             "bimestres": medias_bimestre,
-            "notas": info["notas"],  # 👈 ESSENCIAL
+            "notas": info["notas"],
             "media_final": media_final,
-            "faltas": 0  # mantém compatibilidade com template
+            "faltas": 0
         })
+
+    # =====================================================
+    # 🔥 RENDER FINAL
+    # =====================================================
 
     return render(request, 'pages/boletim.html', {
         'aluno': aluno,
-        'turma': turma,
+        'turma': turma,  # 🔥 AGORA GARANTIDO
         'escola': escola,
         'ano': datetime.now().year,
         'boletim': boletim
