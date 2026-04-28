@@ -320,15 +320,26 @@ def boletim_aluno_redirect(request, aluno_id):
         escola=request.user.escola
     )
 
-    # 🔥 GARANTE TURMA
+    # 🔥 tenta turma principal ou M2M direto
     turma = aluno.turma_principal or aluno.turmas.first()
 
+    # 🔥 fallback completo (garante pegar mesmo com banco inconsistente)
     if not turma:
-        return HttpResponse("Aluno sem turma definida.")
+        turma = Turma.objects.filter(
+            Q(alunos=aluno),
+            escola=request.user.escola
+        ).order_by("id").first()
 
-    # 🔥 REDIRECIONA CORRETAMENTE
-    return redirect(
-        "boletim",
-        aluno_id=aluno.id,
-        turma_id=turma.id
-    )
+    # 🔥 se ainda não encontrou, força escolha manual
+    if not turma:
+        return redirect("escolher_turma_boletim", aluno_id=aluno.id)
+
+    print("TURMA_ID:", turma.id)  # mantém seu log
+
+    # 🔥 redireciona conforme tipo de avaliação
+    sistema = (getattr(turma, "sistema_avaliacao", None) or "NUM").upper()
+
+    if sistema == "CON":
+        return redirect("boletim_infantil", aluno_id=aluno.id, turma_id=turma.id)
+
+    return redirect("gerar_pdf_boletim", aluno_id=aluno.id, turma_id=turma.id)
