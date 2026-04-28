@@ -2416,22 +2416,60 @@ def trocar_senha_api(request):
 @role_required(['diretor', 'coordenador'])
 def listar_turmas_para_boletim(request):
 
-    turma_id = request.GET.get('turma')
-    print("TURMA_ID:", turma_id)
+    print("\n==============================")
+    print("🔥 LISTAR TURMAS PARA BOLETIM")
+    print("==============================")
 
-    turmas = Turma.objects.filter(escola=request.escola
-)
+    turma_id = request.GET.get('turma')
+    print("📥 TURMA_ID:", turma_id)
+
+    escola = request.escola
+    print("🏫 ESCOLA:", escola)
+
+    turmas = Turma.objects.filter(
+        escola=escola
+    ).order_by("nome")
 
     alunos = []
 
     if turma_id:
 
-        alunos = Aluno.objects.filter(
-            notas__avaliacao__turma_id=turma_id,
-            escola=request.escola
+        turma = Turma.objects.filter(
+            id=turma_id,
+            escola=escola
+        ).first()
 
-        ).distinct().order_by("nome")
+        if not turma:
+            print("❌ TURMA NÃO ENCONTRADA")
+        else:
+            print("✅ TURMA:", turma.nome)
+            print("📊 SISTEMA:", turma.sistema_avaliacao)
+            print("🎓 TIPO:", turma.tipo_turma)
 
+            print("\n--- 🔎 BUSCANDO ALUNOS (CORRETO) ---")
+
+            # 🔥 CORREÇÃO REAL AQUI
+            alunos = Aluno.objects.filter(
+                Q(turma_principal=turma) | Q(turmas=turma),
+                escola=escola,
+                ativo=True
+            ).distinct().order_by("nome")
+
+            print("👥 TOTAL ALUNOS:", alunos.count())
+
+            if alunos.count() == 0:
+                print("🚨 NENHUM ALUNO ENCONTRADO")
+                print("👉 VERIFICAR VÍNCULO COM TURMA")
+
+            for a in alunos:
+                print(f"   - {a.nome} | turma_principal: {a.turma_principal_id}")
+
+            print("--- FIM BUSCA ---\n")
+
+    else:
+        print("⚠️ NENHUMA TURMA SELECIONADA")
+
+    print("==============================\n")
 
     return render(request, 'pages/listar_turmas_boletim.html', {
         'turmas': turmas,
@@ -2440,8 +2478,6 @@ def listar_turmas_para_boletim(request):
     })
 
 
-from collections import defaultdict
-from datetime import datetime
 
 @login_required
 @role_required(['diretor', 'coordenador'])
