@@ -312,17 +312,42 @@ def boletim(request, aluno_id, turma_id=None):
 @login_required
 def escolher_turma_boletim(request, aluno_id):
 
+    print("\n==============================")
+    print("🔥 ESCOLHER TURMA BOLETIM")
+    print("==============================")
+
     aluno = get_object_or_404(
         Aluno,
         id=aluno_id,
         escola=request.user.escola
     )
 
-    # 🔥 pega TODAS as turmas do aluno (principal + adicionais)
+    print("👤 ALUNO:", aluno.nome)
+    print("🏫 ESCOLA:", request.user.escola)
+    print("📌 TURMA_PRINCIPAL:", aluno.turma_principal_id)
+
+    print("\n--- 🔎 BUSCANDO TURMAS ---")
+
+    # 🔥 CONSULTA MAIS SEGURA
     turmas = Turma.objects.filter(
-        Q(alunos=aluno) | Q(id=aluno.turma_principal_id),
+        Q(alunos=aluno) | Q(alunos_principais=aluno),
         escola=request.user.escola
     ).distinct().order_by("nome")
+
+    print("📚 TOTAL TURMAS ENCONTRADAS:", turmas.count())
+
+    if turmas.count() == 0:
+        print("🚨 NENHUMA TURMA ENCONTRADA PARA O ALUNO")
+        print("👉 POSSÍVEL PROBLEMA:")
+        print("   - aluno sem turma vinculada")
+        print("   - turma_principal não setada")
+        print("   - M2M não sincronizado")
+
+    for t in turmas:
+        print(f"   - {t.nome} | ID: {t.id} | Sistema: {t.sistema_avaliacao}")
+
+    print("--- FIM BUSCA TURMAS ---")
+    print("==============================\n")
 
     return render(request, "pages/escolher_turma_boletim.html", {
         "aluno": aluno,
