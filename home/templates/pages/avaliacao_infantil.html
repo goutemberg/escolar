@@ -165,6 +165,27 @@ input[type="radio"]:checked + .opcao-E {
 </div>
 
 </div>
+<div id="loadingOverlay" style="
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(255,255,255,0.7);
+    z-index:9999;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+">
+
+    <div class="spinner-border text-primary" role="status"></div>
+
+    <div style="margin-top:10px; font-weight:600;">
+        Salvando avaliações...
+    </div>
+
+</div>
 
 {% endblock content %}
 
@@ -355,7 +376,15 @@ function montarTela() {
 // =========================
 // SALVAR
 // =========================
+let salvando = false;
+
 function salvar() {
+
+    if (salvando) return;
+    salvando = true;
+
+    // 🔥 MOSTRA LOADING
+    document.getElementById("loadingOverlay").style.display = "flex";
 
     const turma_id = document.getElementById("turma").value;
     const bimestre = document.getElementById("bimestre").value;
@@ -401,14 +430,25 @@ function salvar() {
     })
     .then(res => res.json())
     .then(data => {
+
         if (data.ok) {
             alert("Avaliações salvas com sucesso!");
         } else {
             alert(data.erro);
         }
+
+    })
+    .catch(() => {
+        alert("Erro ao salvar");
+    })
+    .finally(() => {
+
+        // 🔥 ESCONDE LOADING
+        document.getElementById("loadingOverlay").style.display = "none";
+
+        salvando = false;
     });
 }
-
 
 // =========================
 // CSRF

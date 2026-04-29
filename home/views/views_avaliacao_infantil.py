@@ -25,7 +25,6 @@ from home.models import (
     AvaliacaoCategoria,
 )
 
-
 @csrf_exempt
 @login_required
 def salvar_avaliacao_infantil(request):
@@ -43,7 +42,7 @@ def salvar_avaliacao_infantil(request):
         for av in dados.get("avaliacoes", []):
             aluno_id = av.get("aluno_id")
 
-            # 🔥 CRIA/PEGA A AVALIAÇÃO
+            # 🔥 CRIA/PEGA A AVALIAÇÃO (OK manter)
             avaliacao, _ = AvaliacaoInfantil.objects.get_or_create(
                 aluno_id=aluno_id,
                 turma_id=turma_id,
@@ -51,32 +50,52 @@ def salvar_avaliacao_infantil(request):
                 ano=ano
             )
 
-            # 🔥 SALVA RESPOSTAS (SEM ALTERAÇÃO)
+            # =========================
+            # 🔥 CORREÇÃO CRÍTICA AQUI
+            # =========================
             for item_id, valor in av.get("respostas", {}).items():
 
-                AvaliacaoResposta.objects.update_or_create(
+                resposta = AvaliacaoResposta.objects.filter(
                     avaliacao=avaliacao,
-                    item_id=int(item_id),
-                    defaults={"valor": valor}
-                )
+                    item_id=int(item_id)
+                ).first()
+
+                if resposta:
+                    resposta.valor = valor
+                    resposta.save()
+                else:
+                    AvaliacaoResposta.objects.create(
+                        avaliacao=avaliacao,
+                        item_id=int(item_id),
+                        valor=valor
+                    )
 
             # =========================
-            # 🔥 NOVO: SALVAR OBSERVAÇÃO
+            # 🔥 OBSERVAÇÃO (CORRIGIDO)
             # =========================
             observacao_texto = av.get("observacao", "")
 
-            if observacao_texto:  # só salva se tiver conteúdo
+            if observacao_texto:
 
-                ObservacaoInfantil.objects.update_or_create(
+                obs = ObservacaoInfantil.objects.filter(
                     aluno_id=aluno_id,
                     turma_id=turma_id,
                     bimestre=bimestre,
-                    ano=ano,
-                    defaults={
-                        "texto": observacao_texto,
-                        "escola": request.user.escola
-                    }
-                )
+                    ano=ano
+                ).first()
+
+                if obs:
+                    obs.texto = observacao_texto
+                    obs.save()
+                else:
+                    ObservacaoInfantil.objects.create(
+                        aluno_id=aluno_id,
+                        turma_id=turma_id,
+                        bimestre=bimestre,
+                        ano=ano,
+                        texto=observacao_texto,
+                        escola=request.user.escola
+                    )
 
         return JsonResponse({"ok": True})
 
