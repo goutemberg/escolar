@@ -137,13 +137,15 @@
 </a>
 {% endif %}
 
-      {% if user|has_role:'diretor,coordenador' %}
+      {% if user|has_role:'diretor,coordenador,professor' %}
       <a href="{% url 'listar_turmas_boletim' %}"
          class="nav-item {% if current_view == 'listar_turmas_boletim' and '?tipo=turma' not in current_url %}active{% endif %}">
         <i class="bi bi-file-earmark-text"></i>
         <span>Ver Boletim</span>
       </a>
+      {% endif %}
 
+      {% if user|has_role:'diretor,coordenador' %}
       <a href="{% url 'pagina_cadastrar_disciplina' %}"
          class="nav-item {% if current_view == 'pagina_cadastrar_disciplina' %}active{% endif %}">
         <i class="bi bi-journal-text"></i>

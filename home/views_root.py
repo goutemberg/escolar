@@ -2412,43 +2412,69 @@ def trocar_senha_api(request):
     return JsonResponse({"success": True})
 
 
+from django.db.models import Q
+
 @login_required
-@role_required(['diretor', 'coordenador'])
+@role_required(['diretor', 'coordenador', 'professor'])
 def listar_turmas_para_boletim(request):
 
     print("\n==============================")
     print("🔥 LISTAR TURMAS PARA BOLETIM")
     print("==============================")
 
+    user = request.user
+    escola = request.escola
+
+    print("👤 USER:", user)
+    print("🏫 ESCOLA:", escola)
+
     turma_id = request.GET.get('turma')
     print("📥 TURMA_ID:", turma_id)
 
-    escola = request.escola
-    print("🏫 ESCOLA:", escola)
+    # =====================================================
+    # 🔥 CONTROLE POR PERFIL (NOVO)
+    # =====================================================
 
-    turmas = Turma.objects.filter(
-        escola=escola
-    ).order_by("nome")
+    if user.role == "professor":
 
-    alunos = []
-
-    if turma_id:
-
-        turma = Turma.objects.filter(
-            id=turma_id,
+        professor = Docente.objects.filter(
+            user=user,
             escola=escola
         ).first()
 
+        print("👨‍🏫 PROFESSOR:", professor)
+
+        turmas = Turma.objects.filter(
+            turmadisciplina__professor=professor,
+            escola=escola
+        ).distinct().order_by("nome")
+
+    else:
+        # diretor / coordenador
+        turmas = Turma.objects.filter(
+            escola=escola
+        ).order_by("nome")
+
+    alunos = []
+
+    # =====================================================
+    # 🔥 VALIDA TURMA SELECIONADA
+    # =====================================================
+
+    if turma_id:
+
+        turma = turmas.filter(id=turma_id).first()
+
         if not turma:
-            print("❌ TURMA NÃO ENCONTRADA")
+            print("❌ TURMA NÃO PERMITIDA OU NÃO ENCONTRADA")
+            alunos = []
         else:
             print("✅ TURMA:", turma.nome)
             print("📊 SISTEMA:", turma.sistema_avaliacao)
             print("🎓 TIPO:", turma.tipo_turma)
 
-            print("\n--- 🔎 BUSCANDO ALUNOS (CORRETO) ---")
+            print("\n--- 🔎 BUSCANDO ALUNOS ---")
 
-            # 🔥 CORREÇÃO REAL AQUI
             alunos = Aluno.objects.filter(
                 Q(turma_principal=turma) | Q(turmas=turma),
                 escola=escola,
@@ -2480,7 +2506,7 @@ def listar_turmas_para_boletim(request):
 
 
 @login_required
-@role_required(['diretor', 'coordenador'])
+@role_required(['diretor', 'coordenador', 'professor'])
 def visualizar_boletim(request, aluno_id):
 
     aluno = get_object_or_404(Aluno, pk=aluno_id)
