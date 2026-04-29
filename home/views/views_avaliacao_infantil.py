@@ -39,10 +39,13 @@ def salvar_avaliacao_infantil(request):
         bimestre = dados.get("bimestre")
         ano = datetime.now().year
 
+        todas_respostas = []
+        todas_observacoes = []
+
         for av in dados.get("avaliacoes", []):
             aluno_id = av.get("aluno_id")
 
-            # 🔥 CRIA/PEGA A AVALIAÇÃO (OK manter)
+            # 🔥 AVALIAÇÃO (mantém simples)
             avaliacao, _ = AvaliacaoInfantil.objects.get_or_create(
                 aluno_id=aluno_id,
                 turma_id=turma_id,
@@ -50,59 +53,107 @@ def salvar_avaliacao_infantil(request):
                 ano=ano
             )
 
-            # =========================
-            # 🔥 CORREÇÃO CRÍTICA AQUI
-            # =========================
+            # 🔥 MONTA TODAS AS RESPOSTAS (SEM SALVAR AINDA)
             for item_id, valor in av.get("respostas", {}).items():
 
-                resposta = AvaliacaoResposta.objects.filter(
-                    avaliacao=avaliacao,
-                    item_id=int(item_id)
-                ).first()
+                todas_respostas.append({
+                    "avaliacao_id": avaliacao.id,
+                    "item_id": int(item_id),
+                    "valor": valor
+                })
 
-                if resposta:
-                    resposta.valor = valor
-                    resposta.save()
-                else:
-                    AvaliacaoResposta.objects.create(
-                        avaliacao=avaliacao,
-                        item_id=int(item_id),
-                        valor=valor
+            # 🔥 OBSERVAÇÃO
+            texto = av.get("observacao", "")
+
+            if texto:
+                todas_observacoes.append({
+                    "aluno_id": aluno_id,
+                    "turma_id": turma_id,
+                    "bimestre": bimestre,
+                    "ano": ano,
+                    "texto": texto,
+                    "escola_id": request.user.escola.id
+                })
+
+        # =====================================================
+        # 🔥 RESPOSTAS (BULK)
+        # =====================================================
+
+        # 🔥 busca todas existentes de uma vez
+        existentes = AvaliacaoResposta.objects.filter(
+            avaliacao_id__in=[r["avaliacao_id"] for r in todas_respostas]
+        )
+
+        mapa_existentes = {
+            (r.avaliacao_id, r.item_id): r
+            for r in existentes
+        }
+
+        para_update = []
+        para_create = []
+
+        for r in todas_respostas:
+
+            chave = (r["avaliacao_id"], r["item_id"])
+
+            if chave in mapa_existentes:
+                obj = mapa_existentes[chave]
+                obj.valor = r["valor"]
+                para_update.append(obj)
+            else:
+                para_create.append(
+                    AvaliacaoResposta(
+                        avaliacao_id=r["avaliacao_id"],
+                        item_id=r["item_id"],
+                        valor=r["valor"]
                     )
+                )
 
-            # =========================
-            # 🔥 OBSERVAÇÃO (CORRIGIDO)
-            # =========================
-            observacao_texto = av.get("observacao", "")
+        if para_create:
+            AvaliacaoResposta.objects.bulk_create(para_create)
 
-            if observacao_texto:
+        if para_update:
+            AvaliacaoResposta.objects.bulk_update(para_update, ["valor"])
 
-                obs = ObservacaoInfantil.objects.filter(
-                    aluno_id=aluno_id,
-                    turma_id=turma_id,
-                    bimestre=bimestre,
-                    ano=ano
-                ).first()
+        # =====================================================
+        # 🔥 OBSERVAÇÕES (BULK)
+        # =====================================================
 
-                if obs:
-                    obs.texto = observacao_texto
-                    obs.save()
-                else:
-                    ObservacaoInfantil.objects.create(
-                        aluno_id=aluno_id,
-                        turma_id=turma_id,
-                        bimestre=bimestre,
-                        ano=ano,
-                        texto=observacao_texto,
-                        escola=request.user.escola
-                    )
+        existentes_obs = ObservacaoInfantil.objects.filter(
+            turma_id=turma_id,
+            bimestre=bimestre,
+            ano=ano
+        )
+
+        mapa_obs = {
+            (o.aluno_id): o
+            for o in existentes_obs
+        }
+
+        obs_update = []
+        obs_create = []
+
+        for o in todas_observacoes:
+
+            if o["aluno_id"] in mapa_obs:
+                obj = mapa_obs[o["aluno_id"]]
+                obj.texto = o["texto"]
+                obs_update.append(obj)
+            else:
+                obs_create.append(
+                    ObservacaoInfantil(**o)
+                )
+
+        if obs_create:
+            ObservacaoInfantil.objects.bulk_create(obs_create)
+
+        if obs_update:
+            ObservacaoInfantil.objects.bulk_update(obs_update, ["texto"])
 
         return JsonResponse({"ok": True})
 
     except Exception as e:
         return JsonResponse({"erro": str(e)}, status=500)
-
-
 
 
 @login_required
