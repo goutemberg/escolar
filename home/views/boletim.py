@@ -61,7 +61,6 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
 
         notas_por_disciplina[disciplina_id][bimestre].append({
             "valor": valor_exibicao,
-            "peso": float(peso),
             "tipo": nota.avaliacao.tipo.nome if nota.avaliacao.tipo else "Avaliação"
         })
 
