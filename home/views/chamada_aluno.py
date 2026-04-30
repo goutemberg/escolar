@@ -453,8 +453,7 @@ def listar_chamadas(request):
         ).order_by("nome")
 
     # =====================================================
-    # 🔥 NOVO: DATAS COMPLETAS PARA O CALENDÁRIO
-    # (independente da paginação)
+    # 🔥 DATAS PARA O CALENDÁRIO
     # =====================================================
     datas_chamadas = Chamada.objects.filter(
         diario__turma__escola=user.escola
@@ -485,7 +484,7 @@ def listar_chamadas(request):
         base = base.filter(diario__disciplina_id=filtro_disciplina)
 
     # =====================================================
-    # QUERY FINAL
+    # 🔥 QUERY FINAL (AJUSTE AQUI)
     # =====================================================
     chamadas_queryset = (
         base
@@ -496,10 +495,12 @@ def listar_chamadas(request):
             "diario__professor",
         )
         .order_by(
+            "aluno_id",  # 🔥 necessário pro distinct funcionar
             "-diario__data_ministrada",
             "diario__turma__nome",
             "diario__disciplina__nome",
         )
+        .distinct("aluno_id")  # 🔥 remove duplicados
     )
 
     # =====================================================
@@ -523,7 +524,7 @@ def listar_chamadas(request):
             "filtro_data": filtro_data or "",
             "filtro_turma": filtro_turma or "",
             "filtro_disciplina": filtro_disciplina or "",
-            "datas_chamadas": datas_chamadas,  # 👈 ESSENCIAL PRO CALENDÁRIO
+            "datas_chamadas": datas_chamadas,
         }
     )
 
