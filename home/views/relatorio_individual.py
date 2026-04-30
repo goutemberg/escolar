@@ -27,14 +27,12 @@ MAX_TEXTO = 3000  # limite seguro (pode ajustar)
 
 @login_required
 def relatorio_individual_view(request):
-    """
-    Tela principal do Relatório Individual
-    - Diretor/Coordenador: vê todas as turmas da escola
-    - Professor: vê apenas turmas em que está vinculado (TurmaDisciplina)
-    """
     usuario = request.user
     escola = usuario.escola
 
+    # ============================
+    # TURMAS (igual já está)
+    # ============================
     if usuario.role == "professor":
         professor = Docente.objects.filter(user=usuario, escola=escola).first()
 
@@ -52,11 +50,31 @@ def relatorio_individual_view(request):
     else:
         turmas = Turma.objects.filter(escola=escola).order_by("nome")
 
+    # ============================
+    # 🔥 NOVO: ALUNOS CORRETOS
+    # ============================
+    turma_id = request.GET.get("turma")
+
+    alunos = []
+
+    if turma_id:
+        alunos = (
+            Aluno.objects
+            .filter(
+                turma_alunos__turma_id=turma_id,  
+                escola=escola
+            )
+            .distinct()
+            .order_by("nome")
+        )
+
     return render(
         request,
         "pages/relatorio_individual.html",
         {
             "turmas": turmas,
+            "alunos": alunos,  # 
+            "turma_selecionada": turma_id,
             "ano_atual": date.today().year,
         },
     )
