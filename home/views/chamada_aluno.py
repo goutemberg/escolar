@@ -15,6 +15,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, 
 from reportlab.lib import colors
 import csv
 from openpyxl import Workbook
+from django.db.models import Q, OuterRef, Subquery, F
 
 from home.models import Chamada
 from django.core.paginator import Paginator
@@ -390,10 +391,6 @@ def disciplinas_por_turma(request, turma_id):
 # ======================================================
 # 4) HISTÓRICO DE CHAMADAS
 # ======================================================
-from django.db.models import Q, OuterRef, Subquery, F
-from django.core.paginator import Paginator
-from datetime import datetime
-
 @login_required
 def listar_chamadas(request):
 
@@ -488,26 +485,17 @@ def listar_chamadas(request):
         base = base.filter(diario__disciplina_id=filtro_disciplina)
 
     # =====================================================
-    # 🔥 CORREÇÃO DEFINITIVA (SEM DUPLICAÇÃO)
+    # ✅ CORREÇÃO AQUI (SEM ERRO E SEM DUPLICAÇÃO)
     # =====================================================
-
-    ultima_chamada = Chamada.objects.filter(
-        aluno_id=OuterRef("aluno_id"),
-        diario__turma__escola=user.escola
-    ).order_by("-diario__data_ministrada")
-
     chamadas_queryset = (
         base
-        .annotate(
-            ultima_id=Subquery(ultima_chamada.values("id")[:1])
-        )
-        .filter(id=F("ultima_id"))
         .select_related(
             "diario",
             "diario__turma",
             "diario__disciplina",
             "diario__professor",
         )
+        .distinct()
         .order_by(
             "-diario__data_ministrada",
             "diario__turma__nome",
