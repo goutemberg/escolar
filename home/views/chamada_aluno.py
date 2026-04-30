@@ -409,7 +409,7 @@ def listar_chamadas(request):
     ).first()
 
     # =====================================================
-    # PERFIL PROFESSOR (CORRIGIDO)
+    # PERFIL PROFESSOR
     # =====================================================
     if user.role == "professor" and professor:
 
@@ -453,7 +453,7 @@ def listar_chamadas(request):
         ).order_by("nome")
 
     # =====================================================
-    # 🔥 DATAS PARA O CALENDÁRIO
+    # DATAS PARA O CALENDÁRIO
     # =====================================================
     datas_chamadas = Chamada.objects.filter(
         diario__turma__escola=user.escola
@@ -484,10 +484,19 @@ def listar_chamadas(request):
         base = base.filter(diario__disciplina_id=filtro_disciplina)
 
     # =====================================================
-    # 🔥 QUERY FINAL (AJUSTE AQUI)
+    # 🔥 CORREÇÃO REAL (UMA LINHA POR ALUNO)
     # =====================================================
+    sub = (
+        base
+        .values("aluno_id")
+        .annotate(ultima_data=Max("diario__data_ministrada"))
+    )
+
     chamadas_queryset = (
         base
+        .filter(
+            diario__data_ministrada__in=[s["ultima_data"] for s in sub]
+        )
         .select_related(
             "diario",
             "diario__turma",
@@ -495,12 +504,10 @@ def listar_chamadas(request):
             "diario__professor",
         )
         .order_by(
-            "aluno_id",  # 🔥 necessário pro distinct funcionar
             "-diario__data_ministrada",
             "diario__turma__nome",
             "diario__disciplina__nome",
         )
-        .distinct("aluno_id")  # 🔥 remove duplicados
     )
 
     # =====================================================
@@ -527,7 +534,6 @@ def listar_chamadas(request):
             "datas_chamadas": datas_chamadas,
         }
     )
-
 # ======================================================
 # 5) DETALHE DA CHAMADA
 # ======================================================
