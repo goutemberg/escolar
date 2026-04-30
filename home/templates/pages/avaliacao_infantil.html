@@ -400,11 +400,15 @@ function salvar() {
 
             let radios = document.getElementsByName(`item_${item.id}_aluno_${aluno.id}`);
 
+            let selecionado = null;
+
             radios.forEach(r => {
                 if (r.checked) {
-                    respostas[item.id] = r.value;
-                }
+                selecionado = r.value;
+            }
             });
+
+        respostas[item.id] = selecionado;
 
         });
 
