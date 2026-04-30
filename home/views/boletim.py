@@ -47,7 +47,7 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     for nota in notas:
         disciplina_id = nota.avaliacao.disciplina_id
         bimestre = nota.avaliacao.bimestre
-        peso = nota.avaliacao.tipo.peso if nota.avaliacao.tipo else 1
+        
 
         # 🔥 TRATAMENTO COMPLETO (NUM + CON)
         if nota.valor is not None:
@@ -61,7 +61,6 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
 
         notas_por_disciplina[disciplina_id][bimestre].append({
             "valor": valor_exibicao,
-            "peso": float(peso),
             "tipo": nota.avaliacao.tipo.nome if nota.avaliacao.tipo else "Avaliação"
         })
 
@@ -93,24 +92,22 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
             notas_detalhadas[b] = lista
 
             # 🔥 SÓ CALCULA MÉDIA SE FOR NUMÉRICO
-            valores_validos = [n for n in lista if isinstance(n["valor"], (int, float))]
+            valores_validos = [n["valor"] for n in lista if isinstance(n["valor"], (int, float))]
 
             if valores_validos:
-                soma = sum(n["valor"] * n["peso"] for n in valores_validos)
-                peso_total = sum(n["peso"] for n in valores_validos)
-                media = soma / peso_total
-                bimestres[b] = arredondar_media_personalizada(round(media, 2))
+                media = sum(valores_validos) / len(valores_validos)
+                bimestres[b] = arredondar_media_personalizada(media)
             else:
                 bimestres[b] = None
 
         medias_validas = [v for v in bimestres.values() if v is not None]
 
-        media_final = (
-            round(sum(medias_validas) / len(medias_validas), 2)
-            if medias_validas else None
-        )
+        media_final = None
 
-        media_final = arredondar_media_personalizada(media_final)
+        if medias_validas:
+            media_final = sum(medias_validas) / len(medias_validas)
+            media_final = arredondar_media_personalizada(media_final)
+
 
         if media_final is None:
             status = "-"

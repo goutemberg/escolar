@@ -370,8 +370,15 @@ function montarTela() {
 
     html += `</div>`;
     document.getElementById("avaliacoesContainer").innerHTML = html;
+
+    inicializarRadios();
 }
 
+function inicializarRadios(){
+
+    document.querySelectorAll("input[type='radio']:checked")
+        .forEach(r => r.dataset.checked = "true");
+}
 
 // =========================
 // SALVAR
@@ -400,11 +407,15 @@ function salvar() {
 
             let radios = document.getElementsByName(`item_${item.id}_aluno_${aluno.id}`);
 
+            let selecionado = null;
+
             radios.forEach(r => {
                 if (r.checked) {
-                    respostas[item.id] = r.value;
-                }
+                selecionado = r.value;
+            }
             });
+
+        respostas[item.id] = selecionado;
 
         });
 
@@ -478,5 +489,45 @@ function abrirPdfAluno(alunoId){
 
     window.open(`/boletim-infantil-pdf/${alunoId}/${turmaId}/`, '_blank');
 }
+
+document.addEventListener("click", function(e){
+
+    let radio = null;
+
+    // clicou no label
+    if (e.target.tagName === "LABEL") {
+        const id = e.target.getAttribute("for");
+        radio = document.getElementById(id);
+    }
+
+    // clicou no radio
+    if (e.target.type === "radio") {
+        radio = e.target;
+    }
+
+    if (!radio) return;
+
+    // 🔥 IMPEDIR comportamento padrão do navegador
+    e.preventDefault();
+
+    const grupo = document.querySelectorAll(`input[name="${radio.name}"]`);
+
+    // 🔥 SE JÁ ESTÁ MARCADO → DESMARCA
+    if (radio.checked) {
+        radio.checked = false;
+        radio.dataset.checked = "false";
+        return;
+    }
+
+    // 🔥 SENÃO → MARCA NORMAL
+    grupo.forEach(r => {
+        r.checked = false;
+        r.dataset.checked = "false";
+    });
+
+    radio.checked = true;
+    radio.dataset.checked = "true";
+
+});
 </script>
 {% endblock extra_js %}

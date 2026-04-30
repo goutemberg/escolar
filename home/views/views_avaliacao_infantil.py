@@ -76,10 +76,9 @@ def salvar_avaliacao_infantil(request):
                 })
 
         # =====================================================
-        # 🔥 RESPOSTAS (BULK)
+        # 🔥 RESPOSTAS (BULK) — CORRIGIDO AQUI
         # =====================================================
 
-        # 🔥 busca todas existentes de uma vez
         existentes = AvaliacaoResposta.objects.filter(
             avaliacao_id__in=[r["avaliacao_id"] for r in todas_respostas]
         )
@@ -91,23 +90,38 @@ def salvar_avaliacao_infantil(request):
 
         para_update = []
         para_create = []
+        para_delete = []
 
         for r in todas_respostas:
 
             chave = (r["avaliacao_id"], r["item_id"])
+            valor = r["valor"]
 
+            # 🔥 SE FOR NULL → DELETE
+            if valor is None:
+                if chave in mapa_existentes:
+                    para_delete.append(mapa_existentes[chave].id)
+                continue
+
+            # 🔥 UPDATE
             if chave in mapa_existentes:
                 obj = mapa_existentes[chave]
-                obj.valor = r["valor"]
+                obj.valor = valor
                 para_update.append(obj)
+
+            # 🔥 CREATE
             else:
                 para_create.append(
                     AvaliacaoResposta(
                         avaliacao_id=r["avaliacao_id"],
                         item_id=r["item_id"],
-                        valor=r["valor"]
+                        valor=valor
                     )
                 )
+
+        # 🔥 EXECUÇÃO EM LOTE
+        if para_delete:
+            AvaliacaoResposta.objects.filter(id__in=para_delete).delete()
 
         if para_create:
             AvaliacaoResposta.objects.bulk_create(para_create)
@@ -116,7 +130,7 @@ def salvar_avaliacao_infantil(request):
             AvaliacaoResposta.objects.bulk_update(para_update, ["valor"])
 
         # =====================================================
-        # 🔥 OBSERVAÇÕES (BULK)
+        # 🔥 OBSERVAÇÕES (SEM ALTERAÇÃO)
         # =====================================================
 
         existentes_obs = ObservacaoInfantil.objects.filter(
