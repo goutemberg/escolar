@@ -36,10 +36,11 @@ def alunos_por_turma(request):
     alunos = (
         Aluno.objects
         .filter(
-            turma_principal=turma,
+            turmas__id=turma.id,  
             escola=escola,
             ativo=True
         )
+        .distinct()               
         .order_by("nome")
         .values("id", "nome")
     )

@@ -3030,11 +3030,22 @@ def salvar_chamada(request):
 
 
 @login_required
-@role_required('professor,diretor,coordenador')
+@role_required(['professor', 'diretor', 'coordenador'])
 def buscar_alunos(request, turma_id):
-    turma = get_object_or_404(Turma, id=turma_id)
-    alunos = turma.alunos.filter(ativo=True)
-    
+
+    escola = request.user.escola
+
+    alunos = (
+        Aluno.objects
+        .filter(
+            turmas__id=turma_id,
+            escola=escola,
+            ativo=True
+        )
+        .distinct()
+        .order_by("nome")
+    )
+
     alunos_serializados = [
         {"id": aluno.id, "nome": aluno.nome}
         for aluno in alunos
@@ -3043,6 +3054,7 @@ def buscar_alunos(request, turma_id):
     return JsonResponse({
         "alunos": alunos_serializados
     })
+
 
 @login_required
 @require_POST

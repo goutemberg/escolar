@@ -15,6 +15,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, 
 from reportlab.lib import colors
 import csv
 from openpyxl import Workbook
+from django.db.models import Q, OuterRef, Subquery, F
 
 from home.models import Chamada
 from django.core.paginator import Paginator
@@ -409,7 +410,7 @@ def listar_chamadas(request):
     ).first()
 
     # =====================================================
-    # PERFIL PROFESSOR (CORRIGIDO)
+    # PERFIL PROFESSOR
     # =====================================================
     if user.role == "professor" and professor:
 
@@ -453,8 +454,7 @@ def listar_chamadas(request):
         ).order_by("nome")
 
     # =====================================================
-    # 🔥 NOVO: DATAS COMPLETAS PARA O CALENDÁRIO
-    # (independente da paginação)
+    # DATAS PARA O CALENDÁRIO
     # =====================================================
     datas_chamadas = Chamada.objects.filter(
         diario__turma__escola=user.escola
@@ -485,7 +485,7 @@ def listar_chamadas(request):
         base = base.filter(diario__disciplina_id=filtro_disciplina)
 
     # =====================================================
-    # QUERY FINAL
+    # ✅ CORREÇÃO AQUI (SEM ERRO E SEM DUPLICAÇÃO)
     # =====================================================
     chamadas_queryset = (
         base
@@ -495,6 +495,7 @@ def listar_chamadas(request):
             "diario__disciplina",
             "diario__professor",
         )
+        .distinct()
         .order_by(
             "-diario__data_ministrada",
             "diario__turma__nome",
@@ -523,10 +524,9 @@ def listar_chamadas(request):
             "filtro_data": filtro_data or "",
             "filtro_turma": filtro_turma or "",
             "filtro_disciplina": filtro_disciplina or "",
-            "datas_chamadas": datas_chamadas,  # 👈 ESSENCIAL PRO CALENDÁRIO
+            "datas_chamadas": datas_chamadas,
         }
     )
-
 # ======================================================
 # 5) DETALHE DA CHAMADA
 # ======================================================
