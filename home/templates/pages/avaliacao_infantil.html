@@ -254,7 +254,7 @@ function carregarDados() {
 
         alunos = dataAlunos.alunos;
         window.avaliacoesSalvas = dataAvaliacoes.avaliacoes || {};
-        window.observacoes = dataAvaliacoes.observacoes || {}; // 🔥 NOVO
+        window.observacoes = dataAvaliacoes.observacoes || {};
 
         montarTela();
     });
@@ -299,66 +299,43 @@ function montarTela() {
             html += `
                 <div class="mb-2">
 
-                    <!-- 🔥 HEADER (nome + botão) -->
                     <div class="d-flex justify-content-between align-items-center">
 
                         <span>${aluno.nome}</span>
 
-                        <button
-                            type="button"
-                            onclick="abrirPdfAluno(${aluno.id})"
-                            title="Gerar boletim em PDF"
-                            style="
-                                background: transparent;
-                                color: #1565c0;
-                                border: 1.5px solid #1565c0;
-                                padding: 4px 10px;
-                                border-radius: 6px;
-                                font-size: 12px;
-                                font-weight: 500;
-                                transition: 0.2s;
-                            "
-                            onmouseover="this.style.backgroundColor='#1565c0'; this.style.color='#fff'"
-                            onmouseout="this.style.backgroundColor='transparent'; this.style.color='#1565c0'"
-                        >
-                            <i class="bi bi-file-earmark-pdf"></i>
+                        <button type="button"
+                            onclick="abrirPdfAluno(${aluno.id})">
+                            📄
                         </button>
 
                     </div>
 
-                    <!-- 🔥 AVALIAÇÃO -->
                     <div class="avaliacao-opcoes mt-2">
 
                         <input type="radio"
-                            id="O_${item.id}_${aluno.id}"
                             name="item_${item.id}_aluno_${aluno.id}"
                             value="O"
                             ${valorSalvo === 'O' ? 'checked' : ''}>
-                        <label for="O_${item.id}_${aluno.id}" class="opcao-label opcao-O">O</label>
+                        O
 
                         <input type="radio"
-                            id="B_${item.id}_${aluno.id}"
                             name="item_${item.id}_aluno_${aluno.id}"
                             value="B"
                             ${valorSalvo === 'B' ? 'checked' : ''}>
-                        <label for="B_${item.id}_${aluno.id}" class="opcao-label opcao-B">B</label>
+                        B
 
                         <input type="radio"
-                            id="E_${item.id}_${aluno.id}"
                             name="item_${item.id}_aluno_${aluno.id}"
                             value="E"
                             ${valorSalvo === 'E' ? 'checked' : ''}>
-                        <label for="E_${item.id}_${aluno.id}" class="opcao-label opcao-E">E</label>
+                        E
 
                     </div>
 
-                    <!-- 🔥 OBSERVAÇÃO -->
                     <div class="mt-2 mb-3">
                         <textarea 
-                            class="form-control observacao"
+                            class="form-control"
                             data-aluno="${aluno.id}"
-                            placeholder="Observação do professor..."
-                            style="font-size: 13px; padding: 8px; border-radius: 8px;"
                         >${obs}</textarea>
                     </div>
 
@@ -370,6 +347,35 @@ function montarTela() {
 
     html += `</div>`;
     document.getElementById("avaliacoesContainer").innerHTML = html;
+
+    // 🔥 ATIVA RADIO TOGGLE (DESMARCAR)
+    ativarRadioToggle();
+}
+
+
+// =========================
+// 🔥 RADIO DESMARCÁVEL
+// =========================
+function ativarRadioToggle(){
+
+    document.querySelectorAll("input[type='radio']").forEach(radio => {
+
+        radio.addEventListener("click", function(){
+
+            if(this.dataset.checked === "true"){
+                this.checked = false;
+                this.dataset.checked = "false";
+            }else{
+                document.querySelectorAll(`input[name='${this.name}']`)
+                    .forEach(r => r.dataset.checked = "false");
+
+                this.dataset.checked = "true";
+            }
+
+        });
+
+    });
+
 }
 
 
@@ -383,7 +389,6 @@ function salvar() {
     if (salvando) return;
     salvando = true;
 
-    // 🔥 MOSTRA LOADING
     document.getElementById("loadingOverlay").style.display = "flex";
 
     const turma_id = document.getElementById("turma").value;
@@ -400,11 +405,19 @@ function salvar() {
 
             let radios = document.getElementsByName(`item_${item.id}_aluno_${aluno.id}`);
 
+            let marcado = false;
+
             radios.forEach(r => {
                 if (r.checked) {
                     respostas[item.id] = r.value;
+                    marcado = true;
                 }
             });
+
+            // 🔥 GARANTE ENVIO
+            if (!marcado) {
+                respostas[item.id] = null;
+            }
 
         });
 
@@ -443,12 +456,11 @@ function salvar() {
     })
     .finally(() => {
 
-        // 🔥 ESCONDE LOADING
         document.getElementById("loadingOverlay").style.display = "none";
-
         salvando = false;
     });
 }
+
 
 // =========================
 // CSRF
@@ -466,6 +478,7 @@ function getCSRFToken() {
 document.addEventListener("DOMContentLoaded", function() {
     carregarTurmas();
 });
+
 
 function abrirPdfAluno(alunoId){
 
