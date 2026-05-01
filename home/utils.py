@@ -4,8 +4,6 @@ from django.utils import timezone
 import re
 
 
-
-
 def gerar_matricula_unica():
     from .models import Aluno
     prefixo = "ALU"
@@ -117,5 +115,36 @@ def arredondar_media_personalizada(media):
         else:
             return 8.0
 
-    # 🔥 ACIMA DISSO NÃO MEXE (OU ARREDONDA NORMAL)
     return round(media)
+
+
+def get_ano_ativo():
+    from .models import AnoLetivo  
+
+    return AnoLetivo.objects.filter(
+        ativo=True,
+        encerrado=False
+    ).first()
+
+
+def get_turmas_ativas(escola, incluir_sem_ano=False):
+    from .models import Turma
+    from .utils import get_ano_ativo
+
+    ano = get_ano_ativo()
+
+    if not ano:
+        return Turma.objects.none()
+
+    qs = Turma.objects.filter(
+        escola=escola,
+        ano_letivo=ano
+    )
+
+    if incluir_sem_ano:
+        qs = qs | Turma.objects.filter(
+            escola=escola,
+            ano_letivo__isnull=True
+        )
+
+    return qs
