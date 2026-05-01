@@ -427,7 +427,6 @@ class Turma(models.Model):
         ("INATIVA", "Inativa"),
     ]
 
-    # 🔥 NOVO CAMPO
     TIPO_TURMA_CHOICES = [
         ("INF", "Infantil"),
         ("FUN", "Fundamental"),
@@ -436,9 +435,19 @@ class Turma(models.Model):
 
     nome = models.CharField(max_length=100)
     turno = models.CharField(max_length=20)
-    ano = models.IntegerField()
+    ano = models.IntegerField()  
+
     sala = models.CharField(max_length=20)
     descricao = models.TextField(blank=True)
+
+    
+    ano_letivo = models.ForeignKey(
+        'AnoLetivo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='turmas'
+    )
 
     sistema_avaliacao = models.CharField(
         max_length=3,
@@ -446,11 +455,10 @@ class Turma(models.Model):
         default="NUM",
     )
 
-    # 🔥 NOVO CAMPO AQUI
     tipo_turma = models.CharField(
         max_length=3,
         choices=TIPO_TURMA_CHOICES,
-        default="FUN",  # 🔥 não quebra produção
+        default="FUN",
     )
 
     status = models.CharField(
@@ -473,6 +481,8 @@ class Turma(models.Model):
     )
 
     def __str__(self):
+        if self.ano_letivo:
+            return f"{self.nome} - {self.turno} ({self.ano}) [{self.ano_letivo.ano}]"
         return f"{self.nome} - {self.turno} ({self.ano})"
 
 
@@ -1126,3 +1136,15 @@ class ObservacaoInfantil(models.Model):
 
     def __str__(self):
         return f"{self.aluno.nome} - {self.bimestre}/{self.ano}"
+
+
+
+class AnoLetivo(models.Model):
+    ano = models.IntegerField(unique=True)
+    ativo = models.BooleanField(default=True)
+    encerrado = models.BooleanField(default=False)
+    data_inicio = models.DateField(null=True, blank=True)
+    data_fim = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return str(self.ano)

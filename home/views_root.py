@@ -43,6 +43,7 @@ from django.utils.dateparse import parse_date
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from collections import defaultdict
+from home.utils import get_ano_ativo
 
 # ---- Third-Party ----
 import pandas as pd
@@ -1559,13 +1560,13 @@ def criar_turma(request):
     except Exception:
         return JsonResponse({"success": False, "mensagem": "Ano inválido."}, status=400)
 
-    # 🔒 alunos_ids deve ser lista
+    
     if alunos_ids is None:
         alunos_ids = []
     if not isinstance(alunos_ids, list):
         return JsonResponse({"success": False, "mensagem": "alunos_ids deve ser uma lista."}, status=400)
 
-    # 🔒 professor/disciplinas (se vierem, valida se são da escola)
+    
     professor = None
     if professor_id:
         professor = Docente.objects.filter(id=professor_id, escola=escola, ativo=True).first()
@@ -1578,18 +1579,17 @@ def criar_turma(request):
         if not disciplina:
             return JsonResponse({"success": False, "mensagem": "Disciplina inválida."}, status=400)
 
-    # 🔒 se vier um, tem que vir o outro (mantém lógica “somente se vier completo”)
+    
     if (professor_id and not disciplina_id) or (disciplina_id and not professor_id):
         return JsonResponse({
             "success": False,
             "mensagem": "Para vincular, informe professor_id e disciplina_id."
         }, status=400)
 
-    # ✅ TRANSAÇÃO: não cria turma pela metade
     try:
         with transaction.atomic():
 
-            # 1️⃣ cria a turma
+            
             turma = Turma.objects.create(
                 nome=nome,
                 turno=turno,
@@ -1597,12 +1597,11 @@ def criar_turma(request):
                 sala=sala,
                 descricao=descricao,
                 escola=escola,
-                sistema_avaliacao=sistema,   # ✅ NOVO
+                sistema_avaliacao=sistema,   
             )
 
-            # 2️⃣ cria vínculo pedagógico SOMENTE se vier completo
+            
             if professor and disciplina:
-                # evita duplicação de vínculo (unique_together pode estourar)
                 ja_existe = TurmaDisciplina.objects.filter(
                     turma=turma,
                     professor=professor,
@@ -2730,6 +2729,8 @@ def salvar_turma(request):
 
     try:
 
+        from home.utils import get_ano_ativo  # 🔥 NOVO
+
         data = request.POST
 
         nome = data.get('nome', '').strip()
@@ -2758,6 +2759,18 @@ def salvar_turma(request):
         escola = request.escola
 
         # =========================================================
+        # 🔥 NOVO: ANO LETIVO ATIVO
+        # =========================================================
+
+        ano_letivo = get_ano_ativo()
+
+        if not ano_letivo:
+            return JsonResponse({
+                'success': False,
+                'error': 'Nenhum ano letivo ativo encontrado.'
+            }, status=400)
+
+        # =========================================================
         # 🔹 CRIAR OU ATUALIZAR TURMA
         # =========================================================
 
@@ -2772,6 +2785,10 @@ def salvar_turma(request):
             turma.descricao = descricao
             turma.tipo_turma = tipo_turma
 
+            # 🔒 opcional (garante consistência)
+            if not turma.ano_letivo:
+                turma.ano_letivo = ano_letivo
+
             turma.save()
 
         else:
@@ -2783,7 +2800,8 @@ def salvar_turma(request):
                 sala=sala,
                 descricao=descricao,
                 tipo_turma=tipo_turma,
-                escola=escola
+                escola=escola,
+                ano_letivo=ano_letivo  # 🔥 NOVO
             )
 
         # =========================================================
@@ -2817,7 +2835,7 @@ def salvar_turma(request):
                 )
 
         else:
-            # 🔥 NOVO: fallback automático
+            # 🔥 fallback automático
             disciplinas_escola = Disciplina.objects.filter(escola=escola)
 
             for disciplina in disciplinas_escola:
