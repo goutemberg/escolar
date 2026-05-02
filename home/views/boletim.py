@@ -16,9 +16,12 @@ from io import BytesIO
 from django.http import JsonResponse, HttpResponse
 import os
 
+
 # =========================================
 # PDF DO BOLETIM
 # =========================================
+
+
 
 @login_required
 def gerar_pdf_boletim(request, aluno_id, turma_id):
@@ -41,25 +44,26 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     escola = turma.escola
 
     # ================================
-    # 🔥 BOLETIM (CACHE + JSON)
+    # 🔥 BOLETIM (CACHE)
     # ================================
     boletim_obj = gerar_e_salvar_boletim(aluno, turma)
     boletim = boletim_obj.dados
 
     # ================================
-    # ⚡ TENTAR USAR PDF EXISTENTE
+    # ⚡ USAR PDF EXISTENTE (SE POSSÍVEL)
     # ================================
     if boletim_obj.pdf:
         try:
-            # 🔥 LOCAL (dev)
             if os.path.exists(boletim_obj.pdf.path):
-                return HttpResponse(boletim_obj.pdf.read(), content_type="application/pdf")
+                return HttpResponse(
+                    boletim_obj.pdf.read(),
+                    content_type="application/pdf"
+                )
         except:
-            # 🔥 Cloudinary ou erro → ignora e gera novo
-            pass
+            pass  # cloudinary ou erro → ignora
 
     # ================================
-    # 🚀 GERAR PDF EM MEMÓRIA
+    # 🚀 GERAR PDF
     # ================================
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer)
@@ -68,7 +72,9 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
 
     AZUL_NUCLEO = colors.HexColor("#1E88E5")
 
+    # ================================
     # HEADER
+    # ================================
     elements.append(Paragraph(f"<b>BOLETIM ESCOLAR - {datetime.now().year}</b>", styles["Title"]))
     elements.append(Spacer(1, 10))
 
@@ -95,7 +101,30 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
 
             if item["notas"][b]:
                 for n in item["notas"][b]:
-                    notas_texto += f"{n['tipo']}: {n['valor']}<br/>"
+
+                    # ================================
+                    # 🎨 CONCEITO COM COR
+                    # ================================
+                    if turma.sistema_avaliacao == "CON":
+
+                        valor = n["valor"]
+
+                        cor = "#000000"
+                        if valor == "O":
+                            cor = "#2e7d32"  # verde
+                        elif valor == "B":
+                            cor = "#f9a825"  # amarelo
+                        elif valor == "E":
+                            cor = "#1565c0"  # azul
+
+                        notas_texto += f"<font color='{cor}'><b>{valor}</b></font><br/>"
+
+                    # ================================
+                    # 🔢 NUMÉRICO NORMAL
+                    # ================================
+                    else:
+                        notas_texto += f"{n['tipo']}: {n['valor']}<br/>"
+
             else:
                 notas_texto = "-"
 
@@ -120,6 +149,17 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
         elements.append(Spacer(1, 20))
 
     # ================================
+    # 🧾 LEGENDA (APENAS CONCEITO)
+    # ================================
+    if turma.sistema_avaliacao == "CON":
+        elements.append(Spacer(1, 10))
+        elements.append(Paragraph("<b>Legenda:</b>", styles["Heading3"]))
+
+        elements.append(Paragraph("<font color='#2e7d32'><b>O</b></font> - Ótimo", styles["Normal"]))
+        elements.append(Paragraph("<font color='#f9a825'><b>B</b></font> - Bom", styles["Normal"]))
+        elements.append(Paragraph("<font color='#1565c0'><b>E</b></font> - Evolução", styles["Normal"]))
+
+    # ================================
     # BUILD PDF
     # ================================
     doc.build(elements)
@@ -128,7 +168,7 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     buffer.close()
 
     # ================================
-    # 💾 SALVAR PDF (Cloudinary ou local)
+    # 💾 SALVAR (LOCAL OU CLOUDINARY)
     # ================================
     boletim_obj.pdf.save(
         f"boletins/boletim_{aluno.id}_{turma.id}.pdf",
@@ -136,7 +176,7 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     )
 
     # ================================
-    # 📤 RETORNAR PDF
+    # 📤 RETORNAR
     # ================================
     return HttpResponse(pdf, content_type="application/pdf")
 
