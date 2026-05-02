@@ -47,18 +47,16 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     boletim = boletim_obj.dados
 
     # ================================
-    # ⚡ NÃO GERAR SE JÁ EXISTE
+    # ⚡ TENTAR USAR PDF EXISTENTE
     # ================================
     if boletim_obj.pdf:
-        caminho = boletim_obj.pdf.path
-
-    # 🔥 verifica se o arquivo realmente existe
-        if os.path.exists(caminho):
-            return HttpResponse(pdf, content_type="application/pdf")
-        else:
-        # 💥 PDF quebrado → limpa
-            boletim_obj.pdf.delete(save=False)
-            boletim_obj.save()
+        try:
+            # 🔥 LOCAL (dev)
+            if os.path.exists(boletim_obj.pdf.path):
+                return HttpResponse(boletim_obj.pdf.read(), content_type="application/pdf")
+        except:
+            # 🔥 Cloudinary ou erro → ignora e gera novo
+            pass
 
     # ================================
     # 🚀 GERAR PDF EM MEMÓRIA
@@ -130,10 +128,10 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     buffer.close()
 
     # ================================
-    # 💾 SALVAR PDF
+    # 💾 SALVAR PDF (Cloudinary ou local)
     # ================================
     boletim_obj.pdf.save(
-        f"boletim_{aluno.id}_{turma.id}.pdf",
+        f"boletins/boletim_{aluno.id}_{turma.id}.pdf",
         ContentFile(pdf)
     )
 
