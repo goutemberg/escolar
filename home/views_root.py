@@ -2028,14 +2028,10 @@ def registrar_notas(request):
         # 🔥 CORREÇÃO AQUI (REMOVE OR PROBLEMÁTICO)
         # =====================================================
         alunos = (
-            Aluno.objects
-            .filter(
-                turmas__id=turma.id,
-                escola=escola,
-                ativo=True
-    )
-            .values('id', 'nome')
+            turma.alunos
+            .filter(ativo=True)
             .distinct()
+            .only('id', 'nome')
             .order_by('nome')
         )
 
