@@ -14,6 +14,7 @@ from home.boletim_service import gerar_e_salvar_boletim
 from django.core.files.base import ContentFile
 from io import BytesIO
 from django.http import JsonResponse, HttpResponse
+import os
 
 # =========================================
 # PDF DO BOLETIM
@@ -49,7 +50,15 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     # ⚡ NÃO GERAR SE JÁ EXISTE
     # ================================
     if boletim_obj.pdf:
-        return redirect(boletim_obj.pdf.url)
+        caminho = boletim_obj.pdf.path
+
+    # 🔥 verifica se o arquivo realmente existe
+        if os.path.exists(caminho):
+            return redirect(boletim_obj.pdf.url)
+        else:
+        # 💥 PDF quebrado → limpa
+            boletim_obj.pdf.delete(save=False)
+            boletim_obj.save()
 
     # ================================
     # 🚀 GERAR PDF EM MEMÓRIA
@@ -131,7 +140,7 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     # ================================
     # 📤 RETORNAR PDF
     # ================================
-    return HttpResponse(pdf, content_type="application/pdf")
+    return redirect(boletim_obj.pdf.url)
 
 
 # =========================================

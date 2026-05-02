@@ -489,34 +489,6 @@
     });
   });
 
-document.querySelectorAll('.btn-baixar-boletim').forEach(btn => {
-
-  btn.addEventListener('click', async function(e) {
-    e.preventDefault();
-
-    const url = this.dataset.url;
-
-    try {
-      const response = await fetch(url);
-
-      // 👉 SE NÃO EXISTE BOLETIM
-      if (!response.ok) {
-        const data = await response.json();
-
-        mostrarToast(data.erro || "Boletim não disponível.");
-        return;
-      }
-
-      // 👉 SE EXISTE → BAIXA
-      window.location.href = url;
-
-    } catch (error) {
-      mostrarToast("Erro ao tentar baixar boletim.");
-    }
-  });
-
-});
-
 function mostrarToast(mensagem, tipo = "erro") {
 
   const toast = document.createElement('div');
@@ -554,7 +526,7 @@ document.addEventListener('click', async function(e) {
     }
 
     // 👉 força download
-    window.location.href = url;
+    window.open(url, '_blank');
 
   } catch (error) {
     mostrarToast("Erro ao tentar baixar boletim.");

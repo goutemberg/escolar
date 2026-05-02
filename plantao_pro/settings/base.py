@@ -104,3 +104,8 @@ SESSION_SAVE_EVERY_REQUEST = True
 
 TIME_ZONE = 'America/Sao_Paulo'
 USE_TZ = True
+
+
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
