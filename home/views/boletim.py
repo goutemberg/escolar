@@ -93,7 +93,10 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
         elements.append(Paragraph(f"<b>{b}º BIMESTRE</b>", styles["Heading2"]))
         elements.append(Spacer(1, 10))
 
-        data = [["Disciplina", "Notas", "Média"]]
+        if turma.sistema_avaliacao == "CON":
+            data = [["Disciplina", "Notas", "Resultado"]]
+        else:
+            data = [["Disciplina", "Notas", "Média"]]
 
         for item in boletim:
 
@@ -128,7 +131,15 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
             else:
                 notas_texto = "-"
 
-            media = item["bimestres"][b] if item["bimestres"][b] is not None else "-"
+            if turma.sistema_avaliacao == "CON":
+                # pega o último conceito como resultado
+                conceitos = item["notas"][b]
+                if conceitos:
+                    media = conceitos[-1]["valor"]
+                else:
+                    media = "-"
+            else:
+                media = item["bimestres"][b] if item["bimestres"][b] is not None else "-"
 
             data.append([
                 item["disciplina"],
