@@ -202,20 +202,11 @@ def buscar_alunos_por_turma(request):
         return JsonResponse({"erro": "Turma não informada"}, status=400)
 
     try:
-        turma = Turma.objects.get(
-            id=turma_id,
-            escola=request.user.escola
-        )
-
-        # =====================================================
-        # 🔥 CORREÇÃO: USAR RELAÇÃO MANY-TO-MANY (PADRÃO DO SISTEMA)
-        # =====================================================
-        alunos = (
-            turma.alunos
-            .filter(ativo=True)
-            .distinct()
-            .order_by("nome")
-        )
+        alunos = Aluno.objects.filter(
+            turma_principal_id=turma_id,
+            escola=request.user.escola,
+            ativo=True
+        ).order_by("nome")
 
         data = [
             {
@@ -226,9 +217,6 @@ def buscar_alunos_por_turma(request):
         ]
 
         return JsonResponse({"alunos": data})
-
-    except Turma.DoesNotExist:
-        return JsonResponse({"erro": "Turma não encontrada"}, status=404)
 
     except Exception as e:
         return JsonResponse({"erro": str(e)}, status=500)
