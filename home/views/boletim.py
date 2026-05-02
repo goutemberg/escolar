@@ -54,7 +54,7 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
 
     # 🔥 verifica se o arquivo realmente existe
         if os.path.exists(caminho):
-            return redirect(boletim_obj.pdf.url)
+            return HttpResponse(pdf, content_type="application/pdf")
         else:
         # 💥 PDF quebrado → limpa
             boletim_obj.pdf.delete(save=False)
@@ -140,7 +140,7 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     # ================================
     # 📤 RETORNAR PDF
     # ================================
-    return redirect(boletim_obj.pdf.url)
+    return HttpResponse(pdf, content_type="application/pdf")
 
 
 # =========================================
