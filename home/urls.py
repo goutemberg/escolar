@@ -1,7 +1,7 @@
 from django.urls import path, include
 from . import views_root
 from home.views.boletim import boletim, gerar_pdf_boletim
-from .views.boletim import boletim_aluno_redirect
+from .views.boletim import boletim_aluno_redirect, baixar_boletim
 from home.views import views_avaliacao_infantil
 
 
@@ -179,6 +179,8 @@ urlpatterns = [
     path('boletins/', views_root.listar_turmas_para_boletim, name='listar_turmas_boletim'),
     path('boletins/<int:aluno_id>/', views_root.visualizar_boletim, name='visualizar_boletim'),
     path("boletim-pdf/<int:aluno_id>/<int:turma_id>/", gerar_pdf_boletim, name="gerar_pdf_boletim"),
+    path("baixar-boletim/<int:aluno_id>/", baixar_boletim, name="baixar_boletim"
+)
 
     
 ]

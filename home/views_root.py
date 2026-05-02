@@ -1829,7 +1829,7 @@ def lancar_notas(request):
         except ValueError:
             return JsonResponse({"erro": "Bimestre inválido."}, status=400)
 
-        escola = request.escola
+        escola = request.user.escola  # 🔥 CORREÇÃO (era request.escola)
 
         try:
             turma = Turma.objects.get(id=turma_id, escola=escola, status="ATIVA")
@@ -1838,8 +1838,9 @@ def lancar_notas(request):
             return JsonResponse({"erro": "Turma ou disciplina inválida."}, status=400)
 
         salvas = 0
+        alunos_afetados = set()  # 🔥 NOVO: pra invalidar boletim depois
 
-        # 🔥 MAPA DEFINITIVO DO FRONT → BACK
+        # 🔥 MAPA CONCEITO
         mapa_conceito = {
             "1": "B",
             "2": "O",
@@ -1880,9 +1881,9 @@ def lancar_notas(request):
 
                 valor_str = str(valor).strip()
 
-                # ======================================================
-                # 🔥 TRATAMENTO DE CONCEITO (INFANTIL)
-                # ======================================================
+                # =========================================
+                # 🔥 CONCEITO
+                # =========================================
                 conceito = mapa_conceito.get(valor_str)
 
                 if conceito:
@@ -1897,11 +1898,12 @@ def lancar_notas(request):
                     )
 
                     salvas += 1
+                    alunos_afetados.add(aluno.id)
                     continue
 
-                # ======================================================
-                # 🔥 TRATAMENTO NUMÉRICO
-                # ======================================================
+                # =========================================
+                # 🔥 NUMÉRICO
+                # =========================================
                 valor_str = valor_str.replace(",", ".")
 
                 try:
@@ -1920,7 +1922,22 @@ def lancar_notas(request):
                 )
 
                 salvas += 1
+                alunos_afetados.add(aluno.id)
 
+        # =========================================
+        # 🔥 INVALIDAR BOLETIM (ESSENCIAL)
+        # =========================================
+        if alunos_afetados:
+            from home.models import Boletim
+
+            Boletim.objects.filter(
+                aluno_id__in=alunos_afetados,
+                turma=turma
+            ).update(pdf=None)
+
+        # =========================================
+        # 🔥 RESPOSTA
+        # =========================================
         total_alunos = len(notas or {})
 
         if salvas == 0:
@@ -2007,10 +2024,20 @@ def registrar_notas(request):
             getattr(turma, "sistema_avaliacao", None) or "NUM"
         ).upper()
 
-        alunos = Aluno.objects.filter(
-            Q(turma_principal=turma) | Q(turmas=turma),
-            escola=escola
-        ).distinct().only('id', 'nome').order_by('nome')
+        # =====================================================
+        # 🔥 CORREÇÃO AQUI (REMOVE OR PROBLEMÁTICO)
+        # =====================================================
+        alunos = (
+            Aluno.objects
+            .filter(
+                turmas__id=turma.id,
+                escola=escola,
+                ativo=True
+    )
+            .values('id', 'nome')
+            .distinct()
+            .order_by('nome')
+        )
 
         try:
             bimestre = int(bimestre)
@@ -2054,14 +2081,12 @@ def registrar_notas(request):
 
                     valor = n.valor if n.valor is not None else n.conceito
 
-                    # 🔥 NORMALIZAÇÃO + CONVERSÃO FINAL
                     if valor is not None:
                         valor = str(valor).strip()
 
                         if valor.endswith(".0"):
                             valor = valor[:-2]
 
-                        # 🔥 CONVERSÃO PARA O SELECT
                         mapa_reverse = {
                             "B": "1",
                             "O": "2",

@@ -122,3 +122,42 @@ table tbody tr:hover{ background:#fafafa; }
     background: #fab982;
     border-radius: 6px;
 }
+
+.toast-boletim {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  color: white;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: 0.3s;
+  z-index: 9999;
+  font-size: 14px;
+}
+
+/* 🔴 ERRO */
+.toast-boletim.erro {
+  background: #dc3545;
+}
+
+/* 🟢 SUCESSO */
+.toast-boletim.sucesso {
+  background: #28a745;
+}
+
+.toast-boletim.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 🔥 PADRÃO HOVER PARA TODOS OS ÍCONES */
+.action-icon:hover {
+  background: #fab982;
+  border-radius: 8px;
+}
+
+.action-icon:hover i {
+  color: #fff !important;
+}

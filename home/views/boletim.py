@@ -1,20 +1,20 @@
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import inch
-
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404
-
-from collections import defaultdict
 from datetime import datetime
-from decimal import Decimal
-
-from home.models import Aluno, Avaliacao, Disciplina, Nota, Presenca, Turma, Chamada
+from home.models import Aluno, Turma, Boletim
 from home.utils import arredondar_media_personalizada
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.db.models import Q
+from home.utils import montar_boletim
+from home.boletim_service import gerar_e_salvar_boletim
+from django.core.files.base import ContentFile
+from io import BytesIO
+from django.http import JsonResponse, HttpResponse
+
 # =========================================
 # PDF DO BOLETIM
 # =========================================
@@ -22,124 +22,46 @@ from django.db.models import Q
 @login_required
 def gerar_pdf_boletim(request, aluno_id, turma_id):
 
-    aluno = get_object_or_404(Aluno, id=aluno_id)
-    turma = get_object_or_404(Turma, id=turma_id)
+    # ================================
+    # DADOS BASE
+    # ================================
+    aluno = get_object_or_404(
+        Aluno,
+        id=aluno_id,
+        escola=request.user.escola
+    )
+
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=request.user.escola
+    )
+
     escola = turma.escola
 
-    disciplinas = Disciplina.objects.filter(
-        turmadisciplina__turma=turma,
-        escola=escola
-    ).distinct()
-
-    avaliacoes = Avaliacao.objects.filter(
-        turma=turma,
-        escola=escola
-    ).select_related("disciplina", "tipo")
-
-    notas = Nota.objects.filter(
-        aluno=aluno,
-        avaliacao__in=avaliacoes
-    ).select_related("avaliacao")
-
-    # 🔥 NOTAS POR DISCIPLINA
-    notas_por_disciplina = defaultdict(lambda: defaultdict(list))
-
-    for nota in notas:
-        disciplina_id = nota.avaliacao.disciplina_id
-        bimestre = nota.avaliacao.bimestre
-        
-
-        # 🔥 TRATAMENTO COMPLETO (NUM + CON)
-        if nota.valor is not None:
-            valor_exibicao = float(nota.valor)
-
-        elif nota.conceito:
-            valor_exibicao = nota.conceito
-
-        else:
-            continue
-
-        notas_por_disciplina[disciplina_id][bimestre].append({
-            "valor": valor_exibicao,
-            "tipo": nota.avaliacao.tipo.nome if nota.avaliacao.tipo else "Avaliação"
-        })
-
-    # 🔥 FALTAS
-    faltas_por_disciplina = defaultdict(int)
-
-    chamadas = Chamada.objects.filter(diario__turma=turma)
-
-    presencas = Presenca.objects.filter(
-        aluno=aluno,
-        chamada__in=chamadas
-    ).select_related("chamada__diario")
-
-    for p in presencas:
-        if not p.presente:
-            faltas_por_disciplina[p.chamada.diario.disciplina_id] += 1
-
-    # 🔥 BOLETIM FINAL
-    boletim = []
-
-    for disciplina in disciplinas:
-
-        bimestres = {}
-        notas_detalhadas = {}
-
-        for b in [1, 2, 3, 4]:
-
-            lista = notas_por_disciplina[disciplina.id][b]
-            notas_detalhadas[b] = lista
-
-            # 🔥 SÓ CALCULA MÉDIA SE FOR NUMÉRICO
-            valores_validos = [n["valor"] for n in lista if isinstance(n["valor"], (int, float))]
-
-            if valores_validos:
-                media = sum(valores_validos) / len(valores_validos)
-                bimestres[b] = arredondar_media_personalizada(media)
-            else:
-                bimestres[b] = None
-
-        medias_validas = [v for v in bimestres.values() if v is not None]
-
-        media_final = None
-
-        if medias_validas:
-            media_final = sum(medias_validas) / len(medias_validas)
-            media_final = arredondar_media_personalizada(media_final)
-
-
-        if media_final is None:
-            status = "-"
-        elif media_final >= 7:
-            status = "Aprovado"
-        elif media_final >= 5:
-            status = "Recuperação"
-        else:
-            status = "Reprovado"
-
-        boletim.append({
-            "disciplina": disciplina.nome,
-            "bimestres": bimestres,
-            "notas": notas_detalhadas,
-            "media_final": media_final,
-            "faltas": faltas_por_disciplina.get(disciplina.id, 0),
-            "status": status
-        })
+    # ================================
+    # 🔥 BOLETIM (CACHE + JSON)
+    # ================================
+    boletim_obj = gerar_e_salvar_boletim(aluno, turma)
+    boletim = boletim_obj.dados
 
     # ================================
-    # PDF
+    # ⚡ NÃO GERAR SE JÁ EXISTE
     # ================================
+    if boletim_obj.pdf:
+        return redirect(boletim_obj.pdf.url)
 
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="boletim_{aluno.nome}.pdf"'
-
-    doc = SimpleDocTemplate(response)
+    # ================================
+    # 🚀 GERAR PDF EM MEMÓRIA
+    # ================================
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer)
     elements = []
     styles = getSampleStyleSheet()
 
     AZUL_NUCLEO = colors.HexColor("#1E88E5")
 
+    # HEADER
     elements.append(Paragraph(f"<b>BOLETIM ESCOLAR - {datetime.now().year}</b>", styles["Title"]))
     elements.append(Spacer(1, 10))
 
@@ -150,6 +72,9 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
 
     elements.append(Spacer(1, 20))
 
+    # ================================
+    # BIMESTRES
+    # ================================
     for b in [1, 2, 3, 4]:
 
         elements.append(Paragraph(f"<b>{b}º BIMESTRE</b>", styles["Heading2"]))
@@ -167,7 +92,7 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
             else:
                 notas_texto = "-"
 
-            media = item["bimestres"][b] if item["bimestres"][b] else "-"
+            media = item["bimestres"][b] if item["bimestres"][b] is not None else "-"
 
             data.append([
                 item["disciplina"],
@@ -187,10 +112,26 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
         elements.append(table)
         elements.append(Spacer(1, 20))
 
+    # ================================
+    # BUILD PDF
+    # ================================
     doc.build(elements)
 
-    return response
+    pdf = buffer.getvalue()
+    buffer.close()
 
+    # ================================
+    # 💾 SALVAR PDF
+    # ================================
+    boletim_obj.pdf.save(
+        f"boletim_{aluno.id}_{turma.id}.pdf",
+        ContentFile(pdf)
+    )
+
+    # ================================
+    # 📤 RETORNAR PDF
+    # ================================
+    return HttpResponse(pdf, content_type="application/pdf")
 
 
 # =========================================
@@ -202,59 +143,42 @@ def boletim_turma(request, turma_id):
     turma = get_object_or_404(
         Turma,
         id=turma_id,
-        escola=request.user.escola  # 🔥 garante isolamento multi-escola
+        escola=request.user.escola
     )
-
-    escola = turma.escola
 
     alunos = Aluno.objects.filter(
         turma_principal=turma,
-        escola=escola,
-        ativo=True  # 🔥 evita lixo
+        escola=turma.escola,
+        ativo=True
     ).order_by("nome")
-
-    avaliacoes = Avaliacao.objects.filter(
-        turma=turma,
-        escola=escola
-    ).select_related(
-        "disciplina",
-        "tipo"
-    )
-
-    notas = Nota.objects.filter(
-        avaliacao__in=avaliacoes,
-        aluno__in=alunos
-    ).select_related(
-        "avaliacao",
-        "avaliacao__tipo"
-    )
-
-    notas_por_aluno = defaultdict(list)
-
-    for nota in notas:
-        notas_por_aluno[nota.aluno_id].append(nota)
 
     resultado = []
 
     for aluno in alunos:
 
-        soma = Decimal("0")
-        peso_total = Decimal("0")
+        boletim_obj = gerar_e_salvar_boletim(aluno, turma)
+        boletim = boletim_obj.dados
 
-        for n in notas_por_aluno.get(aluno.id, []):
+        medias = [
+            d["media_final"]
+            for d in boletim
+            if d["media_final"] is not None
+        ]
 
-            peso = n.avaliacao.tipo.peso if n.avaliacao.tipo else 1
+        media_final = None
 
-            soma += Decimal(n.valor) * Decimal(peso)
-            peso_total += Decimal(peso)
-
-        media_final = round(soma / peso_total, 2) if peso_total > 0 else None
-        media_final = arredondar_media_personalizada(media_final)
+        if medias:
+            media_final = sum(medias) / len(medias)
+            media_final = arredondar_media_personalizada(media_final)
 
         resultado.append({
             "aluno": aluno,
             "media": media_final,
-            "status": "Aprovado" if media_final and media_final >= 7 else "Reprovado"
+            "status": (
+                "Aprovado" if media_final and media_final >= 7
+                else "Recuperação" if media_final and media_final >= 5
+                else "Reprovado"
+            )
         })
 
     return render(request, "boletim/boletim_turma.html", {
@@ -266,55 +190,35 @@ def boletim_turma(request, turma_id):
 @login_required
 def boletim(request, aluno_id, turma_id=None):
 
-    print("\n==============================")
-    print("🔥 VISUALIZAR BOLETIM")
-    print("==============================")
-
     aluno = get_object_or_404(
         Aluno,
         id=aluno_id,
         escola=request.user.escola
     )
 
-    print("👤 ALUNO:", aluno.nome)
-    print("📥 TURMA_ID RECEBIDO:", turma_id)
-
     turma = None
 
-    # 🔥 tenta pegar da URL
     if turma_id:
         turma = Turma.objects.filter(
             id=turma_id,
             escola=request.user.escola
         ).first()
-        print("👉 TURMA VIA URL:", turma)
 
-    # 🔥 fallback 1
     if not turma:
         turma = aluno.turma_principal
-        print("👉 TURMA VIA PRINCIPAL:", turma)
 
-    # 🔥 fallback 2
     if not turma:
         turma = aluno.turmas.first()
-        print("👉 TURMA VIA M2M:", turma)
 
-    # 🔥 fallback final
     if not turma:
-        print("🚨 ERRO: ALUNO SEM TURMA")
         return redirect("listar_turmas_para_boletim")
 
-    print("✅ TURMA FINAL:", turma.id)
+    # 🔥 PROTEÇÃO EXTRA
+    if not turma.id:
+        return redirect("listar_turmas_para_boletim")
 
     sistema = (getattr(turma, "sistema_avaliacao", None) or "NUM").upper()
-    print("📊 SISTEMA:", sistema)
 
-    # 🔥 PROTEÇÃO CRÍTICA (corrige teu erro)
-    if not turma.id:
-        print("🚨 TURMA SEM ID (EVITANDO QUEBRA)")
-        return redirect("listar_turmas_para_boletim")
-
-    # 🔥 REDIRECIONAMENTO CORRETO
     if sistema == "CON":
         return redirect("boletim_infantil", aluno_id=aluno.id, turma_id=turma.id)
 
@@ -325,42 +229,16 @@ def boletim(request, aluno_id, turma_id=None):
 @login_required
 def escolher_turma_boletim(request, aluno_id):
 
-    print("\n==============================")
-    print("🔥 ESCOLHER TURMA BOLETIM")
-    print("==============================")
-
     aluno = get_object_or_404(
         Aluno,
         id=aluno_id,
         escola=request.user.escola
     )
 
-    print("👤 ALUNO:", aluno.nome)
-    print("🏫 ESCOLA:", request.user.escola)
-    print("📌 TURMA_PRINCIPAL:", aluno.turma_principal_id)
-
-    print("\n--- 🔎 BUSCANDO TURMAS ---")
-
-    # 🔥 CONSULTA MAIS SEGURA
     turmas = Turma.objects.filter(
         Q(alunos=aluno) | Q(alunos_principais=aluno),
         escola=request.user.escola
     ).distinct().order_by("nome")
-
-    print("📚 TOTAL TURMAS ENCONTRADAS:", turmas.count())
-
-    if turmas.count() == 0:
-        print("🚨 NENHUMA TURMA ENCONTRADA PARA O ALUNO")
-        print("👉 POSSÍVEL PROBLEMA:")
-        print("   - aluno sem turma vinculada")
-        print("   - turma_principal não setada")
-        print("   - M2M não sincronizado")
-
-    for t in turmas:
-        print(f"   - {t.nome} | ID: {t.id} | Sistema: {t.sistema_avaliacao}")
-
-    print("--- FIM BUSCA TURMAS ---")
-    print("==============================\n")
 
     return render(request, "pages/escolher_turma_boletim.html", {
         "aluno": aluno,
@@ -377,26 +255,49 @@ def boletim_aluno_redirect(request, aluno_id):
         escola=request.user.escola
     )
 
-    # 🔥 tenta turma principal ou M2M direto
     turma = aluno.turma_principal or aluno.turmas.first()
 
-    # 🔥 fallback completo (garante pegar mesmo com banco inconsistente)
     if not turma:
         turma = Turma.objects.filter(
             Q(alunos=aluno),
             escola=request.user.escola
         ).order_by("id").first()
 
-    # 🔥 se ainda não encontrou, força escolha manual
     if not turma:
         return redirect("escolher_turma_boletim", aluno_id=aluno.id)
 
-    print("TURMA_ID:", turma.id)  # mantém seu log
-
-    # 🔥 redireciona conforme tipo de avaliação
     sistema = (getattr(turma, "sistema_avaliacao", None) or "NUM").upper()
 
     if sistema == "CON":
         return redirect("boletim_infantil", aluno_id=aluno.id, turma_id=turma.id)
 
     return redirect("gerar_pdf_boletim", aluno_id=aluno.id, turma_id=turma.id)
+
+
+@login_required
+def baixar_boletim(request, aluno_id):
+
+    aluno = get_object_or_404(
+        Aluno,
+        id=aluno_id,
+        escola=request.user.escola
+    )
+
+    turma = aluno.turma_principal or aluno.turmas.first()
+
+    if not turma:
+        return JsonResponse({"erro": "Aluno sem turma."}, status=400)
+
+    boletim = Boletim.objects.filter(
+        aluno=aluno,
+        turma=turma
+    ).first()
+
+    # 🔥 SE NÃO EXISTE → NÃO GERA
+    if not boletim or not boletim.pdf:
+        return JsonResponse({
+            "erro": "Boletim ainda não foi gerado."
+        }, status=404)
+
+    # 🔥 DOWNLOAD DIRETO
+    return redirect(boletim.pdf.url)

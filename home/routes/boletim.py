@@ -1,6 +1,5 @@
 from django.urls import path
 from home.views.boletim import (
-    gerar_pdf_boletim,
     boletim_turma,
 )
 
