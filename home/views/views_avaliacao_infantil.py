@@ -202,21 +202,19 @@ def buscar_alunos_por_turma(request):
         return JsonResponse({"erro": "Turma não informada"}, status=400)
 
     try:
-        alunos = Aluno.objects.filter(
-            turma_principal_id=turma_id,
-            escola=request.user.escola,
-            ativo=True
-        ).order_by("nome")
+        alunos = (
+            Aluno.objects
+            .filter(
+                turmas__id=turma_id,
+                escola=request.user.escola,
+                ativo=True
+            )
+            .values("id", "nome")
+            .distinct()
+            .order_by("nome")
+        )
 
-        data = [
-            {
-                "id": a.id,
-                "nome": a.nome
-            }
-            for a in alunos
-        ]
-
-        return JsonResponse({"alunos": data})
+        return JsonResponse({"alunos": list(alunos)})
 
     except Exception as e:
         return JsonResponse({"erro": str(e)}, status=500)

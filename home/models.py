@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.core.exceptions import ValidationError
 import uuid
-from .utils import gerar_matricula_unica
+from home.utils_core import gerar_matricula_unica
 import random
 import string
 
@@ -1148,3 +1148,22 @@ class AnoLetivo(models.Model):
 
     def __str__(self):
         return str(self.ano)
+    
+
+class Boletim(models.Model):
+
+    aluno = models.ForeignKey("Aluno", on_delete=models.CASCADE)
+    turma = models.ForeignKey("Turma", on_delete=models.CASCADE)
+
+    dados = models.JSONField()  # 🔥 snapshot completo do boletim
+
+    pdf = models.FileField(upload_to="boletins/", null=True, blank=True)
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("aluno", "turma")
+
+    def __str__(self):
+        return f"{self.aluno.nome} - {self.turma.nome}"
