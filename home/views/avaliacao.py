@@ -10,6 +10,7 @@ from decimal import Decimal
 from django.db import transaction
 from decimal import Decimal, InvalidOperation
 from home.utils import arredondar_media_personalizada
+from django.db import IntegrityError
 
 from home.models import (
     Turma,
@@ -22,7 +23,6 @@ from home.models import (
 
 
 # =========================
-# TIPOS DE AVALIAÇÃO
 # =========================
 
 def listar_tipos_avaliacao(request):
@@ -352,31 +352,119 @@ def excluir_avaliacao(request, avaliacao_id):
         return JsonResponse({"erro": "Avaliação não encontrada."}, status=404)
     
 
+
 @login_required
+@require_http_methods(["PUT"])
 def editar_avaliacao(request, avaliacao_id):
 
     escola = request.escola
 
-
     try:
-        avaliacao = Avaliacao.objects.get(id=avaliacao_id, escola=escola)
 
-        data = json.loads(request.body)
+        avaliacao = Avaliacao.objects.get(
+            id=avaliacao_id,
+            escola=escola
+        )
 
-        avaliacao.disciplina_id = data.get("disciplina_id")
-        avaliacao.tipo_id = data.get("tipo_id")
-        avaliacao.descricao = data.get("descricao").strip()
-        avaliacao.bimestre = data.get("bimestre")
-        avaliacao.data = data.get("data")
+        try:
+            data = json.loads(request.body or "{}")
+        except json.JSONDecodeError:
+            return JsonResponse({
+                "erro": "JSON inválido."
+            }, status=400)
+
+        descricao = (data.get("descricao") or "").strip()
+        disciplina_id = data.get("disciplina_id")
+        tipo_id = data.get("tipo_id")
+        bimestre = data.get("bimestre")
+        data_avaliacao = data.get("data")
+
+        # ======================================
+        # VALIDAÇÕES
+        # ======================================
+
+        if not descricao:
+            return JsonResponse({
+                "erro": "Descrição é obrigatória."
+            }, status=400)
+
+        if not disciplina_id:
+            return JsonResponse({
+                "erro": "Disciplina inválida."
+            }, status=400)
+
+        if not tipo_id:
+            return JsonResponse({
+                "erro": "Tipo inválido."
+            }, status=400)
+
+        if not bimestre:
+            return JsonResponse({
+                "erro": "Bimestre inválido."
+            }, status=400)
+
+        # ======================================
+        # EVITA DUPLICIDADE
+        # IGNORANDO A PRÓPRIA AVALIAÇÃO
+        # ======================================
+
+        existe = Avaliacao.objects.filter(
+            escola=escola,
+            turma=avaliacao.turma,
+            disciplina_id=disciplina_id,
+            bimestre=bimestre,
+            descricao__iexact=descricao
+        ).exclude(
+            id=avaliacao.id
+        ).exists()
+
+        if existe:
+            return JsonResponse({
+                "erro": "Já existe uma avaliação com essa descrição para esta turma/disciplina/bimestre."
+            }, status=400)
+
+        # ======================================
+        # ATUALIZA CAMPOS
+        # ======================================
+
+        avaliacao.descricao = descricao
+        avaliacao.disciplina_id = disciplina_id
+        avaliacao.tipo_id = tipo_id
+        avaliacao.bimestre = int(bimestre)
+
+        # ======================================
+        # DATA
+        # ======================================
+
+        avaliacao.data = date.today()
+
+        # ======================================
+        # SAVE
+        # ======================================
 
         avaliacao.save()
 
-        return JsonResponse({"mensagem": "Avaliação atualizada com sucesso!"})
+        return JsonResponse({
+            "mensagem": "Avaliação atualizada com sucesso!"
+        })
 
     except Avaliacao.DoesNotExist:
-        return JsonResponse({"erro": "Avaliação não encontrada."}, status=404)
 
+        return JsonResponse({
+            "erro": "Avaliação não encontrada."
+        }, status=404)
 
+    except IntegrityError:
+
+        return JsonResponse({
+            "erro": "Já existe uma avaliação com essa descrição para esta turma/disciplina/bimestre."
+        }, status=400)
+
+    except Exception as e:
+
+        return JsonResponse({
+            "erro": str(e)
+        }, status=500)
 # =========================
 # LANÇAMENTO DE NOTAS
 # =========================
