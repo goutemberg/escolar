@@ -247,30 +247,112 @@ Cadastrar Avaliação
 
 {% for a in avaliacoes %}
 
-<tr>
+<tr id="linha-{{ a.id }}">
 
-<td>{{ a.turma.nome }} - {{a.turma.turno}}</td>
-<td>{{ a.descricao }}</td>
-<td>{{ a.disciplina.nome }}</td>
-<td>{{ a.tipo.nome }}</td>
-<td class="text-center">{{ a.bimestre }}</td>
-<td class="text-center">{{ a.data }}</td>
+<td>
+{{ a.turma.nome }} - {{ a.turma.turno }}
+</td>
+
+<td>
+
+<span class="view-mode descricao-view">
+{{ a.descricao }}
+</span>
+
+<input type="text"
+class="form-control edit-mode descricao-input d-none"
+value="{{ a.descricao }}">
+
+</td>
+
+<td>
+
+<span class="view-mode disciplina-view">
+{{ a.disciplina.nome }}
+</span>
+
+<select class="form-control edit-mode disciplina-input d-none">
+
+{% for d in disciplinas %}
+
+<option value="{{ d.id }}"
+{% if d.id == a.disciplina.id %}selected{% endif %}>
+{{ d.nome }}
+</option>
+
+{% endfor %}
+
+</select>
+
+</td>
+
+<td>
+
+<span class="view-mode tipo-view">
+{{ a.tipo.nome }}
+</span>
+
+<select class="form-control edit-mode tipo-input d-none">
+
+{% for tipo in tipos %}
+
+<option value="{{ tipo.id }}"
+{% if tipo.id == a.tipo.id %}selected{% endif %}>
+{{ tipo.nome }}
+</option>
+
+{% endfor %}
+
+</select>
+
+</td>
 
 <td class="text-center">
 
-<button class="btn-icon btn-edit btnEditar"
-title="Editar"
-data-id="{{ a.id }}"
-data-descricao="{{ a.descricao }}"
-data-bimestre="{{ a.bimestre }}"
-data-data="{{ a.data }}"
-data-disciplina="{{ a.disciplina.id }}"
-data-tipo="{{ a.tipo.id }}"
-data-turma="{{ a.turma.id }}">
+<span class="view-mode bimestre-view">
+{{ a.bimestre }}
+</span>
+
+<select class="form-control edit-mode bimestre-input d-none">
+
+<option value="1" {% if a.bimestre == 1 %}selected{% endif %}>1</option>
+<option value="2" {% if a.bimestre == 2 %}selected{% endif %}>2</option>
+<option value="3" {% if a.bimestre == 3 %}selected{% endif %}>3</option>
+<option value="4" {% if a.bimestre == 4 %}selected{% endif %}>4</option>
+
+</select>
+
+</td>
+
+<td class="text-center">
+
+<span class="view-mode data-view">
+{{ a.data }}
+</span>
+
+<input type="date"
+class="form-control edit-mode data-input d-none"
+value="{{ a.data|date:'Y-m-d' }}"
+readonly>
+
+</td>
+
+<td class="text-center">
+
+<button type="button"
+class="btn-icon btn-edit btnEditarInline"
+data-id="{{ a.id }}">
 <i class="bi bi-pencil-square"></i>
 </button>
 
-<button class="btn-icon btn-delete btnExcluir"
+<button type="button"
+class="btn-icon btn-save d-none btnSalvarInline"
+data-id="{{ a.id }}">
+<i class="bi bi-check-lg"></i>
+</button>
+
+<button type="button"
+class="btn-icon btn-delete btnExcluir"
 title="Excluir"
 data-id="{{ a.id }}">
 <i class="bi bi-trash"></i>
@@ -450,6 +532,88 @@ window.scrollTo({ top:0, behavior:'smooth' });
 });
 
 });
+
+});
+
+// ======================================
+// EDIÇÃO INLINE + SALVAR
+// ======================================
+
+document.addEventListener("click", function(e){
+
+// ======================================
+// EDITAR
+// ======================================
+
+const btnEditar = e.target.closest(".btnEditarInline");
+
+if(btnEditar){
+
+const id = btnEditar.dataset.id;
+
+const linha = document.getElementById(`linha-${id}`);
+
+linha.querySelectorAll(".view-mode").forEach(el=>{
+el.classList.add("d-none");
+});
+
+linha.querySelectorAll(".edit-mode").forEach(el=>{
+el.classList.remove("d-none");
+});
+
+linha.querySelector(".btnEditarInline").classList.add("d-none");
+linha.querySelector(".btnSalvarInline").classList.remove("d-none");
+
+}
+
+// ======================================
+// SALVAR
+// ======================================
+
+const btnSalvar = e.target.closest(".btnSalvarInline");
+
+if(btnSalvar){
+
+const id = btnSalvar.dataset.id;
+
+const linha = document.getElementById(`linha-${id}`);
+
+const descricao = linha.querySelector(".descricao-input").value;
+const disciplina = linha.querySelector(".disciplina-input").value;
+const tipo = linha.querySelector(".tipo-input").value;
+const bimestre = linha.querySelector(".bimestre-input").value;
+const data = linha.querySelector(".data-input").value;
+
+fetch(`/avaliacoes/editar/${id}/`,{
+method:"PUT",
+headers:{
+"Content-Type":"application/json",
+"X-CSRFToken":"{{ csrf_token }}"
+},
+body: JSON.stringify({
+descricao: descricao,
+disciplina_id: disciplina,
+tipo_id: tipo,
+bimestre: bimestre,
+data: data
+})
+})
+.then(r=>r.json())
+.then(data=>{
+
+if(data.mensagem){
+
+location.reload();
+
+}else{
+
+alert(data.erro || "Erro ao atualizar.");
+
+}
+
+});
+
+}
 
 });
 
