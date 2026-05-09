@@ -18,8 +18,6 @@ from home.models import (
     Avaliacao,
     Nota,
     TipoAvaliacao,
-    TurmaDisciplina,
-    Docente,
 )
 
 
@@ -133,7 +131,6 @@ def avaliacoes(request):
 
     escola = request.escola
 
-
     # =========================================
     # POST — CRIAR AVALIAÇÃO(S)
     # =========================================
@@ -171,16 +168,31 @@ def avaliacoes(request):
             if quantidade < 1:
                 return JsonResponse({"erro": "Quantidade deve ser pelo menos 1."}, status=400)
 
-            # valida turma/disciplinas da escola
-            turma = Turma.objects.filter(id=turma_id, escola=escola).first()
+            # ================================
+            # VALIDA TURMA / DISCIPLINA / TIPO
+            # ================================
+
+            turma = Turma.objects.filter(
+                id=turma_id,
+                escola=escola
+            ).first()
+
             if not turma:
                 return JsonResponse({"erro": "Turma inválida."}, status=404)
 
-            disciplina = Disciplina.objects.filter(id=disciplina_id, escola=escola).first()
+            disciplina = Disciplina.objects.filter(
+                id=disciplina_id,
+                escola=escola
+            ).first()
+
             if not disciplina:
                 return JsonResponse({"erro": "Disciplina inválida."}, status=404)
 
-            tipo = TipoAvaliacao.objects.filter(id=tipo_id, escola=escola).first()
+            tipo = TipoAvaliacao.objects.filter(
+                id=tipo_id,
+                escola=escola
+            ).first()
+
             if not tipo:
                 return JsonResponse({"erro": "Tipo inválido."}, status=404)
 
@@ -188,12 +200,53 @@ def avaliacoes(request):
 
             with transaction.atomic():
 
+                # ====================================
+                # DESCOBRE O ÚLTIMO NÚMERO EXISTENTE
+                # ====================================
+
+                avaliacoes_existentes = Avaliacao.objects.filter(
+                    escola=escola,
+                    turma=turma,
+                    disciplina=disciplina,
+                    bimestre=bimestre,
+                    tipo=tipo
+                ).order_by("descricao")
+
+                ultimo_numero = 0
+
+                for av in avaliacoes_existentes:
+
+                    descricao_lower = av.descricao.lower()
+
+                    if descricao_lower.startswith(descricao.lower()):
+
+                        partes = av.descricao.split()
+
+                        if partes and partes[-1].isdigit():
+
+                            ultimo_numero = max(
+                                ultimo_numero,
+                                int(partes[-1])
+                            )
+
+                # ====================================
+                # CRIA NOVAS AVALIAÇÕES
+                # ====================================
+
                 for i in range(1, quantidade + 1):
 
-                    # nome automático
-                    desc_final = descricao if quantidade == 1 else f"{descricao} {i}"
+                    numero = ultimo_numero + i
 
-                    # 🚫 evitar duplicidade
+                    desc_final = (
+                        descricao
+                        if quantidade == 1 and ultimo_numero == 0
+                        else f"{descricao} {numero}"
+                    )
+
+                    # ====================================
+                    # EVITA DUPLICIDADE
+                    # ====================================
+
                     existe = Avaliacao.objects.filter(
                         escola=escola,
                         turma=turma,
@@ -233,7 +286,9 @@ def avaliacoes(request):
     # GET — CARREGAR TELA
     # =========================================
 
-    turmas = Turma.objects.filter(escola=escola).order_by("nome")
+    turmas = Turma.objects.filter(
+        escola=escola
+    ).order_by("nome")
 
     turma_id = request.GET.get("turma_id")
 
@@ -258,7 +313,12 @@ def avaliacoes(request):
         "turma",
         "disciplina",
         "tipo"
-    ).order_by("turma__nome", "bimestre", "data", "descricao")
+    ).order_by(
+        "turma__nome",
+        "bimestre",
+        "data",
+        "descricao"
+    )
 
     return render(request, "avaliacoes/avaliacoes.html", {
         "turmas": turmas,
