@@ -321,14 +321,16 @@ def diario_classe_pdf(request):
             alignment=1,
             spaceAfter=12,
             fontSize=9,
+            leading=14,
         )
 
         conteudo_style = ParagraphStyle(
             "Conteudo",
             parent=styles["Normal"],
-            wordWrap="CJK",
-            leading=12,
+            wordWrap="LTR",
+            leading=16,
             fontSize=9,
+            spaceAfter=6,
         )
 
         status_style = ParagraphStyle(
@@ -336,24 +338,37 @@ def diario_classe_pdf(request):
             parent=styles["Normal"],
             alignment=1,
             fontSize=8,
+            leading=12,
         )
 
         elements = []
 
         # ============================
-        # 🏫 CABEÇALHO (PADRÃO NOVO)
+        # 🏫 CABEÇALHO
         # ============================
 
-        elements.append(Paragraph(f"<b>{request.escola.nome.upper()}</b>", titulo_style))
+        elements.append(
+            Paragraph(
+                f"<b>{request.escola.nome.upper()}</b>",
+                titulo_style
+            )
+        )
 
-        elements.append(Paragraph(
-            "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
-            styles["Normal"]
-        ))
+        elements.append(
+            Paragraph(
+                "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
+                styles["Normal"]
+            )
+        )
 
         elements.append(Spacer(1, 6))
 
-        elements.append(Paragraph("<b>DIÁRIO DE CLASSE</b>", titulo_style))
+        elements.append(
+            Paragraph(
+                "<b>DIÁRIO DE CLASSE</b>",
+                titulo_style
+            )
+        )
 
         mes_formatado = format_date(
             date(ano, mes_num, 1),
@@ -364,7 +379,8 @@ def diario_classe_pdf(request):
         elements.append(
             Paragraph(
                 f"""
-                Turma: <b>{turma.nome}</b> &nbsp;&nbsp;|&nbsp;&nbsp;
+                Turma: <b>{turma.nome}</b>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
                 Disciplina: <b>{disciplina.nome}</b><br/>
                 Mês: {mes_formatado}<br/>
                 Emissão: {timezone.localtime().strftime("%d/%m/%Y %H:%M")}
@@ -385,10 +401,22 @@ def diario_classe_pdf(request):
             return h.strftime("%H:%M") if h else "-"
 
         for idx, d in enumerate(diarios, start=1):
+
             horario = f"{fmt_hora(d.hora_inicio)} – {fmt_hora(d.hora_fim)}"
 
+            # ====================================
+            # 🎯 FORMATAÇÃO INTELIGENTE DO TEXTO
+            # ====================================
+
+            texto_formatado = (
+                (d.resumo_conteudo or "")
+                .replace("\r\n", "\n")
+                .replace("\n\n", "<br/><br/>")
+                .replace("\n", "<br/>")
+            )
+
             conteudo = Paragraph(
-                d.resumo_conteudo.replace("\n", "<br/>"),
+                texto_formatado,
                 conteudo_style
             )
 
@@ -398,7 +426,7 @@ def diario_classe_pdf(request):
             )
 
             tabela_data.append([
-                idx,
+                str(idx),
                 d.data_ministrada.strftime("%d/%m/%Y"),
                 horario,
                 conteudo,
@@ -407,23 +435,50 @@ def diario_classe_pdf(request):
 
         tabela = Table(
             tabela_data,
-            colWidths=[1.2 * cm, 3 * cm, 4 * cm, 7 * cm, 3 * cm],
+            colWidths=[
+                1.2 * cm,   # #
+                2.8 * cm,   # Data
+                3.5 * cm,   # Horário
+                8.5 * cm,   # Conteúdo
+                2.5 * cm,   # Status
+            ],
             repeatRows=1,
         )
 
         tabela.setStyle(TableStyle([
+
+            # Cabeçalho
             ("BACKGROUND", (0, 0), (-1, 0), azul),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, 0), 9),
+
+            # Grid
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+
+            # Alinhamentos
             ("ALIGN", (0, 0), (0, -1), "CENTER"),
             ("ALIGN", (1, 1), (2, -1), "CENTER"),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
-            ("TOPPADDING", (0, 0), (-1, 0), 6),
+
+            # Padding cabeçalho
+            ("TOPPADDING", (0, 0), (-1, 0), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+
+            # Padding geral
+            ("TOPPADDING", (0, 1), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
+
+            # Padding especial conteúdo
+            ("LEFTPADDING", (3, 1), (3, -1), 8),
+            ("RIGHTPADDING", (3, 1), (3, -1), 8),
+            ("TOPPADDING", (3, 1), (3, -1), 8),
+            ("BOTTOMPADDING", (3, 1), (3, -1), 8),
+
         ]))
 
         elements.append(tabela)
+
         elements.append(Spacer(1, 1.5 * cm))
 
         # ============================
@@ -448,7 +503,7 @@ def diario_classe_pdf(request):
         elements.append(assinatura_tabela)
 
         # ============================
-        # 🚀 BUILD
+        # 🚀 BUILD PDF
         # ============================
 
         doc.build(elements)
@@ -456,7 +511,11 @@ def diario_classe_pdf(request):
         pdf = buffer.getvalue()
         buffer.close()
 
-        response = HttpResponse(pdf, content_type="application/pdf")
+        response = HttpResponse(
+            pdf,
+            content_type="application/pdf"
+        )
+
         response["Content-Disposition"] = (
             f'inline; filename="diario_classe_{turma.nome}_{mes}.pdf"'
         )

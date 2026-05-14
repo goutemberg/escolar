@@ -22,6 +22,14 @@ from home.models import (
     TurmaDisciplina,
 )
 
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+)
+
 MAX_TEXTO = 3000  # limite seguro (pode ajustar)
 
 
@@ -261,8 +269,18 @@ def gerar_pdf_relatorio_individual(request):
     turma_id = request.GET.get("turma")
     ano_letivo = request.GET.get("ano_letivo")
 
-    aluno = Aluno.objects.get(id=aluno_id, escola=escola)
-    turma = Turma.objects.get(id=turma_id, escola=escola)
+    if not all([aluno_id, turma_id, ano_letivo]):
+        return HttpResponse("Parâmetros inválidos", status=400)
+
+    aluno = Aluno.objects.get(
+        id=aluno_id,
+        escola=escola
+    )
+
+    turma = Turma.objects.get(
+        id=turma_id,
+        escola=escola
+    )
 
     registros = (
         RelatorioIndividual.objects
@@ -276,7 +294,10 @@ def gerar_pdf_relatorio_individual(request):
     )
 
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'inline; filename="relatorio_{aluno.nome}.pdf"'
+
+    response['Content-Disposition'] = (
+        f'inline; filename="relatorio_{aluno.nome}.pdf"'
+    )
 
     doc = SimpleDocTemplate(
         response,
@@ -291,13 +312,15 @@ def gerar_pdf_relatorio_individual(request):
 
     azul = colors.HexColor("#1E88E5")
 
-    # -------------------------------
-    # ESTILOS COMPACTOS
-    # -------------------------------
+    # =========================================
+    # 🎨 ESTILOS
+    # =========================================
+
     titulo_escola = ParagraphStyle(
         "titulo_escola",
         parent=styles["Title"],
         fontSize=14,
+        alignment=1,
         spaceAfter=4,
     )
 
@@ -305,14 +328,16 @@ def gerar_pdf_relatorio_individual(request):
         "titulo_relatorio",
         parent=styles["Heading2"],
         fontSize=12,
-        spaceAfter=8,
+        alignment=1,
+        spaceAfter=10,
     )
 
     label = ParagraphStyle(
         "label",
         parent=styles["Normal"],
         fontSize=9,
-        spaceAfter=2,
+        leading=14,
+        spaceAfter=3,
     )
 
     bimestre_style = ParagraphStyle(
@@ -320,68 +345,180 @@ def gerar_pdf_relatorio_individual(request):
         parent=styles["Heading3"],
         fontSize=10,
         textColor=azul,
-        spaceAfter=4,
+        leading=14,
+        spaceAfter=6,
+        spaceBefore=10,
     )
 
     texto_style = ParagraphStyle(
         "texto",
         parent=styles["Normal"],
         fontSize=9,
-        leading=12,
-        spaceAfter=10,
+        leading=16,
+        spaceAfter=14,
+        wordWrap="LTR",
+        alignment=4,  # justify
     )
 
     story = []
 
-    # -------------------------------
-    # CABEÇALHO
-    # -------------------------------
-    story.append(Paragraph(f"<b>{escola.nome.upper()}</b>", titulo_escola))
+    # =========================================
+    # 🏫 CABEÇALHO
+    # =========================================
 
-    story.append(Paragraph(
-        "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
-        styles["Normal"]
-    ))
+    story.append(
+        Paragraph(
+            f"<b>{escola.nome.upper()}</b>",
+            titulo_escola
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
+            styles["Normal"]
+        )
+    )
 
     story.append(Spacer(1, 6))
 
-    story.append(Paragraph("<b>RELATÓRIO INDIVIDUAL</b>", titulo_relatorio))
+    story.append(
+        Paragraph(
+            "<b>RELATÓRIO INDIVIDUAL</b>",
+            titulo_relatorio
+        )
+    )
 
-    # -------------------------------
-    # DADOS
-    # -------------------------------
-    story.append(Paragraph(f"<b>Aluno:</b> {aluno.nome}", label))
-    story.append(Paragraph(f"<b>Turma:</b> {turma.nome}", label))
-    story.append(Paragraph(f"<b>Ano Letivo:</b> {ano_letivo}", label))
+    # =========================================
+    # 📋 DADOS
+    # =========================================
 
-    story.append(Spacer(1, 10))
+    story.append(
+        Paragraph(
+            f"<b>Aluno:</b> {aluno.nome}",
+            label
+        )
+    )
 
-    # -------------------------------
-    # CONTEÚDO
-    # -------------------------------
+    story.append(
+        Paragraph(
+            f"<b>Turma:</b> {turma.nome}",
+            label
+        )
+    )
+
+    story.append(
+        Paragraph(
+            f"<b>Ano Letivo:</b> {ano_letivo}",
+            label
+        )
+    )
+
+    story.append(Spacer(1, 12))
+
+    # =========================================
+    # 📚 CONTEÚDO
+    # =========================================
+
     if not registros.exists():
-        story.append(Paragraph("Nenhum registro encontrado.", texto_style))
+
+        story.append(
+            Paragraph(
+                "Nenhum registro encontrado.",
+                texto_style
+            )
+        )
+
     else:
+
         for r in registros:
-            story.append(Paragraph(f"<b>{r.get_bimestre_display()}</b>", bimestre_style))
+
+            story.append(
+                Paragraph(
+                    f"<b>{r.get_bimestre_display()}</b>",
+                    bimestre_style
+                )
+            )
+
+            # =========================================
+            # 🎯 FORMATAÇÃO INTELIGENTE DO TEXTO
+            # =========================================
 
             texto = r.observacoes or "Sem observações."
-            story.append(Paragraph(texto, texto_style))
 
-    # -------------------------------
-    # RODAPÉ
-    # -------------------------------
-    story.append(Spacer(1, 15))
+            texto_formatado = (
+                texto
+                .replace("\r\n", "\n")
+                .replace("\n\n", "<br/><br/>")
+                .replace("\n", "<br/>")
+            )
 
-    story.append(Paragraph(
-        "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
-        styles["Normal"]
-    ))
+            # =========================================
+            # 📦 BLOCO VISUAL DO TEXTO
+            # =========================================
 
-    story.append(Spacer(1, 8))
+            tabela_texto = Table(
+                [[Paragraph(texto_formatado, texto_style)]],
+                colWidths=[17 * cm]
+            )
 
-    story.append(Paragraph("__________________________________________", styles["Normal"]))
-    story.append(Paragraph("Assinatura do Professor / Coordenação", label))
+            tabela_texto.setStyle(TableStyle([
+
+                ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+
+                ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+
+                ("TOPPADDING", (0, 0), (-1, -1), 10),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+
+            ]))
+
+            story.append(tabela_texto)
+
+            story.append(Spacer(1, 8))
+
+    # =========================================
+    # ✍️ RODAPÉ / ASSINATURA
+    # =========================================
+
+    story.append(Spacer(1, 20))
+
+    story.append(
+        Paragraph(
+            "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
+            styles["Normal"]
+        )
+    )
+
+    story.append(Spacer(1, 12))
+
+    assinatura_tabela = Table(
+        [
+            [
+                "__________________________________________"
+            ],
+            [
+                "Assinatura do Professor / Coordenação"
+            ]
+        ],
+        colWidths=[10 * cm]
+    )
+
+    assinatura_tabela.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+    ]))
+
+    story.append(assinatura_tabela)
+
+    # =========================================
+    # 🚀 BUILD PDF
+    # =========================================
 
     doc.build(story)
 
