@@ -30,8 +30,6 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-MAX_TEXTO = 3000  # limite seguro (pode ajustar)
-
 
 @login_required
 def registro_pedagogico_view(request):
@@ -119,10 +117,14 @@ def salvar_registro_pedagogico(request):
     escola = usuario.escola
 
     if usuario.role not in ["professor", "coordenador", "diretor"]:
-        return JsonResponse({"status": "erro", "mensagem": "Acesso negado"}, status=403)
+        return JsonResponse(
+            {"status": "erro", "mensagem": "Acesso negado"},
+            status=403
+        )
 
     try:
         payload = json.loads(request.body)
+
     except json.JSONDecodeError:
         return JsonResponse(
             {"status": "erro", "mensagem": "JSON inválido"},
@@ -136,40 +138,67 @@ def salvar_registro_pedagogico(request):
 
     if not all([turma_id, disciplina_id, ano_letivo, registros]):
         return JsonResponse(
-            {"status": "erro", "mensagem": "Dados obrigatórios ausentes"},
+            {
+                "status": "erro",
+                "mensagem": "Dados obrigatórios ausentes"
+            },
             status=400,
         )
 
     try:
         ano_letivo = int(ano_letivo)
+
     except (TypeError, ValueError):
         return JsonResponse(
-            {"status": "erro", "mensagem": "Ano letivo inválido"},
+            {
+                "status": "erro",
+                "mensagem": "Ano letivo inválido"
+            },
             status=400,
         )
 
     if ano_letivo < 2000 or ano_letivo > 2100:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Ano letivo fora do intervalo permitido"},
+            {
+                "status": "erro",
+                "mensagem": "Ano letivo fora do intervalo permitido"
+            },
             status=400,
         )
 
     if not isinstance(registros, dict):
         return JsonResponse(
-            {"status": "erro", "mensagem": "Formato de registros inválido"},
+            {
+                "status": "erro",
+                "mensagem": "Formato de registros inválido"
+            },
             status=400,
         )
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=escola)
-        disciplina = Disciplina.objects.get(id=disciplina_id)
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=escola
+        )
+
+        disciplina = Disciplina.objects.get(
+            id=disciplina_id
+        )
+
     except (Turma.DoesNotExist, Disciplina.DoesNotExist):
+
         return JsonResponse(
-            {"status": "erro", "mensagem": "Turma ou disciplina inválida"},
+            {
+                "status": "erro",
+                "mensagem": "Turma ou disciplina inválida"
+            },
             status=404,
         )
 
-    # Garante que a disciplina pertence à turma
+    # =========================================
+    # ✅ GARANTE DISCIPLINA NA TURMA
+    # =========================================
+
     disciplina_na_turma = TurmaDisciplina.objects.filter(
         turma=turma,
         disciplina=disciplina,
@@ -177,16 +206,35 @@ def salvar_registro_pedagogico(request):
     ).exists()
 
     if not disciplina_na_turma:
+
         return JsonResponse(
-            {"status": "erro", "mensagem": "Disciplina não vinculada a esta turma"},
+            {
+                "status": "erro",
+                "mensagem": "Disciplina não vinculada a esta turma"
+            },
             status=403,
         )
 
-    # Professor só pode salvar nas turmas/disciplinas em que está vinculado
+    # =========================================
+    # ✅ VALIDA PROFESSOR
+    # =========================================
+
     if usuario.role == "professor":
-        professor = Docente.objects.filter(user=usuario, escola=escola).first()
+
+        professor = Docente.objects.filter(
+            user=usuario,
+            escola=escola
+        ).first()
+
         if not professor:
-            return JsonResponse({"status": "erro", "mensagem": "Professor inválido"}, status=403)
+
+            return JsonResponse(
+                {
+                    "status": "erro",
+                    "mensagem": "Professor inválido"
+                },
+                status=403
+            )
 
         permitido = TurmaDisciplina.objects.filter(
             professor=professor,
@@ -196,15 +244,26 @@ def salvar_registro_pedagogico(request):
         ).exists()
 
         if not permitido:
+
             return JsonResponse(
-                {"status": "erro", "mensagem": "Registro não permitido para este professor"},
+                {
+                    "status": "erro",
+                    "mensagem": "Registro não permitido para este professor"
+                },
                 status=403,
             )
 
+    # =========================================
+    # ✅ SALVA REGISTROS
+    # =========================================
+
     with transaction.atomic():
+
         for bimestre, texto in registros.items():
+
             try:
                 bimestre = int(bimestre)
+
             except (TypeError, ValueError):
                 continue
 
@@ -219,8 +278,8 @@ def salvar_registro_pedagogico(request):
 
             texto = texto.strip()
 
-            if len(texto) > MAX_TEXTO:
-                texto = texto[:MAX_TEXTO]
+            # 🚀 REMOVIDO LIMITE DE TEXTO
+            # Agora o sistema aceita textos longos
 
             RegistroPedagogico.objects.update_or_create(
                 turma=turma,
@@ -234,7 +293,10 @@ def salvar_registro_pedagogico(request):
             )
 
     return JsonResponse(
-        {"status": "ok", "mensagem": "Registro pedagógico salvo com sucesso"}
+        {
+            "status": "ok",
+            "mensagem": "Registro pedagógico salvo com sucesso"
+        }
     )
 
 
@@ -405,6 +467,19 @@ def gerar_pdf_registro_pedagogico(request):
         alignment=4,  # justify
     )
 
+    caixa_style = ParagraphStyle(
+        "caixa_style",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=16,
+        borderPadding=10,
+        backColor=colors.whitesmoke,
+        borderColor=colors.lightgrey,
+        borderWidth=0.5,
+        borderRadius=4,
+        spaceAfter=12,
+    )
+
     story = []
 
     # =========================================
@@ -485,10 +560,6 @@ def gerar_pdf_registro_pedagogico(request):
                 )
             )
 
-            # =========================================
-            # 🎯 FORMATAÇÃO INTELIGENTE DO TEXTO
-            # =========================================
-
             texto = r.observacoes or "Sem observações."
 
             texto_formatado = (
@@ -499,31 +570,15 @@ def gerar_pdf_registro_pedagogico(request):
             )
 
             # =========================================
-            # 📦 BLOCO VISUAL DO TEXTO
+            # ✅ TEXTO LIVRE (SUPORTA MÚLTIPLAS PÁGINAS)
             # =========================================
 
-            tabela_texto = Table(
-                [[Paragraph(texto_formatado, texto_style)]],
-                colWidths=[17 * cm]
+            story.append(
+                Paragraph(
+                    texto_formatado,
+                    caixa_style
+                )
             )
-
-            tabela_texto.setStyle(TableStyle([
-
-                ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
-
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.lightgrey),
-
-                ("LEFTPADDING", (0, 0), (-1, -1), 10),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-
-                ("TOPPADDING", (0, 0), (-1, -1), 10),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-
-            ]))
-
-            story.append(tabela_texto)
 
             story.append(Spacer(1, 8))
 
