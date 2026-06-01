@@ -182,9 +182,10 @@
         color:#6b7280;
       ">
         <strong style="font-size:20px; color:#0f172a;">
-          +{{ total_escolas|default:0 }}
+          {% comment %} +{{ total_escolas|default:0 }} {% endcomment %}
+          +5
         </strong>
-        escolas já utilizam 🚀
+        escolas já utilizam e mais de 1200 alunos atendidos 🚀
       </div>
 
     {% endif %}
