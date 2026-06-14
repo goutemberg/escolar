@@ -6,7 +6,7 @@ import uuid
 from home.utils_core import gerar_matricula_unica
 import random
 import string
-
+from django.conf import settings
 
 def gerar_codigo_cliente():
     caracteres = string.ascii_uppercase + string.digits
@@ -122,6 +122,7 @@ class User(AbstractUser):
         choices=ROLE_CHOICES,
         default='responsavel',
     )
+
     roles = models.ManyToManyField('Role', blank=True)
 
     escola = models.ForeignKey(
@@ -135,6 +136,12 @@ class User(AbstractUser):
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = ["cpf", "first_name", "last_name"]
+
+    def has_role(self, role):
+        return (
+            self.role == role
+            or self.roles.filter(nome=role).exists()
+        )
 
     def __str__(self):
         return f"{self.username} ({self.cpf})"
@@ -883,6 +890,14 @@ class Avaliacao(models.Model):
         related_name='avaliacoes'
     )
 
+    ano_letivo = models.ForeignKey(
+        'AnoLetivo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='avaliacoes'
+    )
+
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
@@ -933,7 +948,6 @@ class Nota(models.Model):
         related_name='notas'
     )
 
-    # ✅ nota normal
     valor = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -941,7 +955,6 @@ class Nota(models.Model):
         blank=True
     )
 
-    # ✅ conceito
     conceito = models.CharField(
         max_length=1,
         choices=CONCEITO_CHOICES,
@@ -949,7 +962,6 @@ class Nota(models.Model):
         blank=True
     )
 
-    # ✅ NOVO: recuperação do bimestre (opcional)
     recuperacao = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -960,6 +972,14 @@ class Nota(models.Model):
     escola = models.ForeignKey(
         'Escola',
         on_delete=models.CASCADE,
+        related_name='notas'
+    )
+
+    ano_letivo = models.ForeignKey(
+        'AnoLetivo',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='notas'
     )
 
@@ -978,7 +998,6 @@ class Nota(models.Model):
             raise ValidationError("Informe um valor (nota) ou um conceito.")
 
     def save(self, *args, **kwargs):
-
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -1028,8 +1047,6 @@ class PasswordResetToken(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.token}"
 
-
-# home/models.py
 
 class LoginLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
@@ -1141,13 +1158,48 @@ class ObservacaoInfantil(models.Model):
 
 class AnoLetivo(models.Model):
     ano = models.IntegerField(unique=True)
+
     ativo = models.BooleanField(default=True)
     encerrado = models.BooleanField(default=False)
+
     data_inicio = models.DateField(null=True, blank=True)
     data_fim = models.DateField(null=True, blank=True)
 
-    def __str__(self):
-        return str(self.ano)
+    fechado_em = models.DateTimeField(null=True, blank=True)
+    fechado_por = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    null=True,
+    blank=True,
+    on_delete=models.SET_NULL,
+    related_name="anos_fechados"
+)
+
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-ano"]
+
+
+class FechamentoAnoLog(models.Model):
+
+    ano = models.ForeignKey(AnoLetivo, on_delete=models.CASCADE)
+
+    usuario = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.SET_NULL,
+    null=True
+)
+
+    escola = models.ForeignKey("Escola", on_delete=models.CASCADE)
+
+    acao = models.CharField(max_length=50)  # FECHAMENTO / REABERTURA
+
+    detalhes = models.TextField(blank=True)
+
+    ip = models.GenericIPAddressField(null=True, blank=True)
+
+    criado_em = models.DateTimeField(auto_now_add=True)
     
 
 class Boletim(models.Model):
@@ -1155,7 +1207,7 @@ class Boletim(models.Model):
     aluno = models.ForeignKey("Aluno", on_delete=models.CASCADE)
     turma = models.ForeignKey("Turma", on_delete=models.CASCADE)
 
-    dados = models.JSONField()  # 🔥 snapshot completo do boletim
+    dados = models.JSONField()  #snapshot completo do boletim
 
     pdf = models.FileField(upload_to="boletins/", null=True, blank=True)
 
@@ -1167,3 +1219,44 @@ class Boletim(models.Model):
 
     def __str__(self):
         return f"{self.aluno.nome} - {self.turma.nome}"
+    
+
+
+class AuditLog(models.Model):
+
+    TIPO_CHOICES = [
+        ("CREATE", "Criação"),
+        ("UPDATE", "Atualização"),
+        ("DELETE", "Exclusão"),
+        ("LOGIN", "Login"),
+        ("FECHAMENTO_ANO", "Fechamento Ano"),
+        ("REABERTURA_ANO", "Reabertura Ano"),
+        ("BLOQUEIO", "Bloqueio Sistema"),
+    ]
+
+    user = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True
+)
+    escola = models.ForeignKey("Escola", on_delete=models.SET_NULL, null=True, blank=True)
+
+    acao = models.CharField(max_length=30, choices=TIPO_CHOICES)
+
+    modelo = models.CharField(max_length=100, null=True, blank=True)
+
+    objeto_id = models.CharField(max_length=50, null=True, blank=True)
+
+    antes = models.JSONField(null=True, blank=True)
+
+    depois = models.JSONField(null=True, blank=True)
+
+    ip = models.GenericIPAddressField(null=True, blank=True)
+
+    user_agent = models.TextField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.acao} - {self.modelo}"
