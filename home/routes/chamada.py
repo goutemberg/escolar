@@ -16,6 +16,7 @@ from home.views.chamada_aluno import (
     relatorio_anual_chamadas,
     relatorio_anual_chamadas_pdf,
     relatorio_anual_chamadas_excel,
+    datas_chamada_por_turma_disciplina,
 )
 
 app_name = "chamada"
@@ -46,7 +47,9 @@ urlpatterns = [
     # Exportações
     path("relatorios/resumo-mensal/csv/", export_resumo_mensal_csv, name="export_resumo_mensal_csv"),
     path("relatorios/resumo-mensal/excel/", export_resumo_mensal_excel, name="export_resumo_mensal_excel"),
-    path("relatorios/anual/pdf/", relatorio_anual_chamadas_pdf, name="relatorio_anual_chamadas_pdf"
-),
+    path("relatorios/anual/pdf/", relatorio_anual_chamadas_pdf, name="relatorio_anual_chamadas_pdf"),
+         
+    path("api/datas_chamada/", datas_chamada_por_turma_disciplina, name="datas_chamada_por_turma_disciplina"),
+
 ]
 

@@ -194,10 +194,6 @@
   </div>
 
   <div class="row mb-2">
-    <div class="form-group col-md-4">
-      <label>Data da aula</label>
-      <input type="text" id="data_aula" class="form-control" value="{{ data_hoje }}" placeholder="Selecione a data">
-    </div>
 
     <div class="form-group col-md-4">
       <label>Turma</label>
@@ -215,7 +211,18 @@
         <option value="">Selecione a turma primeiro</option>
       </select>
     </div>
-  </div>
+
+    <div class="form-group col-md-4">
+      <label>Data da aula</label>
+      <input
+        type="text"
+        id="data_aula"
+        class="form-control"
+        value="{{ data_hoje }}"
+        placeholder="Selecione a data">
+    </div>
+
+</div>
 
   <button class="btn btn-primary mb-2" id="carregarButton" style="width: 220px;">
     Carregar alunos
@@ -278,6 +285,11 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    let datasComChamada = [
+        {% for d in datas_chamadas %}
+          "{{ d|date:'Y-m-d' }}",
+        {% endfor %}
+    ];
     ensureFuse(function() {
 
       const turmaSelect = document.getElementById("turma_id");
@@ -324,6 +336,32 @@
             });
         });
       }
+
+      disciplinaSelect.addEventListener("change", function () {
+
+    const turmaId = turmaSelect.value;
+    const disciplinaId = this.value;
+
+    if (!turmaId || !disciplinaId) {
+        return;
+    }
+
+    fetch(
+        `/chamada/api/datas_chamada/?turma_id=${turmaId}&disciplina_id=${disciplinaId}`
+    )
+    .then(res => res.json())
+    .then(data => {
+
+        datasComChamada = data.datas || [];
+
+        calendario.redraw();
+
+    })
+    .catch(error => {
+        console.error("Erro ao carregar datas:", error);
+    });
+
+});
 
       document.getElementById("carregarButton").addEventListener("click", function () {
         const turma = document.getElementById("turma_id").value;
@@ -539,24 +577,41 @@
       }
 
     });
-    flatpickr("#data_aula", {
+    const calendario = flatpickr("#data_aula", {
     dateFormat: "Y-m-d",
 
     onDayCreate: function(dObj, dStr, fp, dayElem) {
-        const date = dayElem.dateObj.toISOString().split("T")[0];
 
-        if (datasComChamada.includes(date)) {
-            dayElem.style.backgroundColor = "#fab982";
-            dayElem.style.color = "#fff";
-            dayElem.style.borderRadius = "6px";
-        }
+        const year = dayElem.dateObj.getFullYear();
+        const month = String(dayElem.dateObj.getMonth() + 1).padStart(2, "0");
+        const day = String(dayElem.dateObj.getDate()).padStart(2, "0");
+
+        const date = `${year}-${month}-${day}`;
+    if (datasComChamada.includes(date)) {
+
+    dayElem.style.backgroundColor = "#198754";
+    dayElem.style.color = "#fff";
+    dayElem.style.borderRadius = "50%";
+    dayElem.style.fontWeight = "bold";
+    dayElem.style.position = "relative";
+    dayElem.style.boxShadow = "0 0 0 2px rgba(25,135,84,.25)";
+
+    const check = document.createElement("span");
+    check.innerHTML = "✓";
+    check.style.position = "absolute";
+    check.style.top = "1px";
+    check.style.right = "4px";
+    check.style.fontSize = "9px";
+    check.style.lineHeight = "1";
+    check.style.fontWeight = "bold";
+    check.style.color = "#fff";
+
+    dayElem.appendChild(check);
+
+    dayElem.title = "Chamada Realizada";
+}
     }
 });
   });
-   const datasComChamada = [
-    {% for d in datas_chamadas %}
-      "{{ d|date:'Y-m-d' }}",
-    {% endfor %}
-  ];
 </script>
 {% endblock extra_js %}
