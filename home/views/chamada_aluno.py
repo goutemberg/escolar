@@ -1579,4 +1579,33 @@ def relatorio_anual_chamadas_excel(request):
     return response
 
 
+@login_required
+def datas_chamada_por_turma_disciplina(request):
+
+    turma_id = request.GET.get("turma_id")
+    disciplina_id = request.GET.get("disciplina_id")
+
+    if not turma_id or not disciplina_id:
+        return JsonResponse({"datas": []})
+
+    datas = (
+        DiarioDeClasse.objects
+        .filter(
+            escola=request.escola,
+            turma_id=turma_id,
+            disciplina_id=disciplina_id
+        )
+        .values_list("data_ministrada", flat=True)
+        .distinct()
+        .order_by("data_ministrada")
+    )
+
+    return JsonResponse({
+        "datas": [
+            d.strftime("%Y-%m-%d")
+            for d in datas
+        ]
+    })
+
+
 
