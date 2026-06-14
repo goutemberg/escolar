@@ -309,32 +309,51 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const url = "/turmas/salvar/";
 
-fetch(url, {
-  method: "POST",
-  body: formData,
-  headers: {
-    "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
-  }
+      fetch(url, {
+        method: "POST",
+        body: formData,
+        headers: {
+          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+        }
       })
-      .then(res => res.json())
-      .then(resp => {
+        .then(async res => {
 
-        if (resp.success) {
+          const resp = await res.json();
 
-          alert("Turma salva com sucesso!");
-
-          if (!turma.id) {
-            window.location.href = `/turmas/${resp.turma_id}/editar/`;
+          if (!res.ok) {
+            throw new Error(
+              resp.error ||
+              resp.mensagem ||
+              `Erro ${res.status}`
+            );
           }
 
-        } else {
+          return resp;
 
-          alert(resp.error || "Erro ao salvar turma.");
+        })
+        .then(resp => {
 
-        }
+          if (resp.success) {
 
-      })
-      .catch(() => alert("Erro ao salvar turma."));
+            alert("Turma salva com sucesso!");
+
+            if (!turma.id) {
+              window.location.href = `/turmas/${resp.turma_id}/editar/`;
+            }
+
+          } else {
+
+            alert(resp.error || "Erro ao salvar turma.");
+
+          }
+
+        })
+        .catch(error => {
+
+          alert(error.message || "Erro ao salvar turma.");
+
+        });
+
     });
 
   }

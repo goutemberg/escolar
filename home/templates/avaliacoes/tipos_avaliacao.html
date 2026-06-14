@@ -291,13 +291,32 @@ TOAST
       body: JSON.stringify(bodyObj || {}),
     });
 
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) {
-      const msg = data.erro || data.mensagem || "Erro na requisição";
-      throw new Error(msg);
-    }
-    if (data.erro) throw new Error(data.erro);
-    return data;
+    const texto = await resp.text();
+
+console.log("RESPOSTA:", texto);
+
+let data = {};
+
+try {
+    data = JSON.parse(texto);
+} catch (e) {
+    console.error("Resposta não é JSON:", texto);
+}
+
+if (!resp.ok) {
+    const msg =
+        data.erro ||
+        data.error ||
+        data.mensagem ||
+        texto ||
+        "Erro na requisição";
+
+    throw new Error(msg);
+}
+
+if (data.erro) throw new Error(data.erro);
+
+return data;
   }
 
   async function criarTipo(){

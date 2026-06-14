@@ -173,12 +173,10 @@ BOTÕES MODERNOS (NOVO)
 <option value="">Selecione a Turma</option>
 
 {% for t in turmas %}
-<option value="{{ t.id }}"
-{% if t.id|stringformat:"s" == request.GET.turma_id %}selected{% endif %}>
-{{ t.nome }} - {{ t.turno }}
+<option value="{{ t.id }}" {% if t.id|stringformat:"s" == request.GET.turma_id %}selected{% endif %}>
+    {{ t.nome }} - {{ t.turno }}
 </option>
 {% endfor %}
-
 </select>
 
 <select id="disciplina" class="form-control">
@@ -598,18 +596,41 @@ bimestre: bimestre,
 data: data
 })
 })
-.then(r=>r.json())
-.then(data=>{
+.then(async r => {
 
-if(data.mensagem){
+const data = await r.json();
 
+if (!r.ok) {
+    throw new Error(
+        data.erro ||
+        data.mensagem ||
+        `Erro ${r.status}`
+    );
+}
+
+return data;
+
+})
+.then(data => {
+
+alert(data.mensagem || "Avaliação atualizada com sucesso.");
 location.reload();
 
-}else{
+})
+.catch(error => {
 
-alert(data.erro || "Erro ao atualizar.");
+    alert(error.message || "Erro ao atualizar.");
 
-}
+    linha.querySelectorAll(".edit-mode").forEach(el=>{
+        el.classList.add("d-none");
+    });
+
+    linha.querySelectorAll(".view-mode").forEach(el=>{
+        el.classList.remove("d-none");
+    });
+
+    linha.querySelector(".btnSalvarInline").classList.add("d-none");
+    linha.querySelector(".btnEditarInline").classList.remove("d-none");
 
 });
 

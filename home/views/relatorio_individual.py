@@ -20,6 +20,7 @@ from home.models import (
     Turma,
     Docente,
     TurmaDisciplina,
+    AnoLetivo,
 )
 
 from reportlab.platypus import (
@@ -130,6 +131,19 @@ def salvar_relatorio_individual(request):
             {"status": "erro", "mensagem": "Ano letivo fora do intervalo permitido"},
             status=400,
         )
+    
+    ano = AnoLetivo.objects.filter(
+        ano=ano_letivo,
+    ).first()
+
+    if ano and ano.encerrado:
+        return JsonResponse(
+        {
+            "status": "erro",
+            "mensagem": "Ano letivo encerrado. Operação bloqueada."
+        },
+        status=403
+    )
 
     if not isinstance(registros, dict):
         return JsonResponse(

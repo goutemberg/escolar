@@ -1,0 +1,127 @@
+{% extends "layout/base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container">
+
+    <div class="titulo-pagina">
+        🔒 Fechamento do Ano Letivo
+    </div>
+
+    <!-- ========================= -->
+    <!-- CARD RESUMO DO ANO -->
+    <!-- ========================= -->
+    <div class="card mb-3 p-3">
+
+        <h5>📅 Ano Atual: {{ ano.ano }}</h5>
+
+        <p>
+            <strong>Status:</strong>
+            {% if ano.encerrado %}
+                <span class="badge badge-secondary">Encerrado</span>
+            {% else %}
+                <span class="badge badge-success">Ativo</span>
+            {% endif %}
+        </p>
+
+        <p>
+            <strong>Turmas:</strong> {{ total_turmas }}
+        </p>
+
+        <p>
+            <strong>Avaliações:</strong> {{ total_avaliacoes }}
+        </p>
+
+        <p>
+            <strong>Notas:</strong> {{ total_notas }}
+        </p>
+
+    </div>
+
+    <!-- ========================= -->
+    <!-- ALERTA CRÍTICO -->
+    <!-- ========================= -->
+    <div class="alert alert-danger">
+        ⚠️ Ao fechar o ano letivo:
+        <ul>
+            <li>Não será possível lançar ou editar notas</li>
+            <li>Não será possível criar avaliações</li>
+            <li>O ano será bloqueado permanentemente</li>
+        </ul>
+    </div>
+
+    <!-- ========================= -->
+    <!-- CONFIRMAÇÃO -->
+    <!-- ========================= -->
+    <div class="card p-3">
+
+        <label><strong>Digite FECHAR para confirmar:</strong></label>
+
+        <input type="text" id="confirmacao" class="form-control mb-3">
+
+        <button class="btn btn-danger btn-block"
+                onclick="fecharAno()"
+                id="btnFechar">
+
+            🔒 Fechar Ano Letivo
+        </button>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+
+function fecharAno() {
+
+    const texto = document.getElementById("confirmacao").value;
+
+    if (texto !== "FECHAR") {
+        alert("Digite FECHAR para confirmar.");
+        return;
+    }
+
+    if (!confirm("Tem certeza absoluta? Esta ação é irreversível.")) {
+        return;
+    }
+
+    document.getElementById("btnFechar").disabled = true;
+
+    fetch("{% url 'fechamento_ano_letivo:fechar_ano_letivo' %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": "{{ csrf_token }}",
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            ano_id: {{ ano.id }}
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+
+        if (data.success) {
+            alert(data.mensagem);
+            window.location.href = "/";
+        } else {
+            alert(data.mensagem || "Erro ao fechar ano");
+        }
+
+    })
+    .catch(() => {
+        alert("Erro inesperado");
+    })
+    .finally(() => {
+        document.getElementById("btnFechar").disabled = false;
+    });
+
+}
+
+</script>
+
+{% endblock %}

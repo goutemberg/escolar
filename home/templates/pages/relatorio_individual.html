@@ -1,104 +1,74 @@
-{% extends "layout/base.html" %}
+{% extends 'layout/base.html' %}
 {% load static %}
 
 {% block extra_head %}
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
 
-  {% with tema=user.escola.tema|default:"legacy" %}
-    {% if tema == "nucleo" %}
-      <link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
+  {% with tema=user.escola.tema|default:'legacy' %}
+    {% if tema == 'nucleo' %}
+      <link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}" />
     {% else %}
-      <link rel="stylesheet" href="{% static 'css/pages/arquivo.css' %}">
+      <link rel="stylesheet" href="{% static 'css/pages/arquivo.css' %}" />
     {% endif %}
   {% endwith %}
-{% endblock extra_head %}
+{% endblock %}
 
 {% block content %}
-    <div class="titulo-pagina">Relatório Individual</div>
+  <div class="titulo-pagina">Relatório Individual</div>
 
-    <!-- Filtros -->
-    <div class="card p-3 mb-3">
-        <div class="row">
-            <div class="col-md-4">
-                <label for="turma">Turma</label>
-                <select id="turma" class="form-control">
-                    <option value="">Selecione a turma</option>
-                    {% for turma in turmas %}
-                        <option value="{{ turma.id }}">{{ turma.nome }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+  <!-- Filtros -->
+  <div class="card p-3 mb-3">
+    <div class="row">
+      <div class="col-md-4">
+        <label for="turma">Turma</label>
+        <select id="turma" class="form-control">
+          <option value="">Selecione a turma</option>
+          {% for turma in turmas %}
+            <option value="{{ turma.id }}">{{ turma.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-            <div class="col-md-4">
-                <label for="aluno">Aluno</label>
-                <select id="aluno" class="form-control">
-                    <option value="">Selecione o aluno</option>
-                </select>
-            </div>
+      <div class="col-md-4">
+        <label for="aluno">Aluno</label>
+        <select id="aluno" class="form-control">
+          <option value="">Selecione o aluno</option>
+        </select>
+      </div>
 
-            <div class="col-md-4">
-                <label for="ano_letivo">Ano Letivo</label>
-                <input
-                    type="number"
-                    id="ano_letivo"
-                    class="form-control"
-                    value="{{ ano_atual }}"
-                />
-            </div>
-        </div>
+      <div class="col-md-4">
+        <label for="ano_letivo">Ano Letivo</label>
+        <input type="number" id="ano_letivo" class="form-control" value="{{ ano_atual }}" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Observações Bimestrais -->
+  <div class="card p-3">
+    <h5 class="mb-3">Observações por Bimestre</h5>
+
+    <div class="mb-3">
+      <label>I Bimestre</label>
+      <textarea id="bimestre_1" class="form-control" rows="4" placeholder="Observações do I Bimestre"></textarea>
     </div>
 
-    <!-- Observações Bimestrais -->
-    <div class="card p-3">
-        <h5 class="mb-3">Observações por Bimestre</h5>
+    <div class="mb-3">
+      <label>II Bimestre</label>
+      <textarea id="bimestre_2" class="form-control" rows="4" placeholder="Observações do II Bimestre"></textarea>
+    </div>
 
-        <div class="mb-3">
-            <label>I Bimestre</label>
-            <textarea
-                id="bimestre_1"
-                class="form-control"
-                rows="4"
-                placeholder="Observações do I Bimestre"
-            ></textarea>
-        </div>
+    <div class="mb-3">
+      <label>III Bimestre</label>
+      <textarea id="bimestre_3" class="form-control" rows="4" placeholder="Observações do III Bimestre"></textarea>
+    </div>
 
-        <div class="mb-3">
-            <label>II Bimestre</label>
-            <textarea
-                id="bimestre_2"
-                class="form-control"
-                rows="4"
-                placeholder="Observações do II Bimestre"
-            ></textarea>
-        </div>
+    <div class="mb-3">
+      <label>IV Bimestre</label>
+      <textarea id="bimestre_4" class="form-control" rows="4" placeholder="Observações do IV Bimestre"></textarea>
+    </div>
 
-        <div class="mb-3">
-            <label>III Bimestre</label>
-            <textarea
-                id="bimestre_3"
-                class="form-control"
-                rows="4"
-                placeholder="Observações do III Bimestre"
-            ></textarea>
-        </div>
-
-        <div class="mb-3">
-            <label>IV Bimestre</label>
-            <textarea
-                id="bimestre_4"
-                class="form-control"
-                rows="4"
-                placeholder="Observações do IV Bimestre"
-            ></textarea>
-        </div>
-
-        <div class="text-end">
-
-    <button
-        id="btnNovo"
-        type="button"
-        class="me-2"
-        style="
+    <div class="text-end">
+      <button id="btnNovo" type="button" class="me-2" style="
             background: transparent;
             color: #fab982;
             border: 1.5px solid #fab982;
@@ -106,18 +76,9 @@
             border-radius: 8px;
             font-weight: 500;
             transition: 0.2s;
-        "
-        onmouseover="this.style.backgroundColor='#fab982'; this.style.color='#fff'"
-        onmouseout="this.style.backgroundColor='transparent'; this.style.color='#fab982'"
-    >
-        <i class="bi bi-plus-circle"></i> Novo
-    </button>
+        " onmouseover="this.style.backgroundColor='#fab982'; this.style.color='#fff'" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#fab982'"><i class="bi bi-plus-circle"></i> Novo</button>
 
-    <button
-        type="button"
-        class="me-2"
-        onclick="imprimirRelatorio()"
-        style="
+      <button type="button" class="me-2" onclick="imprimirRelatorio()" style="
             background: transparent;
             color: #fab982;
             border: 1.5px solid #fab982;
@@ -125,17 +86,9 @@
             border-radius: 8px;
             font-weight: 500;
             transition: 0.2s;
-        "
-        onmouseover="this.style.backgroundColor='#fab982'; this.style.color='#fff'"
-        onmouseout="this.style.backgroundColor='transparent'; this.style.color='#fab982'"
-    >
-        <i class="bi bi-printer"></i> Imprimir
-    </button>
+        " onmouseover="this.style.backgroundColor='#fab982'; this.style.color='#fff'" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#fab982'"><i class="bi bi-printer"></i> Imprimir</button>
 
-    <button
-        id="btnSalvar"
-        type="button"
-        style="
+      <button id="btnSalvar" type="button" style="
             background: #fab982;
             color: #fff;
             border: none;
@@ -144,51 +97,45 @@
             font-weight: 500;
             box-shadow: 0 2px 6px rgba(0,0,0,0.15);
             transition: 0.2s;
-        "
-        onmouseover="this.style.backgroundColor='#f59e0b'"
-        onmouseout="this.style.backgroundColor='#fab982'"
-    >
-        <i class="bi bi-check-circle"></i> Salvar
-    </button>
-
-</div>
+        " onmouseover="this.style.backgroundColor='#f59e0b'" onmouseout="this.style.backgroundColor='#fab982'"><i class="bi bi-check-circle"></i> Salvar</button>
     </div>
-{% endblock content %}
+  </div>
+{% endblock %}
 
 {% block extra_js %}
-<script>
-  function ensureFuse(cb){
-    if (window.Fuse) return cb();
-    var s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
-    s.onload = cb;
-    s.onerror = function(){
-      console.error("Falha ao carregar Fuse.js");
-      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
-    };
-    document.head.appendChild(s);
-  }
-
-  document.addEventListener("DOMContentLoaded", function () {
-    ensureFuse(function() {
-      // Seu JS aqui
-    });
-  });
-</script>
-<script>
-function imprimirRelatorio() {
-    const turma = document.getElementById("turma").value;
-    const aluno = document.getElementById("aluno").value;
-    const ano = document.getElementById("ano_letivo").value;
-
-    if (!turma || !aluno || !ano) {
-        alert("Selecione turma, aluno e ano antes de imprimir.");
-        return;
+  <script>
+    function ensureFuse(cb) {
+      if (window.Fuse) return cb()
+      var s = document.createElement('script')
+      s.src = 'https://cdn.jsdelivr.net/npm/fuse.js@6.6.2'
+      s.onload = cb
+      s.onerror = function () {
+        console.error('Falha ao carregar Fuse.js')
+        alert('Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.')
+      }
+      document.head.appendChild(s)
     }
-
-    const url = `/relatorio-individual/pdf/?aluno=${aluno}&turma=${turma}&ano_letivo=${ano}`;
-    window.open(url, "_blank");
-}
-</script>
-<script src="{% static 'home/js/relatorio_individual.js' %}"></script>
-{% endblock extra_js %}
+    
+    document.addEventListener('DOMContentLoaded', function () {
+      ensureFuse(function () {
+        // Seu JS aqui
+      })
+    })
+  </script>
+  <script>
+    function imprimirRelatorio() {
+      const turma = document.getElementById('turma').value
+      const aluno = document.getElementById('aluno').value
+      const ano = document.getElementById('ano_letivo').value
+    
+      if (!turma || !aluno || !ano) {
+        alert('Selecione turma, aluno e ano antes de imprimir.')
+        return
+      }
+    
+      const url = `/relatorio-individual/pdf/?aluno=${aluno}&turma=${turma}&ano_letivo=${ano}`
+      window.open(url, '_blank')
+    }
+  </script>
+  <script src="{% static 'home/js/relatorio_individual.js' %}"></script>
+{% endblock %}

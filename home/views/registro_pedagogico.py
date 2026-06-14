@@ -13,6 +13,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
 from reportlab.lib import colors
+from home.utils import verificar_ano_aberto
 
 from home.models import (
     RegistroPedagogico,
@@ -122,6 +123,18 @@ def salvar_registro_pedagogico(request):
             status=403
         )
 
+    # =========================================
+    # BLOQUEIO DE ANO LETIVO ENCERRADO
+    # =========================================
+    if not verificar_ano_aberto():
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Ano letivo encerrado. Operação bloqueada."
+            },
+            status=403,
+        )
+
     try:
         payload = json.loads(request.body)
 
@@ -196,7 +209,7 @@ def salvar_registro_pedagogico(request):
         )
 
     # =========================================
-    # ✅ GARANTE DISCIPLINA NA TURMA
+    # GARANTE DISCIPLINA NA TURMA
     # =========================================
 
     disciplina_na_turma = TurmaDisciplina.objects.filter(
@@ -216,7 +229,7 @@ def salvar_registro_pedagogico(request):
         )
 
     # =========================================
-    # ✅ VALIDA PROFESSOR
+    # VALIDA PROFESSOR
     # =========================================
 
     if usuario.role == "professor":
@@ -254,7 +267,7 @@ def salvar_registro_pedagogico(request):
             )
 
     # =========================================
-    # ✅ SALVA REGISTROS
+    # SALVA REGISTROS
     # =========================================
 
     with transaction.atomic():
@@ -277,9 +290,6 @@ def salvar_registro_pedagogico(request):
                 texto = str(texto)
 
             texto = texto.strip()
-
-            # 🚀 REMOVIDO LIMITE DE TEXTO
-            # Agora o sistema aceita textos longos
 
             RegistroPedagogico.objects.update_or_create(
                 turma=turma,

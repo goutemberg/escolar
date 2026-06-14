@@ -19,6 +19,7 @@ from django.db.models import Q, OuterRef, Subquery, F
 
 from home.models import Chamada
 from django.core.paginator import Paginator
+from home.utils import verificar_ano_aberto
 
 import io
 import json
@@ -243,17 +244,50 @@ def salvar_presencas(request):
     logger.warning(f"ROLE: {getattr(request.user, 'role', None)}")
     logger.warning(f"METHOD: {request.method}")
     logger.warning(f"BODY: {request.body}")
+
     acesso = get_professor_or_gestor(request.user)
+
     if acesso == "bloqueado":
-        return JsonResponse({"status": "erro", "mensagem": "Acesso negado."}, status=403)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Acesso negado."
+            },
+            status=403
+        )
+
+    # =========================================
+    # BLOQUEIO DE ANO LETIVO ENCERRADO
+    # =========================================
+    if not verificar_ano_aberto():
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Ano letivo encerrado. Operação bloqueada."
+            },
+            status=403
+        )
 
     if request.method != "POST":
-        return JsonResponse({"status": "erro", "mensagem": "Método não permitido"}, status=405)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Método não permitido"
+            },
+            status=405
+        )
 
     try:
         data = json.loads(request.body)
+
     except Exception:
-        return JsonResponse({"status": "erro", "mensagem": "JSON inválido"}, status=400)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "JSON inválido"
+            },
+            status=400
+        )
 
     turma_id = data.get("turma")
     disciplina_id = data.get("disciplina")
@@ -261,41 +295,92 @@ def salvar_presencas(request):
     lista = data.get("lista", [])
 
     if not turma_id or not disciplina_id or not data_aula:
-        return JsonResponse({"status": "erro", "mensagem": "Campos obrigatórios faltando."}, status=400)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Campos obrigatórios faltando."
+            },
+            status=400
+        )
 
     professor = None
+
     if acesso == "professor":
-        professor = Docente.objects.filter(user=request.user, escola=request.escola
-).first()
+
+        professor = Docente.objects.filter(
+            user=request.user,
+            escola=request.escola
+        ).first()
+
         if not professor:
             return JsonResponse(
-                {"status": "erro", "mensagem": "Professor não está vinculado corretamente."},
+                {
+                    "status": "erro",
+                    "mensagem": "Professor não está vinculado corretamente."
+                },
                 status=400
             )
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=request.escola
-)
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=request.escola
+        )
+
     except Turma.DoesNotExist:
-        return JsonResponse({"status": "erro", "mensagem": "Turma inválida."}, status=404)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Turma inválida."
+            },
+            status=404
+        )
 
     try:
-        disciplina = Disciplina.objects.get(id=disciplina_id, escola=request.escola
-)
+        disciplina = Disciplina.objects.get(
+            id=disciplina_id,
+            escola=request.escola
+        )
+
     except Disciplina.DoesNotExist:
-        return JsonResponse({"status": "erro", "mensagem": "Disciplina inválida."}, status=404)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Disciplina inválida."
+            },
+            status=404
+        )
 
     if acesso == "professor":
-        if not TurmaDisciplina.objects.filter(turma=turma, disciplina=disciplina, professor=professor).exists():
+
+        if not TurmaDisciplina.objects.filter(
+            turma=turma,
+            disciplina=disciplina,
+            professor=professor
+        ).exists():
+
             return JsonResponse(
-                {"status": "erro", "mensagem": "Você não está vinculado a esta disciplina nesta turma."},
+                {
+                    "status": "erro",
+                    "mensagem": "Você não está vinculado a esta disciplina nesta turma."
+                },
                 status=403
             )
 
     try:
-        data_aula = datetime.strptime(data_aula, "%Y-%m-%d").date()
+        data_aula = datetime.strptime(
+            data_aula,
+            "%Y-%m-%d"
+        ).date()
+
     except ValueError:
-        return JsonResponse({"status": "erro", "mensagem": "Data inválida."}, status=400)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Data inválida."
+            },
+            status=400
+        )
 
     erros_alunos = []
 
@@ -316,51 +401,78 @@ def salvar_presencas(request):
 
             chamada, _ = Chamada.objects.get_or_create(
                 diario=diario,
-                defaults={"criado_por": request.user}
+                defaults={
+                    "criado_por": request.user
+                }
             )
 
             for item in lista:
+
                 aluno_id = item.get("aluno_id")
 
-                # ✅ novo: status P/F/J (com compat)
                 status = (item.get("status") or "").strip().upper()
+
                 if status not in ("P", "F", "J"):
-                    # compat antigo
                     presente_bool = bool(item.get("presente", False))
                     status = "P" if presente_bool else "F"
 
-                # presente boolean continua existindo (compat)
-                presente = True if status == "P" else False
+                presente = status == "P"
 
                 obs = (item.get("observacao") or "").strip()
 
                 try:
-                    aluno = Aluno.objects.get(id=aluno_id, escola=request.escola
-)
+                    aluno = Aluno.objects.get(
+                        id=aluno_id,
+                        escola=request.escola
+                    )
+
                 except Aluno.DoesNotExist:
-                    erros_alunos.append({"aluno_id": aluno_id, "mensagem": "Aluno não encontrado."})
+
+                    erros_alunos.append(
+                        {
+                            "aluno_id": aluno_id,
+                            "mensagem": "Aluno não encontrado."
+                        }
+                    )
+
                     continue
 
                 Presenca.objects.update_or_create(
                     chamada=chamada,
                     aluno=aluno,
                     defaults={
-                        "status": status,          # ✅ novo
-                        "presente": presente,      # ✅ compat
+                        "status": status,
+                        "presente": presente,
                         "observacao": obs
                     }
                 )
 
     except IntegrityError:
+
         return JsonResponse(
-            {"status": "erro", "mensagem": "Erro de integridade ao salvar a chamada."},
+            {
+                "status": "erro",
+                "mensagem": "Erro de integridade ao salvar a chamada."
+            },
             status=400
         )
 
     if erros_alunos:
-        return JsonResponse({"status": "parcial", "erros": erros_alunos}, status=207)
 
-    return JsonResponse({"status": "sucesso", "mensagem": "Chamada salva com sucesso!"})
+        return JsonResponse(
+            {
+                "status": "parcial",
+                "erros": erros_alunos
+            },
+            status=207
+        )
+
+    return JsonResponse(
+        {
+            "status": "sucesso",
+            "mensagem": "Chamada salva com sucesso!"
+        }
+    )
 
 
 @login_required
@@ -691,16 +803,48 @@ def editar_chamada(request, chamada_id):
 def atualizar_chamada(request, chamada_id):
 
     acesso = get_professor_or_gestor(request.user)
+
     if acesso == "bloqueado":
-        return JsonResponse({"status": "erro", "mensagem": "Acesso negado."}, status=403)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Acesso negado."
+            },
+            status=403
+        )
+
+    # =========================================
+    # BLOQUEIO DE ANO LETIVO ENCERRADO
+    # =========================================
+    if not verificar_ano_aberto():
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Ano letivo encerrado. Operação bloqueada."
+            },
+            status=403
+        )
 
     if request.method != "POST":
-        return JsonResponse({"status": "erro", "mensagem": "Método inválido"}, status=405)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Método inválido"
+            },
+            status=405
+        )
 
     try:
         data = json.loads(request.body)
-    except:
-        return JsonResponse({"status": "erro", "mensagem": "JSON inválido"}, status=400)
+
+    except Exception:
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "JSON inválido"
+            },
+            status=400
+        )
 
     lista = data.get("lista", [])
 
@@ -708,7 +852,6 @@ def atualizar_chamada(request, chamada_id):
         Chamada,
         id=chamada_id,
         diario__turma__escola=request.escola
-
     )
 
     erros = []
@@ -717,21 +860,34 @@ def atualizar_chamada(request, chamada_id):
         with transaction.atomic():
 
             for item in lista:
+
                 aluno_id = item.get("aluno_id")
 
                 status = (item.get("status") or "").strip().upper()
+
                 if status not in ("P", "F", "J"):
                     presente_bool = bool(item.get("presente", False))
                     status = "P" if presente_bool else "F"
 
                 presente = True if status == "P" else False
+
                 obs = (item.get("observacao") or "").strip()
 
                 try:
-                    aluno = Aluno.objects.get(id=aluno_id, escola=request.escola
-)
-                except:
-                    erros.append({"aluno_id": aluno_id, "mensagem": "Aluno não encontrado."})
+                    aluno = Aluno.objects.get(
+                        id=aluno_id,
+                        escola=request.escola
+                    )
+
+                except Aluno.DoesNotExist:
+
+                    erros.append(
+                        {
+                            "aluno_id": aluno_id,
+                            "mensagem": "Aluno não encontrado."
+                        }
+                    )
+
                     continue
 
                 Presenca.objects.update_or_create(
@@ -748,15 +904,31 @@ def atualizar_chamada(request, chamada_id):
             chamada.save()
 
     except Exception as e:
+
         return JsonResponse(
-            {"status": "erro", "mensagem": "Falha ao atualizar a chamada.", "detalhe": str(e)},
+            {
+                "status": "erro",
+                "mensagem": "Falha ao atualizar a chamada.",
+                "detalhe": str(e)
+            },
             status=400
         )
 
     if erros:
-        return JsonResponse({"status": "parcial", "erros": erros})
 
-    return JsonResponse({"status": "sucesso", "mensagem": "Chamada atualizada com sucesso."})
+        return JsonResponse(
+            {
+                "status": "parcial",
+                "erros": erros
+            }
+        )
+
+    return JsonResponse(
+        {
+            "status": "sucesso",
+            "mensagem": "Chamada atualizada com sucesso."
+        }
+    )
 
 
 def relatorio_chamadas(request):

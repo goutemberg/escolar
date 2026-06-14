@@ -2,6 +2,7 @@ from django.template.loader import get_template
 from datetime import datetime
 from django.utils import timezone
 import re
+from home.models import AnoLetivo
 
 from collections import defaultdict
 
@@ -306,3 +307,43 @@ def montar_boletim(aluno, turma):
         })
 
     return boletim
+
+
+def verificar_ano_letivo(ano):
+    if ano.encerrado:
+        return False
+    return True
+
+
+def get_ano_ativo():
+    return AnoLetivo.objects.filter(ativo=True, encerrado=False).first()
+
+
+def verificar_ano_aberto():
+    ano = get_ano_ativo()
+
+    if not ano:
+        return False
+
+    if ano.encerrado:
+        return False
+
+    return True
+
+
+from home.models import AuditLog
+
+
+def registrar_auditoria(request, acao, obj=None, antes=None, depois=None):
+
+    AuditLog.objects.create(
+        user=request.user if request.user.is_authenticated else None,
+        escola=getattr(request, "escola", None),
+        acao=acao,
+        modelo=obj.__class__.__name__ if obj else None,
+        objeto_id=str(obj.id) if obj else None,
+        antes=antes,
+        depois=depois,
+        ip=get_client_ip(request),
+        user_agent=request.META.get("HTTP_USER_AGENT", "")
+    )

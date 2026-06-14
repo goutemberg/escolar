@@ -132,6 +132,7 @@ urlpatterns = [
     path("",include(("home.routes.registro_pedagogico", "registro_pedagogico"), namespace="registro_pedagogico")),
     path("relatorios/", include(("home.routes.relatorios", "relatorios"), namespace="relatorios")),
     path("avaliacoes/", include(("home.routes.avaliacoes", "avaliacoes"), namespace="avaliacoes")),
+    path("", include(("home.routes.fechamento_ano_letivo", "fechamento_ano_letivo"), namespace="fechamento_ano_letivo")),
 
      #######################################
     #         RESET SENHA
