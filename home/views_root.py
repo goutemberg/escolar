@@ -84,6 +84,7 @@ from .models import (
     TipoAvaliacao,
     PasswordResetToken,
     AvisoPublico,
+    AnoLetivo,
     
 )
 
@@ -1798,6 +1799,9 @@ def impressao_dados(request):
 @role_required(['professor', 'diretor', 'coordenador'])
 def lancar_notas(request):
 
+    # =====================================================
+    # 🔥 GET (sem mudança estrutural)
+    # =====================================================
     if request.method == "GET":
         return render(request, "pages/registrar_notas.html")
 
@@ -1829,24 +1833,75 @@ def lancar_notas(request):
         except ValueError:
             return JsonResponse({"erro": "Bimestre inválido."}, status=400)
 
-        escola = request.user.escola  # 🔥 CORREÇÃO (era request.escola)
+        escola = request.escola or request.user.escola
 
+        # =====================================================
+        # 🔥 SAP LAYER 1 — ANO LETIVO ATIVO
+        # =====================================================
+        from home.utils import get_ano_ativo
+
+        ano_letivo = get_ano_ativo()
+
+        if not ano_letivo:
+
+            ano_encerrado = (
+                AnoLetivo.objects
+                .filter(encerrado=True)
+                .order_by("-ano")
+                .first()
+        )
+
+            if ano_encerrado:
+                return JsonResponse(
+                    {
+                        "erro": "Ano letivo encerrado. Operação bloqueada."
+                    },
+                    status=403
+            )
+
+            return JsonResponse(
+                {
+                    "erro": "Nenhum ano letivo ativo encontrado."
+                },
+            status=400
+    )
+
+        if getattr(ano_letivo, "encerrado", False):
+            return JsonResponse({
+                "erro": "Ano letivo encerrado. Operação bloqueada."
+            }, status=403)
+
+        # =====================================================
+        # 🔥 BUSCA SEGURA
+        # =====================================================
         try:
-            turma = Turma.objects.get(id=turma_id, escola=escola, status="ATIVA")
-            disciplina = Disciplina.objects.get(id=disciplina_id, escola=escola)
+            turma = Turma.objects.get(
+                id=turma_id,
+                escola=escola,
+                status="ATIVA"
+            )
+            disciplina = Disciplina.objects.get(
+                id=disciplina_id,
+                escola=escola
+            )
         except (Turma.DoesNotExist, Disciplina.DoesNotExist):
-            return JsonResponse({"erro": "Turma ou disciplina inválida."}, status=400)
+            return JsonResponse(
+                {"erro": "Turma ou disciplina inválida."},
+                status=400
+            )
 
         salvas = 0
-        alunos_afetados = set()  # 🔥 NOVO: pra invalidar boletim depois
+        alunos_afetados = set()
 
-        # 🔥 MAPA CONCEITO
         mapa_conceito = {
             "1": "B",
             "2": "O",
             "3": "E"
         }
 
+        # =====================================================
+        # 🔥 PROCESSAMENTO PRINCIPAL
+        # =====================================================
         for aluno_id_str, notas_aluno in (notas or {}).items():
 
             try:
@@ -1865,12 +1920,16 @@ def lancar_notas(request):
                 except (ValueError, TypeError):
                     continue
 
+                # =================================================
+                # 🔥 SAP LAYER 2 — VALIDAÇÃO AVALIAÇÃO + ANO
+                # =================================================
                 avaliacao = Avaliacao.objects.filter(
                     id=avaliacao_id,
                     turma=turma,
                     disciplina=disciplina,
                     escola=escola,
-                    bimestre=bimestre
+                    bimestre=bimestre,
+                    ano_letivo=ano_letivo
                 ).first()
 
                 if not avaliacao:
@@ -1881,9 +1940,9 @@ def lancar_notas(request):
 
                 valor_str = str(valor).strip()
 
-                # =========================================
+                # =================================================
                 # 🔥 CONCEITO
-                # =========================================
+                # =================================================
                 conceito = mapa_conceito.get(valor_str)
 
                 if conceito:
@@ -1901,14 +1960,14 @@ def lancar_notas(request):
                     alunos_afetados.add(aluno.id)
                     continue
 
-                # =========================================
+                # =================================================
                 # 🔥 NUMÉRICO
-                # =========================================
+                # =================================================
                 valor_str = valor_str.replace(",", ".")
 
                 try:
                     valor_dec = Decimal(valor_str)
-                except (InvalidOperation, TypeError, ValueError):
+                except (InvalidOperation, ValueError, TypeError):
                     continue
 
                 Nota.objects.update_or_create(
@@ -1924,9 +1983,9 @@ def lancar_notas(request):
                 salvas += 1
                 alunos_afetados.add(aluno.id)
 
-        # =========================================
-        # 🔥 INVALIDAR BOLETIM (ESSENCIAL)
-        # =========================================
+        # =====================================================
+        # 🔥 INVALIDAÇÃO DE BOLETIM (EXISTENTE)
+        # =====================================================
         if alunos_afetados:
             from home.models import Boletim
 
@@ -1935,20 +1994,36 @@ def lancar_notas(request):
                 turma=turma
             ).update(pdf=None)
 
-        # =========================================
-        # 🔥 RESPOSTA
-        # =========================================
+        # =====================================================
+        # 🔥 SAP LAYER 3 — AUDITORIA (SE EXISTIR FUNÇÃO)
+        # =====================================================
+        try:
+            from home.sap.audit import registrar_auditoria
+
+            registrar_auditoria(
+                request=request,
+                acao="LANÇAMENTO_NOTAS",
+                modulo="NOTAS",
+                descricao=f"Notas lançadas turma {turma.id} disciplina {disciplina.id} bimestre {bimestre}",
+                objeto_id=turma.id
+            )
+        except Exception:
+            # 🔥 NÃO QUEBRA PRODUÇÃO
+            pass
+
+        # =====================================================
+        # 🔥 RESPOSTA FINAL
+        # =====================================================
         total_alunos = len(notas or {})
 
         if salvas == 0:
             return JsonResponse({
-                "mensagem": "Nenhuma nota foi informada. Você pode salvar parcialmente."
+                "mensagem": "Nenhuma nota foi informada."
             })
 
         if salvas < total_alunos:
-            faltantes = total_alunos - salvas
             return JsonResponse({
-                "mensagem": f"Notas salvas com sucesso ({salvas}). {faltantes} aluno(s) sem nota."
+                "mensagem": f"Parcial: {salvas} notas salvas."
             })
 
         return JsonResponse({
@@ -1961,7 +2036,6 @@ def lancar_notas(request):
             status=400
         )
     
-
 @login_required
 @role_required(['professor', 'diretor', 'coordenador'])
 def registrar_notas(request):
@@ -1975,6 +2049,9 @@ def registrar_notas(request):
 
     professor = Docente.objects.filter(user=user, escola=escola).first()
 
+    # =====================================================
+    # 🔥 RELAÇÕES (mantido seu padrão)
+    # =====================================================
     if professor and user.role == 'professor':
         relacoes = TurmaDisciplina.objects.filter(
             professor=professor,
@@ -1990,6 +2067,9 @@ def registrar_notas(request):
         escola=escola
     ).distinct().order_by('nome')
 
+    # =====================================================
+    # 🔥 DISCIPLINAS
+    # =====================================================
     if turma_id:
         if professor and user.role == 'professor':
             disciplinas = Disciplina.objects.filter(
@@ -2008,6 +2088,9 @@ def registrar_notas(request):
             escola=escola
         ).distinct().order_by('nome')
 
+    # =====================================================
+    # 🔥 INIT
+    # =====================================================
     alunos = []
     avaliacoes = []
     notas_dict = {}
@@ -2015,6 +2098,9 @@ def registrar_notas(request):
 
     turma_sistema_avaliacao = "NUM"
 
+    # =====================================================
+    # 🔥 VALIDAÇÃO PRINCIPAL
+    # =====================================================
     if turma_id and disciplina_id and bimestre:
 
         turma = get_object_or_404(Turma, id=turma_id, escola=escola)
@@ -2025,28 +2111,46 @@ def registrar_notas(request):
         ).upper()
 
         # =====================================================
-        # 🔥 CORREÇÃO AQUI (REMOVE OR PROBLEMÁTICO)
+        # 🔥 ALUNOS (AJUSTE LIMPO)
         # =====================================================
-        alunos = (
-            turma.alunos
-            .filter(ativo=True)
-            .distinct()
-            .only('id', 'nome')
-            .order_by('nome')
-        )
+        alunos = turma.alunos.filter(
+            ativo=True
+        ).only(
+            'id', 'nome'
+        ).order_by('nome')
 
+        # =====================================================
+        # 🔥 BIMESTRE
+        # =====================================================
         try:
             bimestre = int(bimestre)
         except:
             bimestre = None
 
-        if bimestre:
+        # =====================================================
+        # 🔥 AVALIAÇÕES (SAP READY - ANO LETIVO RESPEITADO)
+        # =====================================================
+        ano_ativo = (
+            AnoLetivo.objects
+            .filter(ativo=True)
+            .first()
+        )
+
+        if not ano_ativo:
+            ano_ativo = (
+                AnoLetivo.objects
+                .order_by("-ano")
+                .first()
+        )       
+
+        if bimestre and ano_ativo:
 
             avaliacoes = Avaliacao.objects.filter(
                 turma=turma,
                 disciplina=disciplina,
                 escola=escola,
-                bimestre=bimestre
+                bimestre=bimestre,
+                ano_letivo=ano_ativo
             ).select_related('tipo').only(
                 'id',
                 'descricao',
@@ -2055,6 +2159,9 @@ def registrar_notas(request):
 
             avaliacoes_ids = list(avaliacoes.values_list('id', flat=True))
 
+            # =================================================
+            # 🔥 NOTAS
+            # =================================================
             if avaliacoes_ids:
 
                 todas_notas = Nota.objects.filter(
@@ -2062,6 +2169,7 @@ def registrar_notas(request):
                     avaliacao__turma=turma,
                     avaliacao__disciplina=disciplina,
                     avaliacao__bimestre=bimestre,
+                    avaliacao__ano_letivo=ano_ativo,
                     aluno_id__in=[a.id for a in alunos]
                 ).only(
                     'aluno_id',
@@ -2093,6 +2201,9 @@ def registrar_notas(request):
 
                     notas_dict.setdefault(n.aluno_id, {})[n.avaliacao_id] = valor
 
+            # =====================================================
+            # 🔥 MÉDIA NUMÉRICA
+            # =====================================================
             if turma_sistema_avaliacao == "NUM":
 
                 pesos_por_avaliacao = {
@@ -2126,6 +2237,9 @@ def registrar_notas(request):
                 for aluno in alunos:
                     medias[aluno.id] = None
 
+    # =====================================================
+    # 🔥 CONTEXT FINAL
+    # =====================================================
     context = {
         'turmas': turmas,
         'disciplinas': disciplinas,
@@ -2532,10 +2646,18 @@ def visualizar_boletim(request, aluno_id):
     aluno = get_object_or_404(Aluno, pk=aluno_id)
     escola = aluno.escola
 
-    # 🔥 BUSCA TODAS AS NOTAS DO ALUNO
+    # =====================================================
+    # 🔥 ANO LETIVO (SAP CONSISTENCY LAYER)
+    # =====================================================
+    ano_letivo = get_ano_ativo()
+
+    # =====================================================
+    # 🔥 NOTAS (FILTRADAS POR ESCOLA + ANO)
+    # =====================================================
     notas = Nota.objects.filter(
         aluno=aluno,
-        escola=escola
+        escola=escola,
+        avaliacao__ano_letivo=ano_letivo
     ).select_related(
         'avaliacao__disciplina',
         'avaliacao__tipo',
@@ -2543,36 +2665,38 @@ def visualizar_boletim(request, aluno_id):
     )
 
     # =====================================================
-    # 🔥 DEFINIÇÃO CORRETA DA TURMA (CORRIGIDO AQUI)
+    # 🔥 TURMA (MELHORADO + SEGURO)
     # =====================================================
-
     turma_id = request.GET.get("turma")
 
     turma = None
 
-    # 1️⃣ tenta pegar da URL
     if turma_id:
         turma = Turma.objects.filter(
             id=turma_id,
             escola=escola
         ).first()
 
-    # 2️⃣ fallback: vínculo do aluno
     if not turma:
         turma = aluno.turma_principal or aluno.turmas.first()
 
-    # 3️⃣ fallback final: notas
     if not turma and notas.exists():
         turma = notas.first().avaliacao.turma
 
-    # 4️⃣ proteção final
     if not turma:
-        print("🚨 ERRO: ALUNO SEM TURMA:", aluno.id)
         return redirect("listar_turmas_para_boletim")
 
     # =====================================================
-    # 🔥 ESTRUTURA BASE (AGORA COM NOTAS)
+    # 🔥 BLOQUEIO SAP (APÓS FECHAMENTO)
     # =====================================================
+    if ano_letivo and ano_letivo.encerrado:
+        # opcional: você pode travar edição visual futura aqui
+        pass
+
+    # =====================================================
+    # 🔥 ESTRUTURA DO BOLETIM
+    # =====================================================
+    from collections import defaultdict
 
     dados = defaultdict(lambda: {
         "bimestres": {1: None, 2: None, 3: None, 4: None},
@@ -2581,19 +2705,26 @@ def visualizar_boletim(request, aluno_id):
     })
 
     # =====================================================
-    # 🔥 ORGANIZA AS NOTAS
+    # 🔥 ORGANIZA NOTAS
     # =====================================================
-
     for nota in notas:
+
+        if not nota.avaliacao:
+            continue
 
         disciplina = nota.avaliacao.disciplina.nome
         bimestre = nota.avaliacao.bimestre
 
         if nota.valor is not None:
-
             dados[disciplina]["notas"][bimestre].append({
                 "tipo": getattr(nota.avaliacao.tipo, "nome", "Avaliação"),
                 "valor": float(nota.valor)
+            })
+
+        elif nota.conceito:
+            dados[disciplina]["notas"][bimestre].append({
+                "tipo": getattr(nota.avaliacao.tipo, "nome", "Avaliação"),
+                "valor": nota.conceito
             })
 
     boletim = []
@@ -2601,9 +2732,8 @@ def visualizar_boletim(request, aluno_id):
     sistema = (getattr(turma, "sistema_avaliacao", None) or "NUM").upper()
 
     # =====================================================
-    # 🔥 PROCESSA MÉDIAS / CONCEITO
+    # 🔥 CÁLCULO
     # =====================================================
-
     for disciplina, info in dados.items():
 
         medias_bimestre = {}
@@ -2613,21 +2743,29 @@ def visualizar_boletim(request, aluno_id):
             lista_notas = info["notas"][bimestre]
 
             if sistema == "CON":
-                # 🔥 INFANTIL (conceito)
+
                 if lista_notas:
                     medias_bimestre[bimestre] = lista_notas[-1]["valor"]
                 else:
                     medias_bimestre[bimestre] = None
+
             else:
-                # 🔥 NUMÉRICO
-                if lista_notas:
-                    valores = [n["valor"] for n in lista_notas]
+
+                valores = [
+                    n["valor"]
+                    for n in lista_notas
+                    if isinstance(n["valor"], (int, float))
+                ]
+
+                if valores:
                     media = sum(valores) / len(valores)
                     medias_bimestre[bimestre] = arredondar_media_personalizada(media)
                 else:
                     medias_bimestre[bimestre] = None
 
-        # 🔥 MÉDIA FINAL (SÓ NUM)
+        # =================================================
+        # 🔥 MÉDIA FINAL
+        # =================================================
         media_final = None
 
         if sistema != "CON":
@@ -2651,12 +2789,11 @@ def visualizar_boletim(request, aluno_id):
     # =====================================================
     # 🔥 RENDER FINAL
     # =====================================================
-
     return render(request, 'pages/boletim.html', {
         'aluno': aluno,
-        'turma': turma,  # 🔥 AGORA GARANTIDO
+        'turma': turma,
         'escola': escola,
-        'ano': datetime.now().year,
+        'ano': ano_letivo.ano if ano_letivo else datetime.now().year,
         'boletim': boletim
     })
 
@@ -2921,7 +3058,10 @@ def salvar_turma(request):
         # 🔥 GERAR AVALIAÇÕES
         # =========================================================
 
-        ja_existe = Avaliacao.objects.filter(turma=turma).exists()
+        ja_existe = Avaliacao.objects.filter(
+            turma=turma,
+            ano_letivo=ano_letivo
+        ).exists()
 
         if not ja_existe:
 
@@ -2945,6 +3085,7 @@ def salvar_turma(request):
                             bimestre=bimestre,
                             descricao=modelo.nome,
                             escola=escola,
+                            ano_letivo=ano_letivo,
                             defaults={
                                 "tipo": modelo.tipo,
                                 "data": timezone.now().date()

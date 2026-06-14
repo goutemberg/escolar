@@ -11,6 +11,8 @@ from django.db import transaction
 from decimal import Decimal, InvalidOperation
 from home.utils import arredondar_media_personalizada
 from django.db import IntegrityError
+from home.utils import registrar_auditoria
+from home.utils import verificar_ano_aberto
 
 from home.models import (
     Turma,
@@ -19,6 +21,7 @@ from home.models import (
     Avaliacao,
     Nota,
     TipoAvaliacao,
+    
 )
 
 
@@ -130,6 +133,14 @@ def tipos_avaliacao(request):
 def avaliacoes(request):
 
     escola = request.escola
+    if request.method == "POST":
+        if not verificar_ano_aberto():
+            return JsonResponse(
+            {
+                "erro": "Ano letivo encerrado. Operação bloqueada."
+            },
+            status=403
+        )
 
     # =========================================
     # POST — CRIAR AVALIAÇÃO(S)
@@ -149,7 +160,6 @@ def avaliacoes(request):
             # ================================
             # VALIDAÇÕES
             # ================================
-
             if not turma_id:
                 return JsonResponse({"erro": "Selecione a turma."}, status=400)
 
@@ -169,30 +179,17 @@ def avaliacoes(request):
                 return JsonResponse({"erro": "Quantidade deve ser pelo menos 1."}, status=400)
 
             # ================================
-            # VALIDA TURMA / DISCIPLINA / TIPO
+            # VALIDAÇÕES DE ESCOLA
             # ================================
-
-            turma = Turma.objects.filter(
-                id=turma_id,
-                escola=escola
-            ).first()
-
+            turma = Turma.objects.filter(id=turma_id, escola=escola).first()
             if not turma:
                 return JsonResponse({"erro": "Turma inválida."}, status=404)
 
-            disciplina = Disciplina.objects.filter(
-                id=disciplina_id,
-                escola=escola
-            ).first()
-
+            disciplina = Disciplina.objects.filter(id=disciplina_id, escola=escola).first()
             if not disciplina:
                 return JsonResponse({"erro": "Disciplina inválida."}, status=404)
 
-            tipo = TipoAvaliacao.objects.filter(
-                id=tipo_id,
-                escola=escola
-            ).first()
-
+            tipo = TipoAvaliacao.objects.filter(id=tipo_id, escola=escola).first()
             if not tipo:
                 return JsonResponse({"erro": "Tipo inválido."}, status=404)
 
@@ -201,9 +198,8 @@ def avaliacoes(request):
             with transaction.atomic():
 
                 # ====================================
-                # DESCOBRE O ÚLTIMO NÚMERO EXISTENTE
+                # NUMERAÇÃO AUTOMÁTICA
                 # ====================================
-
                 avaliacoes_existentes = Avaliacao.objects.filter(
                     escola=escola,
                     turma=turma,
@@ -215,24 +211,17 @@ def avaliacoes(request):
                 ultimo_numero = 0
 
                 for av in avaliacoes_existentes:
-
                     descricao_lower = av.descricao.lower()
 
                     if descricao_lower.startswith(descricao.lower()):
-
                         partes = av.descricao.split()
 
                         if partes and partes[-1].isdigit():
-
-                            ultimo_numero = max(
-                                ultimo_numero,
-                                int(partes[-1])
-                            )
+                            ultimo_numero = max(ultimo_numero, int(partes[-1]))
 
                 # ====================================
-                # CRIA NOVAS AVALIAÇÕES
+                # CRIA AVALIAÇÕES
                 # ====================================
-
                 for i in range(1, quantidade + 1):
 
                     numero = ultimo_numero + i
@@ -242,10 +231,6 @@ def avaliacoes(request):
                         if quantidade == 1 and ultimo_numero == 0
                         else f"{descricao} {numero}"
                     )
-
-                    # ====================================
-                    # EVITA DUPLICIDADE
-                    # ====================================
 
                     existe = Avaliacao.objects.filter(
                         escola=escola,
@@ -268,6 +253,24 @@ def avaliacoes(request):
                         escola=escola
                     )
 
+                    # =====================================================
+                    # 🔥 AUDITORIA SAP (VIEW 4 FINAL)
+                    # =====================================================
+                    registrar_auditoria(
+                        request=request,
+                        acao="CREATE_AVALIACAO",
+                        obj=avaliacao,
+                        depois={
+                            "id": avaliacao.id,
+                            "descricao": avaliacao.descricao,
+                            "turma_id": turma.id,
+                            "disciplina_id": disciplina.id,
+                            "tipo_id": tipo.id,
+                            "bimestre": bimestre,
+                            "data": str(data_avaliacao)
+                        }
+                    )
+
                     criadas.append(avaliacao.id)
 
             if not criadas:
@@ -285,10 +288,7 @@ def avaliacoes(request):
     # =========================================
     # GET — CARREGAR TELA
     # =========================================
-
-    turmas = Turma.objects.filter(
-        escola=escola
-    ).order_by("nome")
+    turmas = Turma.objects.filter(escola=escola).order_by("nome")
 
     turma_id = request.GET.get("turma_id")
 
@@ -334,22 +334,46 @@ def excluir_avaliacao(request, avaliacao_id):
 
     escola = request.escola
 
+    # =========================================
+    # BLOQUEIO DE ANO LETIVO ENCERRADO
+    # =========================================
+    if not verificar_ano_aberto():
+        return JsonResponse(
+            {
+                "erro": "Ano letivo encerrado. Operação bloqueada."
+            },
+            status=403
+        )
 
     try:
-        avaliacao = Avaliacao.objects.get(id=avaliacao_id, escola=escola)
+        avaliacao = Avaliacao.objects.get(
+            id=avaliacao_id,
+            escola=escola
+        )
 
-        # 🚫 Se já houver notas, não pode excluir
         if avaliacao.notas.exists():
-            return JsonResponse({
-                "erro": "Não é possível excluir. Esta avaliação já possui notas lançadas."
-            }, status=400)
+            return JsonResponse(
+                {
+                    "erro": "Não é possível excluir. Esta avaliação já possui notas lançadas."
+                },
+                status=400
+            )
 
         avaliacao.delete()
 
-        return JsonResponse({"mensagem": "Avaliação excluída com sucesso."})
+        return JsonResponse(
+            {
+                "mensagem": "Avaliação excluída com sucesso."
+            }
+        )
 
     except Avaliacao.DoesNotExist:
-        return JsonResponse({"erro": "Avaliação não encontrada."}, status=404)
+        return JsonResponse(
+            {
+                "erro": "Avaliação não encontrada."
+            },
+            status=404
+        )
     
 
 
@@ -358,6 +382,17 @@ def excluir_avaliacao(request, avaliacao_id):
 def editar_avaliacao(request, avaliacao_id):
 
     escola = request.escola
+
+    # =========================================
+    # BLOQUEIO DE ANO LETIVO ENCERRADO
+    # =========================================
+    if not verificar_ano_aberto():
+        return JsonResponse(
+            {
+                "erro": "Ano letivo encerrado. Operação bloqueada."
+            },
+            status=403
+        )
 
     try:
 
@@ -369,9 +404,12 @@ def editar_avaliacao(request, avaliacao_id):
         try:
             data = json.loads(request.body or "{}")
         except json.JSONDecodeError:
-            return JsonResponse({
-                "erro": "JSON inválido."
-            }, status=400)
+            return JsonResponse(
+                {
+                    "erro": "JSON inválido."
+                },
+                status=400
+            )
 
         descricao = (data.get("descricao") or "").strip()
         disciplina_id = data.get("disciplina_id")
@@ -379,34 +417,37 @@ def editar_avaliacao(request, avaliacao_id):
         bimestre = data.get("bimestre")
         data_avaliacao = data.get("data")
 
-        # ======================================
-        # VALIDAÇÕES
-        # ======================================
-
         if not descricao:
-            return JsonResponse({
-                "erro": "Descrição é obrigatória."
-            }, status=400)
+            return JsonResponse(
+                {
+                    "erro": "Descrição é obrigatória."
+                },
+                status=400
+            )
 
         if not disciplina_id:
-            return JsonResponse({
-                "erro": "Disciplina inválida."
-            }, status=400)
+            return JsonResponse(
+                {
+                    "erro": "Disciplina inválida."
+                },
+                status=400
+            )
 
         if not tipo_id:
-            return JsonResponse({
-                "erro": "Tipo inválido."
-            }, status=400)
+            return JsonResponse(
+                {
+                    "erro": "Tipo inválido."
+                },
+                status=400
+            )
 
         if not bimestre:
-            return JsonResponse({
-                "erro": "Bimestre inválido."
-            }, status=400)
-
-        # ======================================
-        # EVITA DUPLICIDADE
-        # IGNORANDO A PRÓPRIA AVALIAÇÃO
-        # ======================================
+            return JsonResponse(
+                {
+                    "erro": "Bimestre inválido."
+                },
+                status=400
+            )
 
         existe = Avaliacao.objects.filter(
             escola=escola,
@@ -419,52 +460,55 @@ def editar_avaliacao(request, avaliacao_id):
         ).exists()
 
         if existe:
-            return JsonResponse({
-                "erro": "Já existe uma avaliação com essa descrição para esta turma/disciplina/bimestre."
-            }, status=400)
-
-        # ======================================
-        # ATUALIZA CAMPOS
-        # ======================================
+            return JsonResponse(
+                {
+                    "erro": "Já existe uma avaliação com essa descrição para esta turma/disciplina/bimestre."
+                },
+                status=400
+            )
 
         avaliacao.descricao = descricao
         avaliacao.disciplina_id = disciplina_id
         avaliacao.tipo_id = tipo_id
         avaliacao.bimestre = int(bimestre)
-
-        # ======================================
-        # DATA
-        # ======================================
-
         avaliacao.data = date.today()
-
-        # ======================================
-        # SAVE
-        # ======================================
 
         avaliacao.save()
 
-        return JsonResponse({
-            "mensagem": "Avaliação atualizada com sucesso!"
-        })
+        return JsonResponse(
+            {
+                "mensagem": "Avaliação atualizada com sucesso!"
+            }
+        )
 
     except Avaliacao.DoesNotExist:
 
-        return JsonResponse({
-            "erro": "Avaliação não encontrada."
-        }, status=404)
+        return JsonResponse(
+            {
+                "erro": "Avaliação não encontrada."
+            },
+            status=404
+        )
 
     except IntegrityError:
 
-        return JsonResponse({
-            "erro": "Já existe uma avaliação com essa descrição para esta turma/disciplina/bimestre."
-        }, status=400)
+        return JsonResponse(
+            {
+                "erro": "Já existe uma avaliação com essa descrição para esta turma/disciplina/bimestre."
+            },
+            status=400
+        )
 
     except Exception as e:
 
-        return JsonResponse({
-            "erro": str(e)
-        }, status=500)
+        return JsonResponse(
+            {
+                "erro": str(e)
+            },
+            status=500
+        )
+    
+
 # =========================
 # LANÇAMENTO DE NOTAS
 # =========================
@@ -494,12 +538,10 @@ def _to_decimal(valor):
     except (InvalidOperation, ValueError):
         return None
 
-
 @login_required
 @require_http_methods(["GET", "POST"])
 def lancar_notas(request):
     escola = request.escola
-
     user = request.user
 
     # =========================================
@@ -540,6 +582,7 @@ def lancar_notas(request):
 
         try:
             with transaction.atomic():
+
                 for aluno_id_str, aval_dict in notas_recebidas.items():
 
                     aluno = Aluno.objects.filter(
@@ -564,6 +607,25 @@ def lancar_notas(request):
 
                         avaliacao = Avaliacao.objects.get(id=avaliacao_id)
 
+                        # =========================================
+                        # 🔥 CAPTURA ANTES (SAP AUDIT)
+                        # =========================================
+                        nota_antiga = Nota.objects.filter(
+                            aluno=aluno,
+                            avaliacao=avaliacao,
+                            escola=escola
+                        ).first()
+
+                        antes = None
+                        if nota_antiga:
+                            antes = {
+                                "valor": str(nota_antiga.valor),
+                                "conceito": nota_antiga.conceito
+                            }
+
+                        # =========================================
+                        # SALVAMENTO
+                        # =========================================
                         if sistema == "NUM":
                             dec = _to_decimal(valor)
                             if dec is None:
@@ -575,6 +637,14 @@ def lancar_notas(request):
                                 escola=escola,
                                 defaults={"valor": dec, "conceito": None}
                             )
+
+                            depois = {
+                                "aluno_id": aluno.id,
+                                "avaliacao_id": avaliacao.id,
+                                "valor": str(dec),
+                                "conceito": None
+                            }
+
                         else:
                             Nota.objects.update_or_create(
                                 aluno=aluno,
@@ -582,6 +652,24 @@ def lancar_notas(request):
                                 escola=escola,
                                 defaults={"valor": None, "conceito": valor}
                             )
+
+                            depois = {
+                                "aluno_id": aluno.id,
+                                "avaliacao_id": avaliacao.id,
+                                "valor": None,
+                                "conceito": valor
+                            }
+
+                        # =========================================
+                        # 🔥 AUDITORIA SAP
+                        # =========================================
+                        registrar_auditoria(
+                            request=request,
+                            acao="CREATE_NOTA" if antes is None else "UPDATE_NOTA",
+                            obj=avaliacao,
+                            antes=antes,
+                            depois=depois
+                        )
 
         except Exception as e:
             return JsonResponse({"erro": str(e)}, status=400)

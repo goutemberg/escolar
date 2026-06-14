@@ -212,12 +212,20 @@
         </li>
         {% endif %}
 
+        <li style="background:red;color:white;">
+    TESTE GESTAO GERAL
+</li>
+
+{% if user|has_role:'diretor,coordenador' %}
+<!-- GESTÃO GERAL -->
+<li class="nav-item dropdown">
+
         {% if user|has_role:'diretor,coordenador' %}
         <!-- GESTÃO GERAL -->
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button"
              data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <i class="fas fa-cogs mr-1"></i> Gestão Geral
+            <i class="fas fa-cogs mr-1"></i> Gestão Geral TESTE
           </a>
 
           <div class="dropdown-menu">
@@ -242,6 +250,9 @@
             <a class="dropdown-item" href="{% url 'turmas:listar' %}">
               <i class="fas fa-list mr-1"></i> Listar Turmas
             </a>
+            <a class="dropdown-item">
+    TESTE FECHAMENTO
+</a>
           </div>
         </li>
         {% endif %}

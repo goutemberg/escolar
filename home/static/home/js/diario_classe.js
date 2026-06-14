@@ -43,6 +43,12 @@ function getCSRFToken() {
 
 function showError(msg, err = null) {
     console.error("[DIÁRIO ERRO]", msg, err);
+
+    if (err?.message) {
+        alert(err.message);
+        return;
+    }
+
     alert(msg);
 }
 
@@ -328,9 +334,17 @@ async function carregarDiario() {
 
         const resp = await fetch(url);
 
-        if (!resp.ok) throw new Error(`Erro ${resp.status}`);
-
         const data = await resp.json();
+
+if (!resp.ok) {
+    throw new Error(
+        data.mensagem ||
+        data.error ||
+        `Erro ${resp.status}`
+    );
+}
+
+    
         if (!Array.isArray(data)) throw new Error("Formato inválido");
 
         if (data.length === 0) {
@@ -447,7 +461,6 @@ function adicionarLinhaDiario() {
 /* =========================
    SALVAR REGISTRO
 ========================= */
-
 async function salvarRegistro(tr) {
     const payload = {
         id: tr.dataset.id || null,
@@ -462,9 +475,10 @@ async function salvarRegistro(tr) {
     if (!payload.data_ministrada || !payload.resumo_conteudo) {
         throw new Error("Data e conteúdo são obrigatórios.");
     }
+
     if (!payload.resumo_conteudo.trim()) {
-    alert("Preencha o conteúdo antes de salvar.");
-    return;
+        alert("Preencha o conteúdo antes de salvar.");
+        return;
     }
 
     const resp = await fetch("/diario-classe/salvar/", {
@@ -476,9 +490,16 @@ async function salvarRegistro(tr) {
         body: JSON.stringify(payload)
     });
 
-    if (!resp.ok) throw new Error(`Erro ${resp.status}`);
-
     const data = await resp.json();
+
+    if (!resp.ok) {
+        throw new Error(
+            data.mensagem ||
+            data.error ||
+            `Erro ${resp.status}`
+        );
+    }
+
     tr.dataset.id = data.id;
 }
 

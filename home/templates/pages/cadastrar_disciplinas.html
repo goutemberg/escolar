@@ -40,9 +40,20 @@
 
     <div class="form-footer">
 
-      <button class="btn btn-primary" type="submit">
-        Cadastrar
-      </button>
+      <button
+    type="submit"
+    style="
+        background-color: #0d6efd;
+        color: #fff;
+        border: 1px solid #0d6efd;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+    "
+>
+    Cadastrar
+</button>
 
       <button
         class="btn btn-secondary"
@@ -100,18 +111,24 @@
 
 function ensureFuse(cb){
   if (window.Fuse) return cb();
+
   var s = document.createElement("script");
   s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
+
   s.onload = cb;
+
   s.onerror = function(){
     console.error("Falha ao carregar Fuse.js");
     alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
   };
+
   document.head.appendChild(s);
 }
 
 
-// CADASTRO EXISTENTE
+// =========================
+// CADASTRO
+// =========================
 
 document.getElementById('formDisciplina').addEventListener('submit', function(event) {
 
@@ -120,32 +137,49 @@ document.getElementById('formDisciplina').addEventListener('submit', function(ev
   const nome = document.getElementById('nome').value.trim();
 
   fetch("{% url 'cadastrar_disciplina' %}", {
-
     method: 'POST',
-
     headers: {
       'Content-Type': 'application/json',
       'X-CSRFToken': '{{ csrf_token }}'
     },
-
     body: JSON.stringify({ nome: nome })
-
   })
 
-  .then(res => res.json())
+  .then(async res => {
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(
+        data.error ||
+        data.erro ||
+        data.mensagem ||
+        `Erro ${res.status}`
+      );
+    }
+
+    return data;
+
+  })
 
   .then(data => {
 
     if (data.success) {
 
       alert("✅ Disciplina cadastrada com sucesso!");
+
       document.getElementById('formDisciplina').reset();
 
-      carregarDisciplinas(); // Recarrega lista após cadastro
+      carregarDisciplinas();
 
     } else {
 
-      alert("❌ Erro: " + (data.error || "Erro ao cadastrar"));
+      alert(
+        data.error ||
+        data.erro ||
+        data.mensagem ||
+        "Erro ao cadastrar."
+      );
 
     }
 
@@ -154,15 +188,20 @@ document.getElementById('formDisciplina').addEventListener('submit', function(ev
   .catch(error => {
 
     console.error("Erro:", error);
-    alert("❌ Erro ao enviar dados.");
+
+    alert(
+      error.message ||
+      "Erro ao enviar dados."
+    );
 
   });
 
 });
 
 
-
-// CRUD DISCIPLINAS
+// =========================
+// LISTAR
+// =========================
 
 function carregarDisciplinas() {
 
@@ -182,11 +221,17 @@ function carregarDisciplinas() {
 
         row.innerHTML = `
           <td>
-            <input type="text" value="${disciplina.nome}" data-id="${disciplina.id}" class="form-control input-nome" disabled>
+            <input
+              type="text"
+              value="${disciplina.nome}"
+              data-id="${disciplina.id}"
+              class="form-control input-nome"
+              disabled
+            >
           </td>
 
           <td>
-            <div style="text-align: right;">
+            <div style="text-align:right;">
               <button class="btn btn-sm btn-warning btn-editar">✏️</button>
               <button class="btn btn-sm btn-danger btn-excluir">🗑️</button>
             </div>
@@ -204,6 +249,9 @@ function carregarDisciplinas() {
 }
 
 
+// =========================
+// EDITAR / EXCLUIR
+// =========================
 
 function adicionarEventos() {
 
@@ -225,9 +273,7 @@ function adicionarEventos() {
 
         this.classList.replace("btn-warning", "btn-success");
 
-      }
-
-      else {
+      } else {
 
         const novoNome = input.value.trim();
 
@@ -240,24 +286,57 @@ function adicionarEventos() {
             'X-CSRFToken': '{{ csrf_token }}'
           },
 
-          body: JSON.stringify({ id: id, nome: novoNome })
+          body: JSON.stringify({
+            id: id,
+            nome: novoNome
+          })
 
         })
 
-        .then(res => res.json())
+        .then(async res => {
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(
+              data.error ||
+              data.erro ||
+              data.mensagem ||
+              `Erro ${res.status}`
+            );
+          }
+
+          return data;
+
+        })
 
         .then(data => {
 
           if (data.success) {
 
             alert("✅ Atualizado!");
+
             carregarDisciplinas();
 
           } else {
 
-            alert("❌ Erro ao atualizar.");
+            alert(
+              data.error ||
+              data.erro ||
+              data.mensagem ||
+              "Erro ao atualizar."
+            );
 
           }
+
+        })
+
+        .catch(error => {
+
+          alert(
+            error.message ||
+            "Erro ao atualizar."
+          );
 
         });
 
@@ -266,7 +345,6 @@ function adicionarEventos() {
     });
 
   });
-
 
 
   document.querySelectorAll(".btn-excluir").forEach(btn => {
@@ -290,24 +368,56 @@ function adicionarEventos() {
             'X-CSRFToken': '{{ csrf_token }}'
           },
 
-          body: JSON.stringify({ id: id })
+          body: JSON.stringify({
+            id: id
+          })
 
         })
 
-        .then(res => res.json())
+        .then(async res => {
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(
+              data.error ||
+              data.erro ||
+              data.mensagem ||
+              `Erro ${res.status}`
+            );
+          }
+
+          return data;
+
+        })
 
         .then(data => {
 
           if (data.success) {
 
             alert("✅ Excluído com sucesso!");
+
             carregarDisciplinas();
 
           } else {
 
-            alert("❌ Erro ao excluir.");
+            alert(
+              data.error ||
+              data.erro ||
+              data.mensagem ||
+              "Erro ao excluir."
+            );
 
           }
+
+        })
+
+        .catch(error => {
+
+          alert(
+            error.message ||
+            "Erro ao excluir."
+          );
 
         });
 
@@ -318,8 +428,6 @@ function adicionarEventos() {
   });
 
 }
-
-
 
 carregarDisciplinas();
 

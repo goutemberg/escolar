@@ -392,7 +392,14 @@ def editar_categoria(request, id):
 @login_required
 def excluir_categoria(request, id):
 
+    if request.method != "POST":
+        return JsonResponse(
+            {"erro": "Método inválido"},
+            status=405
+        )
+
     try:
+
         categoria = AvaliacaoCategoria.objects.get(
             id=id,
             escola=request.user.escola
@@ -434,7 +441,14 @@ def editar_item(request, id):
 @login_required
 def excluir_item(request, id):
 
+    if request.method != "POST":
+        return JsonResponse(
+            {"erro": "Método inválido"},
+            status=405
+        )
+
     try:
+
         item = AvaliacaoItem.objects.get(
             id=id,
             escola=request.user.escola

@@ -17,6 +17,7 @@ from django.shortcuts import get_object_or_404, render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST, require_GET
 from django.utils import timezone
+from home.utils import verificar_ano_aberto
 
 # ---- Permissões ----
 from home.decorators import role_required
@@ -117,10 +118,21 @@ def api_listar_diario(request):
 
     return JsonResponse(data, safe=False)
 
-
 @login_required
 @require_POST
 def salvar_diario_classe(request):
+
+    # =========================================
+    # BLOQUEIO DE ANO LETIVO ENCERRADO
+    # =========================================
+    if not verificar_ano_aberto():
+        return JsonResponse(
+            {
+                "error": "Ano letivo encerrado. Operação bloqueada."
+            },
+            status=403
+        )
+
     try:
         payload = json.loads(request.body)
 
@@ -150,14 +162,12 @@ def salvar_diario_classe(request):
         turma = Turma.objects.get(
             id=turma_id,
             escola=request.escola
-
         )
 
         # ✅ blindagem: disciplina sempre da mesma escola
         disciplina = Disciplina.objects.get(
             id=disciplina_id,
             escola=request.escola
-
         )
 
         # =========================
@@ -169,7 +179,6 @@ def salvar_diario_classe(request):
             professor_obj = Docente.objects.filter(
                 user=request.user,
                 escola=request.escola
-
             ).first()
 
             if not professor_obj:
@@ -183,15 +192,13 @@ def salvar_diario_classe(request):
                 professor=professor_obj,
                 disciplina=disciplina,
                 escola=request.escola
-
             ).exists():
                 return JsonResponse(
-                    {"error": "Acesso não autorizado para esta turma/disciplina."},
+                    {
+                        "error": "Acesso não autorizado para esta turma/disciplina."
+                    },
                     status=403
                 )
-
-            # ✅ REMOVIDO: bloqueio retroativo para professor
-            # (agora professor pode salvar/editar datas anteriores)
 
         elif request.user.role not in ["diretor", "coordenador"]:
             return JsonResponse(
@@ -206,12 +213,10 @@ def salvar_diario_classe(request):
             diario = DiarioDeClasse.objects.get(
                 id=diario_id,
                 escola=request.escola
-
             )
         else:
             diario = DiarioDeClasse(
-                escola=request.escola
-,
+                escola=request.escola,
                 criado_por=request.user
             )
 

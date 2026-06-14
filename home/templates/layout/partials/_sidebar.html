@@ -328,6 +328,13 @@
         <span>Listar Turmas</span>
       </a>
     </div>
+    {% if user|has_role:'diretor' %}
+<a href="{% url 'fechamento_ano_letivo:tela_fechamento_ano' %}"
+   class="nav-item">
+    <i class="bi bi-lock"></i>
+    <span>Fechar Ano Letivo</span>
+</a>
+{% endif %}
     {% endif %}
 
     <!-- Logout/Login -->

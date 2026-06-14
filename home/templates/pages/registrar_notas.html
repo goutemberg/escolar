@@ -472,18 +472,26 @@ body: JSON.stringify(dados)
 
 const data = await resp.json();
 
+if (!resp.ok) {
+    throw new Error(
+        data.erro ||
+        data.mensagem ||
+        `Erro ${resp.status}`
+    );
+}
+
 alert(data.mensagem || "Salvo com sucesso!");
 location.reload();
 
-}
+} catch (error) {
 
-catch (error){
 console.error(error);
-alert("Erro ao salvar notas");
-}
+alert(error.message || "Erro ao salvar notas");
 
-finally{
+} finally {
+
 if (btn) btn.disabled = false;
+
 }
 
 }
