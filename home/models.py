@@ -651,7 +651,7 @@ class Presenca(models.Model):
 
     def save(self, *args, **kwargs):
         # ✅ garante consistência: presente sempre acompanha o status
-        self.presente = (self.status == "P")
+        self.presente = self.status in ["P", "J"]
         super().save(*args, **kwargs)
 
     def __str__(self):

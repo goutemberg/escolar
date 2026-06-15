@@ -416,7 +416,7 @@ def salvar_presencas(request):
                     presente_bool = bool(item.get("presente", False))
                     status = "P" if presente_bool else "F"
 
-                presente = status == "P"
+                presente = status in ["P", "J"]
 
                 obs = (item.get("observacao") or "").strip()
 
@@ -869,7 +869,7 @@ def atualizar_chamada(request, chamada_id):
                     presente_bool = bool(item.get("presente", False))
                     status = "P" if presente_bool else "F"
 
-                presente = True if status == "P" else False
+                presente = True if status in ["P", "J"] else False
 
                 obs = (item.get("observacao") or "").strip()
 

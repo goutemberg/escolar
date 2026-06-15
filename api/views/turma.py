@@ -7,6 +7,9 @@ from home.models import (
     Docente,
     Turma,
     TurmaDisciplina,
+    DiarioDeClasse,
+    Presenca,
+    Chamada,
 )
 
 
@@ -79,7 +82,10 @@ def alunos_da_turma(request, turma_id):
         }, status=status.HTTP_403_FORBIDDEN)
 
     try:
-        docente = Docente.objects.get(user=user, escola=user.escola)
+        docente = Docente.objects.get(
+            user=user,
+            escola=user.escola
+        )
     except Docente.DoesNotExist:
         return Response({
             "ok": False,
@@ -87,7 +93,10 @@ def alunos_da_turma(request, turma_id):
         }, status=status.HTTP_404_NOT_FOUND)
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=user.escola)
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=user.escola
+        )
     except Turma.DoesNotExist:
         return Response({
             "ok": False,
@@ -110,8 +119,50 @@ def alunos_da_turma(request, turma_id):
         escola=user.escola
     ).order_by("nome")
 
+    # 🔥 NOVO: contexto da chamada
+    data_aula = request.GET.get("data")
+    disciplina_id = request.GET.get("disciplina")
+
+    presencas_map = {}
+
+    if data_aula and disciplina_id:
+
+        diario = (
+            DiarioDeClasse.objects
+            .filter(
+                escola=user.escola,
+                turma=turma,
+                disciplina_id=disciplina_id,
+                data_ministrada=data_aula,
+            )
+            .order_by("-id")
+            .first()
+        )
+
+        if diario:
+            chamada = (
+                Chamada.objects
+                .filter(diario=diario)
+                .first()
+            )
+
+            if chamada:
+                presencas = Presenca.objects.filter(
+                    chamada=chamada
+                )
+
+                for p in presencas:
+                    presencas_map[p.aluno_id] = {
+                        "status": p.status,
+                        "observacao": p.observacao or "",
+                    }
+
     alunos_data = []
+
     for aluno in alunos:
+
+        extra = presencas_map.get(aluno.id, {})
+
         alunos_data.append({
             "id": aluno.id,
             "matricula": aluno.matricula,
@@ -119,6 +170,10 @@ def alunos_da_turma(request, turma_id):
             "cpf": aluno.cpf,
             "ativo": aluno.ativo,
             "turma_principal_id": aluno.turma_principal_id,
+
+            # 🔥 NOVOS CAMPOS
+            "status": extra.get("status", "P"),
+            "observacao": extra.get("observacao", ""),
         })
 
     return Response({
