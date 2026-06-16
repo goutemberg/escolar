@@ -235,7 +235,12 @@ input:checked + .slider:before{
 
                     <div class="col-md-4">
                         <strong>Disciplina:</strong>
-                        {{ chamada.diario.disciplina.nome }}
+
+{% if chamada.diario.turma.polivalente %}
+    Polivalente
+{% else %}
+    {{ chamada.diario.disciplina.nome }}
+{% endif %}
                     </div>
                 </div>
 

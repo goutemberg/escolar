@@ -2891,6 +2891,8 @@ def salvar_turma(request):
 
         data = request.POST
 
+        print("POLIVALENTE:", data.get("polivalente"))
+
         nome = data.get('nome', '').strip()
         turno = data.get('turno', '').strip()
         ano = data.get('ano', '').strip()
@@ -2898,6 +2900,10 @@ def salvar_turma(request):
         descricao = data.get('descricao', '').strip()
 
         tipo_turma = data.get('tipo_turma', 'FUN')
+
+        polivalente = str(
+            data.get('polivalente', 'false')
+        ).lower() == 'true'
 
         turma_id = data.get('turma_id') or request.GET.get('turma_id')
 
@@ -2942,6 +2948,7 @@ def salvar_turma(request):
             turma.sala = sala
             turma.descricao = descricao
             turma.tipo_turma = tipo_turma
+            turma.polivalente = polivalente
 
             # 🔒 opcional (garante consistência)
             if not turma.ano_letivo:
@@ -2959,7 +2966,9 @@ def salvar_turma(request):
                 descricao=descricao,
                 tipo_turma=tipo_turma,
                 escola=escola,
-                ano_letivo=ano_letivo  # 🔥 NOVO
+                ano_letivo=ano_letivo,
+                polivalente=polivalente,
+
             )
 
         # =========================================================
@@ -3692,3 +3701,15 @@ def atualizar_vencimento(request, aluno_id):
                 "status": "erro",
                 "mensagem": str(e)
             }, status=400)
+    
+
+def app_mobile(request):
+    return render(
+        request,
+        "pages/app_mobile.html",
+        {
+            "versao": "1.0.0",
+            "build": "15/06/2026",
+            "download_url": "/media/downloads/mobile/app-release-v1.0.0.apk",
+        }
+    )

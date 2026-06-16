@@ -487,6 +487,11 @@ class Turma(models.Model):
         blank=True
     )
 
+    polivalente = models.BooleanField(
+        default=False,
+        verbose_name="Turma Polivalente"
+    )
+
     def __str__(self):
         if self.ano_letivo:
             return f"{self.nome} - {self.turno} ({self.ano}) [{self.ano_letivo.ano}]"
