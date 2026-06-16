@@ -148,11 +148,6 @@ def tela_chamada(request):
 # ======================================================
 @login_required
 def api_carregar_alunos(request, turma_id):
-    """
-    Retorna alunos da turma.
-    Se vier querystring ?data=YYYY-MM-DD&disciplina=<id>, também tenta retornar
-    status/observacao da chamada já existente para esse contexto.
-    """
 
     try:
         turma = Turma.objects.get(id=turma_id, escola=request.escola
@@ -477,16 +472,43 @@ def salvar_presencas(request):
 
 @login_required
 def disciplinas_por_turma(request, turma_id):
+
     turma = get_object_or_404(
         Turma,
         id=turma_id,
         escola=request.escola
-
     )
 
-    qs = TurmaDisciplina.objects.filter(
-        turma=turma
-    ).select_related("disciplina")
+    # =====================================================
+    # TURMA POLIVALENTE
+    # =====================================================
+    if turma.polivalente:
+
+        primeira_disciplina = (
+            TurmaDisciplina.objects
+            .filter(turma=turma)
+            .select_related("disciplina")
+            .first()
+        )
+
+        if not primeira_disciplina:
+            return JsonResponse([], safe=False)
+
+        return JsonResponse([
+            {
+                "id": primeira_disciplina.disciplina.id,
+                "nome": "Polivalente"
+            }
+        ], safe=False)
+
+    # =====================================================
+    # TURMA NORMAL
+    # =====================================================
+    qs = (
+        TurmaDisciplina.objects
+        .filter(turma=turma)
+        .select_related("disciplina")
+    )
 
     disciplinas = [
         {
@@ -497,7 +519,6 @@ def disciplinas_por_turma(request, turma_id):
     ]
 
     return JsonResponse(disciplinas, safe=False)
-
 
 
 # ======================================================
@@ -715,7 +736,11 @@ def pdf_chamada(request, chamada_id):
     pdf.setFont("Helvetica", 12)
     pdf.drawString(2 * cm, 26.8 * cm, f"Data: {diario.data_ministrada.strftime('%d/%m/%Y')}")
     pdf.drawString(2 * cm, 26.2 * cm, f"Turma: {diario.turma.nome}")
-    pdf.drawString(2 * cm, 25.6 * cm, f"Disciplina: {diario.disciplina.nome}")
+    nome_disciplina = ("Polivalente" if diario.turma.polivalente else diario.disciplina.nome)
+    pdf.drawString(
+    2 * cm,
+    25.6 * cm,
+    f"Disciplina: {nome_disciplina}")
     pdf.drawString(2 * cm, 25.0 * cm, f"Professor: {diario.professor.nome if diario.professor else '---'}")
 
     y = 23.5 * cm
@@ -1101,6 +1126,7 @@ def relatorio_chamadas_pdf(request):
             chamada.diario.data_ministrada.strftime("%d/%m/%Y"),
             chamada.diario.turma.nome,
             chamada.diario.disciplina.nome,
+            "Polivalente" if chamada.diario.turma.polivalente else chamada.diario.disciplina.nome,
             chamada.diario.professor.nome if chamada.diario.professor else "-",
             chamada.presentes,
             chamada.ausentes,

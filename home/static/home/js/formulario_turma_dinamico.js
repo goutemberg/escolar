@@ -104,6 +104,12 @@ document.addEventListener('DOMContentLoaded', function () {
           sistemaSelect.value = data.sistema_avaliacao;
         }
 
+        const polivalenteSelect = document.getElementById('chamadaPolivalente');
+
+        if (polivalenteSelect) {
+          polivalenteSelect.value = data.polivalente ? 'true' : 'false';
+        }
+
         turma.alunos = sortPorNome(data.alunos || []);
 
         turma.professores = sortPorNome((data.professores || []).map(p => ({

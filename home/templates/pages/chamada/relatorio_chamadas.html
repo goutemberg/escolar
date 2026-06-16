@@ -121,7 +121,11 @@
                         <tr>
                             <td>{{ chamada.diario.data_ministrada|date:"d/m/Y" }}</td>
                             <td>{{ chamada.diario.turma.nome }}</td>
-                            <td>{{ chamada.diario.disciplina.nome }}</td>
+                            {% if chamada.diario.turma.polivalente %}
+    Polivalente
+{% else %}
+    {{ chamada.diario.disciplina.nome }}
+{% endif %}
                             <td>
                                 {{ chamada.diario.professor.nome|default:"-" }}
                             </td>

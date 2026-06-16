@@ -243,7 +243,13 @@ label{
 
                             <td>{{ c.diario.data_ministrada|date:"d/m/Y" }}</td>
                             <td>{{ c.diario.turma.nome }}</td>
-                            <td>{{ c.diario.disciplina.nome }}</td>
+                            <td>
+    {% if c.diario.turma.polivalente %}
+        Polivalente
+    {% else %}
+        {{ c.diario.disciplina.nome }}
+    {% endif %}
+</td>
                             <td>
                                 {% if c.diario.professor %}
                                     {{ c.diario.professor.nome }}

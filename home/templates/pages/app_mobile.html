@@ -1,0 +1,124 @@
+{% extends 'layout/base_public.html' %}
+{% load static %}
+
+{% block content %}
+  <section style="
+    min-height:100vh;
+    background:#f8fafc;
+    padding:60px 20px;
+">
+    <div style="
+        max-width:800px;
+        margin:0 auto;
+    ">
+      <div style="
+            background:#fff;
+            border-radius:20px;
+            padding:40px;
+            text-align:center;
+            box-shadow:0 15px 40px rgba(0,0,0,.08);
+        ">
+        <img src="{% static 'themes/nucleo/logo.png' %}" style="height:70px; margin-bottom:20px;" />
+
+        <h1 style="
+                color:#0f172a;
+                font-weight:700;
+                margin-bottom:10px;
+            ">📱 Núcleo Escolar Mobile</h1>
+
+        <p style="
+                color:#64748b;
+                font-size:18px;
+            ">Aplicativo oficial para professores.</p>
+
+        <div style="
+                margin-top:30px;
+                background:#f8fafc;
+                padding:20px;
+                border-radius:12px;
+            ">
+          <p>
+            <strong>Versão:</strong> {{ versao }}
+          </p>
+
+          <p>
+            <strong>Build:</strong> {{ build }}
+          </p>
+        </div>
+
+        <div style="
+                margin-top:25px;
+                background:#fef3c7;
+                border:1px solid #fcd34d;
+                color:#92400e;
+                padding:15px;
+                border-radius:12px;
+            ">
+          <strong>Versão de Homologação</strong><br />
+          Esta é a primeira versão pública do aplicativo para professores.
+        </div>
+
+        <div style="
+                margin-top:30px;
+                text-align:left;
+                background:#ffffff;
+                border:1px solid #e5e7eb;
+                border-radius:12px;
+                padding:20px;
+            ">
+          <h4 style="margin-bottom:15px;">🚀 Funcionalidades disponíveis</h4>
+
+          <ul style="margin:0;">
+            <li>Realização de chamada</li>
+            <li>Edição de chamada existente</li>
+            <li>Presença Justificada (J)</li>
+            <li>Observações por aluno</li>
+            <li>Sincronização com o sistema web</li>
+          </ul>
+        </div>
+
+        <div style="
+                margin-top:30px;
+                background:#eff6ff;
+                border:1px solid #bfdbfe;
+                border-radius:12px;
+                padding:20px;
+                text-align:left;
+            ">
+          <h4 style="margin-bottom:15px;">📱 Como instalar</h4>
+
+          <ol style="margin:0;">
+            <li>
+              Clique em <strong>Baixar APK Android</strong>
+            </li>
+            <li>Abra o arquivo baixado</li>
+            <li>Permita a instalação de fontes desconhecidas se solicitado</li>
+            <li>Conclua a instalação</li>
+            <li>Faça login normalmente com seu usuário</li>
+          </ol>
+        </div>
+
+        <div style="margin-top:35px;">
+          <a href="{{ download_url }}" download style="
+                        background:#16a34a;
+                        color:white;
+                        padding:18px 36px;
+                        border-radius:12px;
+                        text-decoration:none;
+                        font-weight:600;
+                        display:inline-block;
+                        box-shadow:0 10px 25px rgba(22,163,74,0.30);
+                    ">📥 Baixar APK Android</a>
+        </div>
+
+        <div style="margin-top:25px;">
+          <a href="/" style="
+                        color:#1565C0;
+                        text-decoration:none;
+                        font-weight:600;
+                    ">← Voltar ao site</a>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
