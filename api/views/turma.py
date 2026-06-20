@@ -55,6 +55,7 @@ def minhas_turmas(request):
                 "ano": turma.ano,
                 "sala": turma.sala,
                 "sistema_avaliacao": turma.sistema_avaliacao,
+                "polivalente": turma.polivalente,  # NOVO
                 "disciplinas": []
             }
 
@@ -68,7 +69,6 @@ def minhas_turmas(request):
         "professor": docente.nome,
         "turmas": list(turmas_map.values())
     }, status=status.HTTP_200_OK)
-
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

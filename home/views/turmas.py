@@ -668,7 +668,6 @@ def atualizar_turma(request, turma_id):
 def api_detalhe_turma(request, turma_id):
     escola = request.escola
 
-
     turma = get_object_or_404(
         Turma,
         id=turma_id,
@@ -676,13 +675,24 @@ def api_detalhe_turma(request, turma_id):
     )
 
     alunos = list(
-        turma.alunos.filter(ativo=True).values("id", "nome")
+        turma.alunos.filter(
+            ativo=True
+        ).values(
+            "id",
+            "nome"
+        )
     )
 
     professores = list(
         TurmaDisciplina.objects
-        .filter(turma=turma, escola=escola)
-        .select_related("professor", "disciplina")
+        .filter(
+            turma=turma,
+            escola=escola
+        )
+        .select_related(
+            "professor",
+            "disciplina"
+        )
         .values(
             "professor_id",
             "professor__nome",
@@ -690,6 +700,7 @@ def api_detalhe_turma(request, turma_id):
             "disciplina__nome"
         )
     )
+
     return JsonResponse({
         "id": turma.id,
         "nome": turma.nome,
@@ -698,6 +709,7 @@ def api_detalhe_turma(request, turma_id):
         "sala": turma.sala,
         "descricao": turma.descricao,
         "sistema_avaliacao": turma.sistema_avaliacao,
+        "polivalente": turma.polivalente,  # <-- ADICIONADO
         "alunos": alunos,
         "professores": [
             {
