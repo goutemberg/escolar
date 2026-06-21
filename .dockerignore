@@ -13,4 +13,7 @@ local_settings.py
 .idea/
 .vscode/
 .env
-media/
+
+media/*
+!media/downloads/
+!media/downloads/**
