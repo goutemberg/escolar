@@ -3711,6 +3711,6 @@ def app_mobile(request):
         {
             "versao": "1.0.1",
             "build": "21/06/2026",
-            "download_url": f"{settings.MEDIA_URL}downloads/mobile/app-release-v1.0.1.apk",
+            "download_url": "https://github.com/goutemberg/escolar/releases/download/v1.0.1/app-release-v1.0.1.apk",
         }
     )
