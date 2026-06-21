@@ -146,6 +146,13 @@
               <span>Histórico de Chamadas</span>
             </a>
 
+            {% if user|has_role:'diretor,coordenador' %}
+              <a href="{% url 'relatorio_chamada_professor:relatorio_chamada_professor' %}" class="nav-item {% if current_view == 'relatorio_chamada_professor' %}active{% endif %}">
+                <i class="bi bi-clipboard-data"></i>
+                <span>Relatório de Chamadas Professores</span>
+              </a>
+            {% endif %}
+
             <a href="{% url 'relatorios:presenca_aluno_mensal' %}" class="nav-item {% if current_view == 'presenca_aluno_mensal' or current_view == 'relatorios:presenca_aluno_mensal' %}active{% endif %}">
               <i class="bi bi-person-check"></i>
               <span>Presença por Aluno</span>

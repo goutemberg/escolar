@@ -181,8 +181,13 @@ urlpatterns = [
     path('boletins/<int:aluno_id>/', views_root.visualizar_boletim, name='visualizar_boletim'),
     path("boletim-pdf/<int:aluno_id>/<int:turma_id>/", gerar_pdf_boletim, name="gerar_pdf_boletim"),
     path("baixar-boletim/<int:aluno_id>/", baixar_boletim, name="baixar_boletim"
+         
+    
 ),
-
+path(
+    "",
+    include("home.routes.relatorio_chamada_professor")
+),
 #APP
 
 path("app/", views_root.app_mobile, name="app_mobile"),

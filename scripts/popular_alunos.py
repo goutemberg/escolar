@@ -6,7 +6,7 @@ import random
 
 print('\n🧹 Limpando alunos de teste antigos...')
 
-Aluno.objects.filter(nome__startswith='ALUNO TESTE').delete()
+Aluno.objects.filter(nome__startswith='ALUNO POLIVALENTE').delete()
 
 def safe(val, max_len):
     return str(val)[:max_len] if val else ""
@@ -73,7 +73,7 @@ print('\n🎒 Criando 20 alunos PADRONIZADOS com bulk_create...')
 alunos_bulk = []
 
 for i in range(1, 21):
-    nome = f'ALUNO TESTE {i:02d}'
+    nome = f'ALUNO POLIVALENTE {i:02d}'
 
     aluno = Aluno(
         nome=safe(nome, 100),
