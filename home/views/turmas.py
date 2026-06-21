@@ -456,7 +456,8 @@ def cadastro_turma(request, turma_id=None):
     return render(request, 'pages/registrar_turma.html', {
         'disciplinas': disciplinas,
         'nomes_turma': nomes_turma,
-        'turma': turma
+        'turma': turma,
+        'modo': 'edit' if turma else 'create'
     })
 
 

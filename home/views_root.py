@@ -85,6 +85,7 @@ from .models import (
     PasswordResetToken,
     AvisoPublico,
     AnoLetivo,
+
     
 )
 
@@ -1598,7 +1599,8 @@ def criar_turma(request):
                 sala=sala,
                 descricao=descricao,
                 escola=escola,
-                sistema_avaliacao=sistema,   
+                sistema_avaliacao=sistema,
+                  
             )
 
             
@@ -2901,6 +2903,14 @@ def salvar_turma(request):
 
         tipo_turma = data.get('tipo_turma', 'FUN')
 
+        sistema_avaliacao = data.get(
+            'sistema_avaliacao',
+            'NUM'
+        ).strip().upper()
+
+        if sistema_avaliacao not in ['NUM', 'CON']:
+            sistema_avaliacao = 'NUM'
+
         polivalente = str(
             data.get('polivalente', 'false')
         ).lower() == 'true'
@@ -2949,6 +2959,7 @@ def salvar_turma(request):
             turma.descricao = descricao
             turma.tipo_turma = tipo_turma
             turma.polivalente = polivalente
+            turma.sistema_avaliacao = sistema_avaliacao
 
             # 🔒 opcional (garante consistência)
             if not turma.ano_letivo:
@@ -2968,6 +2979,8 @@ def salvar_turma(request):
                 escola=escola,
                 ano_letivo=ano_letivo,
                 polivalente=polivalente,
+                sistema_avaliacao=sistema_avaliacao,
+                
 
             )
 

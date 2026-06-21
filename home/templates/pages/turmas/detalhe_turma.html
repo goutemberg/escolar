@@ -15,6 +15,7 @@
 
 {% block content %}
         <div class="titulo-pagina">Detalhe Turmas – {{ turma.nome }}</div>
+
                 <!-- 🔑 BOTÃO DE EDIÇÃO -->
                 <a href="{% url 'turmas:cadastrar' %}?turma_id={{ turma.id }}"
                    class="btn btn-warning btn-sm">
@@ -113,22 +114,29 @@
 
 {% block extra_js %}
 <script>
-  function ensureFuse(cb){
-    if (window.Fuse) return cb();
-    var s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
-    s.onload = cb;
-    s.onerror = function(){
-      console.error("Falha ao carregar Fuse.js");
-      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
-    };
-    document.head.appendChild(s);
-  }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    ensureFuse(function() {
-      function removerAluno(turmaId, alunoId) {
-    if (!confirm("Remover este aluno da turma?")) return;
+function getCookie(name) {
+    let cookieValue = null;
+
+    if (document.cookie) {
+        document.cookie.split(';').forEach(c => {
+            c = c.trim();
+
+            if (c.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(
+                    c.slice(name.length + 1)
+                );
+            }
+        });
+    }
+
+    return cookieValue;
+}
+
+function removerAluno(turmaId, alunoId) {
+    if (!confirm("Remover este aluno da turma?")) {
+        return;
+    }
 
     fetch(`/turmas/${turmaId}/remover-aluno/`, {
         method: "POST",
@@ -136,12 +144,27 @@
             "X-CSRFToken": getCookie("csrftoken"),
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ aluno_id: alunoId })
-    }).then(() => location.reload());
+        body: JSON.stringify({
+            aluno_id: alunoId
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("Erro ao remover aluno");
+        }
+
+        location.reload();
+    })
+    .catch(error => {
+        console.error(error);
+        alert("Erro ao remover aluno.");
+    });
 }
 
 function removerProfessor(turmaId, professorId) {
-    if (!confirm("Remover este professor da turma?")) return;
+    if (!confirm("Remover este professor da turma?")) {
+        return;
+    }
 
     fetch(`/turmas/${turmaId}/remover-professor/`, {
         method: "POST",
@@ -149,23 +172,50 @@ function removerProfessor(turmaId, professorId) {
             "X-CSRFToken": getCookie("csrftoken"),
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({ professor_id: professorId })
-    }).then(() => location.reload());
+        body: JSON.stringify({
+            professor_id: professorId
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error("Erro ao remover professor");
+        }
+
+        location.reload();
+    })
+    .catch(error => {
+        console.error(error);
+        alert("Erro ao remover professor.");
+    });
 }
 
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie) {
-        document.cookie.split(';').forEach(c => {
-            c = c.trim();
-            if (c.startsWith(name + '=')) {
-                cookieValue = decodeURIComponent(c.slice(name.length + 1));
-            }
-        });
+function ensureFuse(cb) {
+    if (window.Fuse) {
+        return cb();
     }
-    return cookieValue;
-    }
+
+    const s = document.createElement("script");
+
+    s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
+
+    s.onload = cb;
+
+    s.onerror = function () {
+        console.error("Falha ao carregar Fuse.js");
+
+        alert(
+            "Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet."
+        );
+    };
+
+    document.head.appendChild(s);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    ensureFuse(function () {
+        console.log("Fuse carregado.");
     });
-  });
+});
+
 </script>
 {% endblock extra_js %}
