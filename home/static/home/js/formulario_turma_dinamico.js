@@ -339,15 +339,19 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .then(resp => {
 
+          console.log("RESP:", resp);
+
           if (resp.success) {
+
+            console.log("VOU REDIRECIONAR");
 
             alert("Turma salva com sucesso!");
 
-            if (!turma.id) {
-              window.location.href = `/turmas/${resp.turma_id}/editar/`;
-            }
+            window.location.href = `/turmas/${resp.turma_id}/`;
 
           } else {
+
+            console.log("ERRO:", resp);
 
             alert(resp.error || "Erro ao salvar turma.");
 
