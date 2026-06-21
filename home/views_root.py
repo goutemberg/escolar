@@ -3708,8 +3708,8 @@ def app_mobile(request):
         request,
         "pages/app_mobile.html",
         {
-            "versao": "1.0.0",
-            "build": "16/06/2026",
-            "download_url": "media/downloads/mobile/app-release-v1.0.0.apk",
+            "versao": "1.0.1",
+            "build": "21/06/2026",
+            "download_url": "media/downloads/mobile/app-release-v1.0.1.apk",
         }
     )

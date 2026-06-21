@@ -4,8 +4,8 @@
 *.pyc
 __pycache__
 db.sqlite3
-#media
-#/djangoapp/media
+media
+/djangoapp/media
 /home/project/local_settings.py
 gunicorn-error-log
 __localcode
