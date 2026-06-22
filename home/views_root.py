@@ -2554,21 +2554,13 @@ from django.db.models import Q
 @role_required(['diretor', 'coordenador', 'professor'])
 def listar_turmas_para_boletim(request):
 
-    print("\n==============================")
-    print("🔥 LISTAR TURMAS PARA BOLETIM")
-    print("==============================")
-
     user = request.user
     escola = request.escola
 
-    print("👤 USER:", user)
-    print("🏫 ESCOLA:", escola)
-
     turma_id = request.GET.get('turma')
-    print("📥 TURMA_ID:", turma_id)
 
     # =====================================================
-    # 🔥 CONTROLE POR PERFIL (NOVO)
+    # CONTROLE POR PERFIL
     # =====================================================
 
     if user.role == "professor":
@@ -2578,15 +2570,13 @@ def listar_turmas_para_boletim(request):
             escola=escola
         ).first()
 
-        print("👨‍🏫 PROFESSOR:", professor)
-
         turmas = Turma.objects.filter(
             turmadisciplina__professor=professor,
             escola=escola
         ).distinct().order_by("nome")
 
     else:
-        # diretor / coordenador
+
         turmas = Turma.objects.filter(
             escola=escola
         ).order_by("nome")
@@ -2594,51 +2584,30 @@ def listar_turmas_para_boletim(request):
     alunos = []
 
     # =====================================================
-    # 🔥 VALIDA TURMA SELECIONADA
+    # VALIDA TURMA SELECIONADA
     # =====================================================
 
     if turma_id:
 
         turma = turmas.filter(id=turma_id).first()
 
-        if not turma:
-            print("❌ TURMA NÃO PERMITIDA OU NÃO ENCONTRADA")
-            alunos = []
-        else:
-            print("✅ TURMA:", turma.nome)
-            print("📊 SISTEMA:", turma.sistema_avaliacao)
-            print("🎓 TIPO:", turma.tipo_turma)
+        if turma:
 
-            print("\n--- 🔎 BUSCANDO ALUNOS ---")
-
-            alunos = Aluno.objects.filter(
-                Q(turma_principal=turma) | Q(turmas=turma),
+            # Mesma fonte utilizada na tela de detalhe da turma
+            alunos = turma.alunos.filter(
                 escola=escola,
                 ativo=True
-            ).distinct().order_by("nome")
+            ).order_by("nome")
 
-            print("👥 TOTAL ALUNOS:", alunos.count())
-
-            if alunos.count() == 0:
-                print("🚨 NENHUM ALUNO ENCONTRADO")
-                print("👉 VERIFICAR VÍNCULO COM TURMA")
-
-            for a in alunos:
-                print(f"   - {a.nome} | turma_principal: {a.turma_principal_id}")
-
-            print("--- FIM BUSCA ---\n")
-
-    else:
-        print("⚠️ NENHUMA TURMA SELECIONADA")
-
-    print("==============================\n")
-
-    return render(request, 'pages/listar_turmas_boletim.html', {
-        'turmas': turmas,
-        'alunos': alunos,
-        'turma_id': turma_id
-    })
-
+    return render(
+        request,
+        'pages/listar_turmas_boletim.html',
+        {
+            'turmas': turmas,
+            'alunos': alunos,
+            'turma_id': turma_id
+        }
+    )
 
 
 @login_required

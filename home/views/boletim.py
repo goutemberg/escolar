@@ -204,11 +204,9 @@ def boletim_turma(request, turma_id):
         escola=request.user.escola
     )
 
-    alunos = Aluno.objects.filter(
-        turma_principal=turma,
-        escola=turma.escola,
+    alunos = turma.alunos.filter(
         ativo=True
-    ).order_by("nome")
+    ).distinct().order_by("nome")
 
     resultado = []
 
