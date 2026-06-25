@@ -602,6 +602,43 @@ class Chamada(models.Model):
         related_name="chamada"
     )
 
+    turma = models.ForeignKey(
+        Turma,
+        on_delete=models.CASCADE,
+        related_name="chamadas",
+        null=True,
+        blank=True,
+    )
+
+    disciplina = models.ForeignKey(
+        Disciplina,
+        on_delete=models.CASCADE,
+        related_name="chamadas",
+        null=True,
+        blank=True,
+    )
+
+    professor = models.ForeignKey(
+        Docente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="chamadas",
+    )
+
+    data = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    escola = models.ForeignKey(
+        Escola,
+        on_delete=models.CASCADE,
+        related_name="chamadas",
+        null=True,
+        blank=True,
+    )
+
     criado_por = models.ForeignKey(
         User,
         null=True,
@@ -616,8 +653,20 @@ class Chamada(models.Model):
         verbose_name = "Chamada"
         verbose_name_plural = "Chamadas"
 
+
     def __str__(self):
-        return f"Chamada - {self.diario}"
+
+        if self.turma and self.disciplina and self.data:
+            return (
+                f"{self.turma.nome} - "
+                f"{self.disciplina.nome} - "
+                f"{self.data.strftime('%d/%m/%Y')}"
+            )
+
+        if self.diario:
+            return f"Chamada - {self.diario}"
+
+        return f"Chamada #{self.pk}"
 
 
 
