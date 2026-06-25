@@ -55,6 +55,42 @@ border-spacing:0;
 font-size:14px;
 }
 
+.loading-overlay{
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(255,255,255,.75);
+    z-index:999999;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.loading-box{
+    background:#fff;
+    padding:30px 45px;
+    border-radius:10px;
+    text-align:center;
+    box-shadow:0 10px 30px rgba(0,0,0,.20);
+}
+
+.spinner{
+    width:60px;
+    height:60px;
+    margin:auto auto 20px;
+    border:6px solid #ddd;
+    border-top:6px solid #0d6efd;
+    border-radius:50%;
+    animation:girar .8s linear infinite;
+}
+
+@keyframes girar{
+    from{transform:rotate(0deg);}
+    to{transform:rotate(360deg);}
+}
+
 thead th{
 background:#f4f6f9;
 padding:10px;
@@ -281,6 +317,15 @@ Não há avaliações cadastradas para esta disciplina neste bimestre.
 {% endif %}
 
 </div>
+
+<div id="loadingSalvarNotas" class="loading-overlay" style="display:none;">
+    <div class="loading-box">
+        <div class="spinner"></div>
+        <h4>Salvando notas...</h4>
+        <p>Por favor, aguarde.</p>
+    </div>
+</div>
+
 {% endblock content %}
 
 {% block extra_js %}
@@ -432,7 +477,9 @@ if (sistema === "CON") {
 }
 
 const btn = document.querySelector(".btn-salvar");
+const loading = document.getElementById("loadingSalvarNotas");
 if (btn) btn.disabled = true;
+if (loading) loading.style.display = "flex";
 
 try {
 
@@ -491,6 +538,8 @@ alert(error.message || "Erro ao salvar notas");
 } finally {
 
 if (btn) btn.disabled = false;
+
+if (loading) loading.style.display = "none";
 
 }
 
