@@ -6,6 +6,7 @@ from django.dispatch import receiver
 from auditoria.models import LogAuditoria
 from auditoria.middleware import get_current_user
 from auditoria.utils.serializer import model_to_dict
+from home.models import Nota
 
 
 # 🔹 MODELS QUE NÃO DEVEM SER LOGADOS
@@ -61,12 +62,14 @@ def capture_old_data(sender, instance, **kwargs):
     except sender.DoesNotExist:
         instance._old_data = None
 
-
-# 🔹 SALVA LOG COM DIFERENÇA
 @receiver(post_save)
 def log_save(sender, instance, created, **kwargs):
 
     if should_skip(sender):
+        return
+
+    # Não auditar lançamentos de notas (operações em massa)
+    if sender == Nota:
         return
 
     usuario = get_current_user()
@@ -84,7 +87,6 @@ def log_save(sender, instance, created, **kwargs):
                     "depois": new_data.get(key)
                 }
 
-    # 🔥 evita log de update sem alteração
     if not created and not alteracoes:
         return
 
@@ -98,7 +100,6 @@ def log_save(sender, instance, created, **kwargs):
         descricao=f"{acao} em {model_name(instance)} (ID: {instance.pk})",
         alteracoes=alteracoes if alteracoes else None
     )
-
 
 # 🔹 DELETE
 @receiver(post_delete)
