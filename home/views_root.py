@@ -1801,9 +1801,6 @@ def impressao_dados(request):
 @role_required(['professor', 'diretor', 'coordenador'])
 def lancar_notas(request):
 
-    # =====================================================
-    # 🔥 GET (sem mudança estrutural)
-    # =====================================================
     if request.method == "GET":
         return render(request, "pages/registrar_notas.html")
 
@@ -1837,9 +1834,6 @@ def lancar_notas(request):
 
         escola = request.escola or request.user.escola
 
-        # =====================================================
-        # 🔥 SAP LAYER 1 — ANO LETIVO ATIVO
-        # =====================================================
         from home.utils import get_ano_ativo
 
         ano_letivo = get_ano_ativo()
@@ -1873,9 +1867,6 @@ def lancar_notas(request):
                 "erro": "Ano letivo encerrado. Operação bloqueada."
             }, status=403)
 
-        # =====================================================
-        # 🔥 BUSCA SEGURA
-        # =====================================================
         try:
             turma = Turma.objects.get(
                 id=turma_id,
@@ -1901,9 +1892,6 @@ def lancar_notas(request):
             "3": "E"
         }
 
-        # =====================================================
-        # 🔥 PROCESSAMENTO PRINCIPAL
-        # =====================================================
         for aluno_id_str, notas_aluno in (notas or {}).items():
 
             try:
@@ -1922,9 +1910,6 @@ def lancar_notas(request):
                 except (ValueError, TypeError):
                     continue
 
-                # =================================================
-                # 🔥 SAP LAYER 2 — VALIDAÇÃO AVALIAÇÃO + ANO
-                # =================================================
                 avaliacao = Avaliacao.objects.filter(
                     id=avaliacao_id,
                     turma=turma,
@@ -1942,9 +1927,6 @@ def lancar_notas(request):
 
                 valor_str = str(valor).strip()
 
-                # =================================================
-                # 🔥 CONCEITO
-                # =================================================
                 conceito = mapa_conceito.get(valor_str)
 
                 if conceito:
@@ -1962,9 +1944,7 @@ def lancar_notas(request):
                     alunos_afetados.add(aluno.id)
                     continue
 
-                # =================================================
-                # 🔥 NUMÉRICO
-                # =================================================
+            
                 valor_str = valor_str.replace(",", ".")
 
                 try:
@@ -1985,9 +1965,7 @@ def lancar_notas(request):
                 salvas += 1
                 alunos_afetados.add(aluno.id)
 
-        # =====================================================
-        # 🔥 INVALIDAÇÃO DE BOLETIM (EXISTENTE)
-        # =====================================================
+
         if alunos_afetados:
             from home.models import Boletim
 
@@ -1996,9 +1974,6 @@ def lancar_notas(request):
                 turma=turma
             ).update(pdf=None)
 
-        # =====================================================
-        # 🔥 SAP LAYER 3 — AUDITORIA (SE EXISTIR FUNÇÃO)
-        # =====================================================
         try:
             from home.sap.audit import registrar_auditoria
 
@@ -2010,12 +1985,9 @@ def lancar_notas(request):
                 objeto_id=turma.id
             )
         except Exception:
-            # 🔥 NÃO QUEBRA PRODUÇÃO
+      
             pass
 
-        # =====================================================
-        # 🔥 RESPOSTA FINAL
-        # =====================================================
         total_alunos = len(notas or {})
 
         if salvas == 0:

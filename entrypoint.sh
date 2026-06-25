@@ -24,4 +24,7 @@ echo "🔥 PORT DO RENDER = $PORT"
 
 exec gunicorn plantao_pro.wsgi:application \
     --bind 0.0.0.0:$PORT \
-    --workers=3
+    --workers=2
+    --timeout 120
+    --access-logfile - \
+    --error-logfile -

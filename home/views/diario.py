@@ -18,6 +18,9 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST, require_GET
 from django.utils import timezone
 from home.utils import verificar_ano_aberto
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ---- Permissões ----
 from home.decorators import role_required
@@ -135,6 +138,9 @@ def salvar_diario_classe(request):
 
     try:
         payload = json.loads(request.body)
+
+        logger.warning(f"PAYLOAD DO DIARIO: {payload}")
+        logger.warning(f"ID RECEBIDO: {payload.get('id')}")
 
         diario_id = payload.get("id")
         turma_id = payload.get("turma")

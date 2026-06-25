@@ -262,6 +262,9 @@
 
 {% block extra_js %}
 <script>
+
+  const diarioId = "{{ diario_id|default:'' }}";
+
   function ensureFuse(cb){
     if (window.Fuse) return cb();
     var s = document.createElement("script");
@@ -498,6 +501,7 @@
             "X-CSRFToken": getCsrfFromCookie() || "{{ csrf_token }}"
           },
           body: JSON.stringify({
+            diario_id: diarioId,
             turma: document.getElementById("turma_id").value,
             disciplina: document.getElementById("disciplina_id").value,
             data: document.getElementById("data_aula").value,

@@ -1,4 +1,3 @@
-
 services:
   db:
     container_name: psql_dev
@@ -16,7 +15,7 @@ services:
       test: ["CMD-SHELL", "pg_isready -U admin -d escolinha_db || exit 1"]
       interval: 5s
       timeout: 3s
-      retries: 40      # aumentamos aqui
+      retries: 40 # aumentamos aqui
 
   pgadmin:
     container_name: pgadmin_dev
@@ -37,7 +36,7 @@ services:
     container_name: escolinha_dev
     build:
       context: .
-    command: [ "sh", "-lc", "chmod +x /scripts/*.sh || true; /scripts/dev.sh" ]
+    command: ["sh", "-lc", "chmod +x /scripts/*.sh || true; /scripts/dev.sh"]
     ports:
       - "8000:8000"
     volumes:

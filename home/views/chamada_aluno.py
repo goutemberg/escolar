@@ -67,6 +67,7 @@ def get_professor_or_gestor(user):
 @login_required
 def tela_chamada(request):
     user = request.user
+    diario_id = request.GET.get("diario")
 
     # -------------------------------------------------
     # Papéis permitidos
@@ -139,7 +140,8 @@ def tela_chamada(request):
             "turmas": turmas,
             "disciplinas": disciplinas,
             "data_hoje": hoje,
-            "datas_chamadas": datas_chamadas,  # 👈 ESSA LINHA É A CHAVE
+            "datas_chamadas": datas_chamadas,
+            "diario_id": diario_id,
         }
     )
 
@@ -250,6 +252,8 @@ def salvar_presencas(request):
             },
             status=403
         )
+    
+    professor = acesso if isinstance(acesso, Docente) else None
 
     # =========================================
     # BLOQUEIO DE ANO LETIVO ENCERRADO
@@ -284,6 +288,9 @@ def salvar_presencas(request):
             status=400
         )
 
+    logger.warning(f"JSON RECEBIDO: {data}")
+    logger.warning(f"DIARIO_ID RECEBIDO: {data.get('diario_id')}")
+
     turma_id = data.get("turma")
     disciplina_id = data.get("disciplina")
     data_aula = data.get("data")
@@ -298,23 +305,9 @@ def salvar_presencas(request):
             status=400
         )
 
-    professor = None
-
-    if acesso == "professor":
-
-        professor = Docente.objects.filter(
-            user=request.user,
-            escola=request.escola
-        ).first()
-
-        if not professor:
-            return JsonResponse(
-                {
-                    "status": "erro",
-                    "mensagem": "Professor não está vinculado corretamente."
-                },
-                status=400
-            )
+    logger.warning(f"ACESSO = {acesso}")
+    logger.warning(f"PROFESSOR = {professor}")
+    logger.warning(f"USER = {request.user}")
 
     try:
         turma = Turma.objects.get(
@@ -346,7 +339,7 @@ def salvar_presencas(request):
             status=404
         )
 
-    if acesso == "professor":
+    if professor:
 
         if not TurmaDisciplina.objects.filter(
             turma=turma,
@@ -382,17 +375,31 @@ def salvar_presencas(request):
     try:
         with transaction.atomic():
 
-            diario, _ = DiarioDeClasse.objects.get_or_create(
-                data_ministrada=data_aula,
-                turma=turma,
-                disciplina=disciplina,
-                professor=professor if acesso == "professor" else None,
-                escola=turma.escola,
-                defaults={
-                    "criado_por": request.user,
-                    "status": "REALIZADA"
-                }
-            )
+            diario_id = data.get("diario_id")
+
+            if diario_id:
+
+                diario = DiarioDeClasse.objects.get(
+                    id=diario_id,
+                    escola=request.escola
+                )
+
+            else:
+
+                diario, _ = DiarioDeClasse.objects.get_or_create(
+                    data_ministrada=data_aula,
+                    turma=turma,
+                    disciplina=disciplina,
+                    professor=professor,
+                    escola=turma.escola,
+                    defaults={
+                        "criado_por": request.user,
+                        "status": "REALIZADA"
+                    }
+                )
+            
+            logger.warning(f"Professor antes de criar/buscar diário: {professor}")
+            logger.warning(f"Diário recebido: {diario_id}")
 
             chamada, _ = Chamada.objects.get_or_create(
                 diario=diario,
@@ -468,7 +475,6 @@ def salvar_presencas(request):
             "mensagem": "Chamada salva com sucesso!"
         }
     )
-
 
 @login_required
 def disciplinas_por_turma(request, turma_id):
