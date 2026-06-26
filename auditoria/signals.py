@@ -7,22 +7,24 @@ from auditoria.models import LogAuditoria
 from auditoria.middleware import get_current_user
 from auditoria.utils.serializer import model_to_dict
 
-
 # 🔹 MODELS QUE NÃO DEVEM SER LOGADOS
 EXCLUDED_MODELS = [
-    'LogAuditoria',
-    'Session',
-    'ContentType',
-    'Permission',
+    "LogAuditoria",
+    "Session",
+    "ContentType",
+    "Permission",
+    "Nota",
+    "Presenca",
+    "Chamada",
 ]
 
 
 # 🔹 APPS QUE NÃO DEVEM SER LOGADOS
 EXCLUDED_APPS = [
-    'admin',
-    'sessions',
-    'contenttypes',
-    'auth',
+    "admin",
+    "sessions",
+    "contenttypes",
+    "auth",
 ]
 
 
@@ -72,7 +74,7 @@ def log_save(sender, instance, created, **kwargs):
     usuario = get_current_user()
 
     new_data = model_to_dict(instance)
-    old_data = getattr(instance, '_old_data', None)
+    old_data = getattr(instance, "_old_data", None)
 
     alteracoes = {}
 
@@ -81,14 +83,14 @@ def log_save(sender, instance, created, **kwargs):
             if old_data.get(key) != new_data.get(key):
                 alteracoes[key] = {
                     "antes": old_data.get(key),
-                    "depois": new_data.get(key)
+                    "depois": new_data.get(key),
                 }
 
     # 🔥 evita log de update sem alteração
     if not created and not alteracoes:
         return
 
-    acao = 'CREATE' if created else 'UPDATE'
+    acao = "CREATE" if created else "UPDATE"
 
     LogAuditoria.objects.create(
         usuario=usuario if usuario and usuario.is_authenticated else None,
@@ -96,7 +98,7 @@ def log_save(sender, instance, created, **kwargs):
         modelo=model_name(instance),
         objeto_id=str(instance.pk),
         descricao=f"{acao} em {model_name(instance)} (ID: {instance.pk})",
-        alteracoes=alteracoes if alteracoes else None
+        alteracoes=alteracoes if alteracoes else None,
     )
 
 
@@ -111,8 +113,8 @@ def log_delete(sender, instance, **kwargs):
 
     LogAuditoria.objects.create(
         usuario=usuario if usuario and usuario.is_authenticated else None,
-        acao='DELETE',
+        acao="DELETE",
         modelo=model_name(instance),
         objeto_id=str(instance.pk),
-        descricao=f"DELETE em {model_name(instance)} (ID: {instance.pk})"
+        descricao=f"DELETE em {model_name(instance)} (ID: {instance.pk})",
     )
