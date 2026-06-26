@@ -280,6 +280,42 @@ Não há avaliações cadastradas para esta disciplina neste bimestre.
 
 {% endif %}
 
+<div id="loadingSalvarNotas" style="
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(255,255,255,0.85);
+z-index:99999;
+justify-content:center;
+align-items:center;
+flex-direction:column;
+">
+
+    <div class="spinner-border text-primary" role="status"
+         style="width:4rem;height:4rem;">
+    </div>
+
+    <div style="
+        margin-top:20px;
+        font-size:18px;
+        font-weight:600;
+        color:#596981;
+    ">
+        Salvando notas...
+    </div>
+
+    <div style="
+        margin-top:10px;
+        color:#666;
+    ">
+        Aguarde, isso pode levar alguns segundos.
+    </div>
+
+</div>
+
 </div>
 {% endblock content %}
 
@@ -292,205 +328,241 @@ const sistema = (document.getElementById("sistema_avaliacao")?.value || "NUM").t
 
 window.limparNota = function(alunoId, avaliacaoId){
 
-const sel = document.querySelector(`select.conceito-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`);
+    const sel = document.querySelector(
+        `select.conceito-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`
+    );
 
-if (sel){
-sel.value = "";
-atualizarMediaAluno(alunoId);
-return;
-}
+    if (sel){
+        sel.value = "";
+        atualizarMediaAluno(alunoId);
+        return;
+    }
 
-const input = document.querySelector(`input.nota-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`);
+    const input = document.querySelector(
+        `input.nota-input[data-aluno="${alunoId}"][data-avaliacao="${avaliacaoId}"]`
+    );
 
-if (input){
-input.value = "";
-atualizarMediaAluno(alunoId);
-return;
-}
-
-}
+    if (input){
+        input.value = "";
+        atualizarMediaAluno(alunoId);
+        return;
+    }
+};
 
 function arredondarMediaPersonalizada(media){
 
-if (media === null || isNaN(media)) return "-";
+    if (media === null || isNaN(media)) return "-";
 
-media = Number(media);
+    media = Number(media);
 
-const inteiro = Math.floor(media);
-const decimal = Number((media - inteiro).toFixed(2));
+    const inteiro = Math.floor(media);
+    const decimal = Number((media - inteiro).toFixed(2));
 
-if (decimal <= 0.2){
-    return inteiro;
-} else if (decimal <= 0.7){
-    return inteiro + 0.5;
-} else {
-    return inteiro + 1;
-}
+    if (decimal <= 0.2){
+        return inteiro;
+    } else if (decimal <= 0.7){
+        return inteiro + 0.5;
+    } else {
+        return inteiro + 1;
+    }
 }
 
 function atualizarMediaAluno(alunoId){
 
-const cell = document.querySelector(`[data-media="${alunoId}"]`);
-if (!cell) return;
+    const cell = document.querySelector(`[data-media="${alunoId}"]`);
+    if (!cell) return;
 
-if (sistema === "CON"){
-cell.textContent = "-";
-return;
-}
+    if (sistema === "CON"){
+        cell.textContent = "-";
+        return;
+    }
 
-const inputs = document.querySelectorAll(`input.nota-input[data-aluno="${alunoId}"]`);
+    const inputs = document.querySelectorAll(
+        `input.nota-input[data-aluno="${alunoId}"]`
+    );
 
-let soma = 0;
-let quantidade = 0;
+    let soma = 0;
+    let quantidade = 0;
 
-inputs.forEach(i => {
+    inputs.forEach(i => {
 
-const v = (i.value || "").trim();
-if (v === "") return;
+        const v = (i.value || "").trim();
 
-const n = Number(v.replace(",", "."));
+        if (v === "") return;
 
-if (!Number.isFinite(n)) return;
+        const n = Number(v.replace(",", "."));
 
-soma += n;
-quantidade += 1;
+        if (!Number.isFinite(n)) return;
 
-});
+        soma += n;
+        quantidade += 1;
 
-if (quantidade === 0){
-cell.textContent = "-";
-return;
-}
+    });
 
-const media = soma / quantidade;
-const mediaFinal = arredondarMediaPersonalizada(media);
+    if (quantidade === 0){
+        cell.textContent = "-";
+        return;
+    }
 
-cell.textContent = mediaFinal;
+    const media = soma / quantidade;
+    const mediaFinal = arredondarMediaPersonalizada(media);
 
+    cell.textContent = mediaFinal;
 }
 
 document.addEventListener("input", function(e){
 
-if (e.target && e.target.classList.contains("nota-input")){
+    if (e.target && e.target.classList.contains("nota-input")){
 
-const alunoId = e.target.getAttribute("data-aluno");
+        const alunoId = e.target.getAttribute("data-aluno");
 
-if (alunoId) atualizarMediaAluno(alunoId);
-
-}
-
+        if (alunoId){
+            atualizarMediaAluno(alunoId);
+        }
+    }
 });
 
 document.addEventListener("keydown", function(e){
 
-if(!e.target.classList.contains("nota-input")) return;
+    if(!e.target.classList.contains("nota-input")) return;
 
-if(e.key === "Enter"){
+    if(e.key === "Enter"){
 
-e.preventDefault();
+        e.preventDefault();
 
-const avaliacaoId = e.target.dataset.avaliacao;
+        const avaliacaoId = e.target.dataset.avaliacao;
 
-const inputs = Array.from(document.querySelectorAll(
-`input.nota-input[data-avaliacao="${avaliacaoId}"]`
-));
+        const inputs = Array.from(document.querySelectorAll(
+            `input.nota-input[data-avaliacao="${avaliacaoId}"]`
+        ));
 
-const index = inputs.indexOf(e.target);
+        const index = inputs.indexOf(e.target);
 
-if(index >= 0 && index < inputs.length - 1){
-inputs[index + 1].focus();
-}
-
-}
-
+        if(index >= 0 && index < inputs.length - 1){
+            inputs[index + 1].focus();
+        }
+    }
 });
 
 window.salvarNotas = async function(){
 
-console.log("BOTAO SALVAR CLICADO");
+    console.log("BOTAO SALVAR CLICADO");
 
-const form = document.getElementById('notasForm');
+    const form = document.getElementById('notasForm');
 
-if (!form){
-alert("Formulário não encontrado.");
-return;
-}
+    if (!form){
+        alert("Formulário não encontrado.");
+        return;
+    }
 
-const bimestre = form.querySelector('input[name="bimestre"]').value;
+    const bimestre = form.querySelector(
+        'input[name="bimestre"]'
+    ).value;
 
-if(!bimestre){
-alert("Selecione o bimestre antes de lançar notas.");
-return;
-}
+    if(!bimestre){
+        alert("Selecione o bimestre antes de lançar notas.");
+        return;
+    }
 
-let inputs;
+    let inputs;
 
-if (sistema === "CON") {
-    inputs = form.querySelectorAll('select.conceito-input');
-} else {
-    inputs = form.querySelectorAll('input.nota-input');
-}
+    if (sistema === "CON") {
+        inputs = form.querySelectorAll('select.conceito-input');
+    } else {
+        inputs = form.querySelectorAll('input.nota-input');
+    }
 
-const btn = document.querySelector(".btn-salvar");
-if (btn) btn.disabled = true;
+    const btn = document.querySelector(".btn-salvar");
+    const loading = document.getElementById("loadingSalvarNotas");
 
-try {
+    if (btn){
+        btn.disabled = true;
+        btn.innerHTML = `
+            <span class="spinner-border spinner-border-sm"></span>
+            Salvando...
+        `;
+    }
 
-const turmaId = form.querySelector('input[name="turma_id"]').value;
-const disciplinaId = form.querySelector('input[name="disciplina_id"]').value;
+    if (loading){
+        loading.style.display = "flex";
+    }
 
-const dados = {
-    turma_id: turmaId,
-    disciplina_id: disciplinaId,
-    bimestre: bimestre,
-    notas: {}
-};
+    try {
 
-inputs.forEach(input => {
+        const turmaId = form.querySelector(
+            'input[name="turma_id"]'
+        ).value;
 
-    const avaliacaoId = input.getAttribute("data-avaliacao");
-    const alunoId = input.getAttribute("data-aluno");
-    const val = (input.value || "").trim();
+        const disciplinaId = form.querySelector(
+            'input[name="disciplina_id"]'
+        ).value;
 
-    if (!dados.notas[alunoId]) dados.notas[alunoId] = {};
+        const dados = {
+            turma_id: turmaId,
+            disciplina_id: disciplinaId,
+            bimestre: bimestre,
+            notas: {}
+        };
 
-    dados.notas[alunoId][avaliacaoId] = val;
+        inputs.forEach(input => {
 
-});
+            const avaliacaoId = input.getAttribute("data-avaliacao");
+            const alunoId = input.getAttribute("data-aluno");
+            const val = (input.value || "").trim();
 
-console.log("DADOS ENVIADOS:", dados);
+            if (!dados.notas[alunoId]){
+                dados.notas[alunoId] = {};
+            }
 
-const resp = await fetch('{% url "lancar_notas" %}', {
-method: 'POST',
-headers: {
-    'Content-Type': 'application/json',
-    'X-CSRFToken': '{{ csrf_token }}',
-    'X-Requested-With': 'XMLHttpRequest'
-},
-body: JSON.stringify(dados)
-});
+            dados.notas[alunoId][avaliacaoId] = val;
+        });
 
-const data = await resp.json();
+        console.log("DADOS ENVIADOS:", dados);
 
-alert(data.mensagem || "Salvo com sucesso!");
-location.reload();
+        const resp = await fetch('{% url "lancar_notas" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(dados)
+        });
 
-}
+        const data = await resp.json();
 
-catch (error){
-console.error(error);
-alert("Erro ao salvar notas");
-}
+        alert(data.mensagem || "Salvo com sucesso!");
 
-finally{
-if (btn) btn.disabled = false;
-}
+        location.reload();
 
+    }
+    catch (error){
+
+        console.error(error);
+
+        alert("Erro ao salvar notas");
+
+    }
+    finally{
+
+        if (btn){
+            btn.disabled = false;
+            btn.innerHTML = "Salvar";
+        }
+
+        if (loading){
+            loading.style.display = "none";
+        }
+    }
 }
 
 document.querySelectorAll("tr[data-aluno-row]").forEach(tr => {
-const alunoId = tr.getAttribute("data-aluno-row");
-if (alunoId) atualizarMediaAluno(alunoId);
+
+    const alunoId = tr.getAttribute("data-aluno-row");
+
+    if (alunoId){
+        atualizarMediaAluno(alunoId);
+    }
 });
 
 });
