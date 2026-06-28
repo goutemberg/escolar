@@ -1,394 +1,312 @@
-{% extends "layout/base.html" %}
+{% extends 'layout/base.html' %}
 {% load static %}
 {% load custom_tags %}
 
 {% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-
-{% with tema=user.escola.tema|default:"legacy" %}
-    {% if tema == "nucleo" %}
-        <link rel="stylesheet" href="{% static 'css/pages/alunos-nucleo.css' %}">
+  {% with tema=user.escola.tema|default:'legacy' %}
+    {% if tema == 'nucleo' %}
+      <link rel="stylesheet" href="{% static 'css/pages/alunos-nucleo.css' %}" />
     {% else %}
-        <link rel="stylesheet" href="{% static 'css/pages/boletim/boletim.css' %}">
+      <link rel="stylesheet" href="{% static 'css/pages/boletim/boletim.css' %}" />
     {% endif %}
-{% endwith %}
+  {% endwith %}
 
-<style>
-
-/* ============================= */
-/* IMPRESSÃO */
-/* ============================= */
-
-@media print {
-
-.no-print {
-display:none !important;
-}
-
-body {
-background:white;
-}
-
-.titulo-pagina {
-font-size:20px;
-}
-
-.table {
-font-size:13px;
-}
-
-}
-
-/* ============================= */
-/* TABELA */
-/* ============================= */
-
-.tabela-boletim th{
-text-align:center;
-}
-
-.tabela-boletim td{
-text-align:center;
-vertical-align:middle;
-}
-
-.disciplina{
-text-align:left !important;
-font-weight:500;
-}
-
-.media{
-font-weight:600;
-}
-
-/* ============================= */
-/* BADGES */
-/* ============================= */
-
-.badge-aprovado{
-background:#28a745;
-color:white;
-padding:4px 8px;
-border-radius:6px;
-font-size:12px;
-}
-
-.badge-recuperacao{
-background:#ffc107;
-color:black;
-padding:4px 8px;
-border-radius:6px;
-font-size:12px;
-}
-
-.badge-reprovado{
-background:#dc3545;
-color:white;
-padding:4px 8px;
-border-radius:6px;
-font-size:12px;
-}
-
-/* ============================= */
-/* CORREÇÃO TABELA BOLETIM */
-/* ============================= */
-
-.tabela-boletim {
-color:#333;
-background:white;
-}
-
-.tabela-boletim th{
-color:#333;
-background:#f8f9fa;
-}
-
-.tabela-boletim td{
-color:#333;
-background:white;
-}
-
-/* ============================= */
-/* BOTÕES */
-/* ============================= */
-
-.btn-primary{
-background:#fab982 !important;
-border-color:#fab982 !important;
-color:#fff !important;
-}
-
-.btn-primary:hover{
-background:#f3a96d !important;
-border-color:#f3a96d !important;
-}
-
-.btn-print{
-background:#fab982;
-border:1px solid #fab982;
-color:white !important;
-}
-
-.btn-print:hover{
-background:#f3a96d;
-border-color:#f3a96d;
-}
-
-</style>
-
-{% endblock extra_head %}
-
-
+  <style>
+    /* ============================= */
+    /* IMPRESSÃO */
+    /* ============================= */
+    
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+    
+      body {
+        background: white;
+      }
+    
+      .titulo-pagina {
+        font-size: 20px;
+      }
+    
+      .table {
+        font-size: 13px;
+      }
+    }
+    
+    /* ============================= */
+    /* TABELA */
+    /* ============================= */
+    
+    .tabela-boletim th {
+      text-align: center;
+    }
+    
+    .tabela-boletim td {
+      text-align: center;
+      vertical-align: middle;
+    }
+    
+    .disciplina {
+      text-align: left !important;
+      font-weight: 500;
+    }
+    
+    .media {
+      font-weight: 600;
+    }
+    
+    /* ============================= */
+    /* BADGES */
+    /* ============================= */
+    
+    .badge-aprovado {
+      background: #28a745;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    
+    .badge-recuperacao {
+      background: #ffc107;
+      color: black;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    
+    .badge-reprovado {
+      background: #dc3545;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+    
+    /* ============================= */
+    /* CORREÇÃO TABELA BOLETIM */
+    /* ============================= */
+    
+    .tabela-boletim {
+      color: #333;
+      background: white;
+    }
+    
+    .tabela-boletim th {
+      color: #333;
+      background: #f8f9fa;
+    }
+    
+    .tabela-boletim td {
+      color: #333;
+      background: white;
+    }
+    
+    /* ============================= */
+    /* BOTÕES */
+    /* ============================= */
+    
+    .btn-primary {
+      background: #fab982 !important;
+      border-color: #fab982 !important;
+      color: #fff !important;
+    }
+    
+    .btn-primary:hover {
+      background: #f3a96d !important;
+      border-color: #f3a96d !important;
+    }
+    
+    .btn-print {
+      background: #fab982;
+      border: 1px solid #fab982;
+      color: white !important;
+    }
+    
+    .btn-print:hover {
+      background: #f3a96d;
+      border-color: #f3a96d;
+    }
+  </style>
+{% endblock %}
 
 {% block content %}
+  <div class="titulo-pagina">Boletim Escolar {{ ano }}</div>
 
-<div class="titulo-pagina">
-Boletim Escolar {{ ano }}
-</div>
+  <div class="info-grid">
+    <div class="info-box">
+      <strong>Escola</strong>
+      <span>{{ escola.nome }}</span>
+    </div>
 
-<div class="info-grid">
+    <div class="info-box">
+      <strong>CNPJ</strong>
+      <span>{{ escola.cnpj|default:'-' }}</span>
+    </div>
 
-<div class="info-box">
-<strong>Escola</strong>
-<span>{{ escola.nome }}</span>
-</div>
+    <div class="info-box">
+      <strong>Endereço</strong>
+      <span>{{ escola.cidade }} - {{ escola.estado }}</span>
+    </div>
+  </div>
 
-<div class="info-box">
-<strong>CNPJ</strong>
-<span>{{ escola.cnpj|default:"-" }}</span>
-</div>
+  <div class="info-grid">
+    <div class="info-box">
+      <strong>Aluno</strong>
+      <span>{{ aluno.nome }}</span>
+    </div>
 
-<div class="info-box">
-<strong>Endereço</strong>
-<span>{{ escola.cidade }} - {{ escola.estado }}</span>
-</div>
+    <div class="info-box">
+      <strong>CPF</strong>
+      <span>{{ aluno.cpf }}</span>
+    </div>
 
-</div>
+    <div class="info-box">
+      <strong>Turma</strong>
+      <span>{{ turma.nome|default:'-' }}</span>
+    </div>
 
-<div class="info-grid">
+    <div class="info-box">
+      <strong>Ano de Ingresso</strong>
+      <span>{{ aluno.data_ingresso|date:'Y'|default:'-' }}</span>
+    </div>
+  </div>
 
-<div class="info-box">
-<strong>Aluno</strong>
-<span>{{ aluno.nome }}</span>
-</div>
+  {% for bimestre in lista_bimestres %}
+    <div class="card mt-4 p-3">
+      <h5 style="color:#fab982;">{{ bimestre }}º Bimestre</h5>
 
-<div class="info-box">
-<strong>CPF</strong>
-<span>{{ aluno.cpf }}</span>
-</div>
-
-<div class="info-box">
-<strong>Turma</strong>
-<span>{{ turma.nome|default:"-" }}</span>
-</div>
-
-<div class="info-box">
-<strong>Ano de Ingresso</strong>
-<span>{{ aluno.ano_ingresso|default:"-" }}</span>
-</div>
-
-</div>
-
-{% for bimestre in "1234" %}
-<div class="card mt-4 p-3">
-
-<h5 style="color:#fab982;">
-{{ bimestre }}º Bimestre
-</h5>
-
-<div class="row g-3">
-
-{% for item in boletim %}
-
-<div class="col-12 col-md-6 col-lg-4">
-
-<div style="
+      <div class="row g-3">
+        {% for item in boletim %}
+          <div class="col-12 col-md-6 col-lg-4">
+            <div style="
     border:1px solid #eee;
     border-radius:10px;
     padding:15px;
     background:#fff;
 ">
+              <div style="font-weight:600; margin-bottom:10px;">{{ item.disciplina }}</div>
 
-<div style="font-weight:600; margin-bottom:10px;">
-    {{ item.disciplina }}
-</div>
+              {% with notas=item.notas|get_item:bimestre %}
+                {% if notas %}
+                  {% for nota in notas %}
+                    <div style="margin-bottom:5px;">
+                      <span class="badge bg-secondary">{{ nota.tipo }}</span>
 
-{% with notas=item.notas|get_item:bimestre %}
+                      <!-- 🔥 CORREÇÃO 1 -->
+                      <strong>{{ nota.valor }}</strong>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div>-</div>
+                {% endif %}
+              {% endwith %}
 
-{% if notas %}
+              <hr />
 
-    {% for nota in notas %}
-        <div style="margin-bottom:5px;">
-            <span class="badge bg-secondary">
-                {{ nota.tipo }}
-            </span>
+              <div style="font-weight:600;">
+                <!-- 🔥 CORREÇÃO 2 -->
+                {% if turma.sistema_avaliacao == 'CON' %}
+                  Conceito:{% with media=item.bimestres|get_item:bimestre %}
+                    {{ media|default:'-' }}
+                  {% endwith %}
+                {% else %}
+                  Média:{% with media=item.bimestres|get_item:bimestre %}
+                    {{ media|default:'-'|floatformat:1 }}
+                  {% endwith %}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
 
-            <!-- 🔥 CORREÇÃO 1 -->
-            <strong>{{ nota.valor }}</strong>
+  <div class="table-responsive mt-4">
+    <table class="table table-bordered tabela-boletim">
+      <thead>
+        <tr>
+          <th>Disciplina</th>
 
-        </div>
-    {% endfor %}
+          <!-- 🔥 CORREÇÃO 3 -->
+          <th>
+            {% if turma.sistema_avaliacao == 'CON' %}
+              Conceito Final
+            {% else %}
+              Média Final
+            {% endif %}
+          </th>
 
-{% else %}
-    <div>-</div>
-{% endif %}
+          <th>Faltas</th>
+          <th>Situação</th>
+        </tr>
+      </thead>
 
-{% endwith %}
+      <tbody>
+        {% for item in boletim %}
+          <tr>
+            <td class="disciplina">{{ item.disciplina }}</td>
 
-<hr>
+            <td class="media">
+              <!-- 🔥 CORREÇÃO 4 -->
+              {% if turma.sistema_avaliacao == 'CON' %}
+                {{ item.media_final|default:'-' }}
+              {% else %}
+                {% if item.media_final %}
+                  {{ item.media_final|floatformat:1 }}
+                {% else %}
+                  -
+                {% endif %}
+              {% endif %}
+            </td>
 
-<div style="font-weight:600;">
+            <td>{{ item.faltas|default:'0' }}</td>
 
-<!-- 🔥 CORREÇÃO 2 -->
-{% if turma.sistema_avaliacao == "CON" %}
-Conceito: 
-{% with media=item.bimestres|get_item:bimestre %}
-    {{ media|default:"-" }}
-{% endwith %}
-{% else %}
-Média: 
-{% with media=item.bimestres|get_item:bimestre %}
-    {{ media|default:"-"|floatformat:1 }}
-{% endwith %}
-{% endif %}
+            <td>
+              <!-- 🔥 CORREÇÃO 5 -->
+              {% if turma.sistema_avaliacao == 'CON' %}
+                -
+              {% else %}
+                {% if item.media_final %}
+                  {% if item.media_final >= 7 %}
+                    <span class="badge-aprovado">Aprovado</span>
+                  {% elif item.media_final >= 5 %}
+                    <span class="badge-recuperacao">Recuperação</span>
+                  {% else %}
+                    <span class="badge-reprovado">Reprovado</span>
+                  {% endif %}
+                {% else %}
+                  -
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4" class="text-center text-muted">Nenhuma nota registrada.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
-</div>
+  <div class="d-flex justify-content-between mt-4 no-print">
+    <a href="{% url 'listar_turmas_boletim' %}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Voltar</a>
 
-</div>
+    <div>
+      <button onclick="window.print()" class="btn btn-print"><i class="bi bi-printer"></i> Imprimir</button>
 
-</div>
-
-{% endfor %}
-
-</div>
-</div>
-
-{% endfor %}
-
-<div class="table-responsive mt-4">
-
-<table class="table table-bordered tabela-boletim">
-
-<thead>
-<tr>
-<th>Disciplina</th>
-
-<!-- 🔥 CORREÇÃO 3 -->
-<th>
-{% if turma.sistema_avaliacao == "CON" %}
-Conceito Final
-{% else %}
-Média Final
-{% endif %}
-</th>
-
-<th>Faltas</th>
-<th>Situação</th>
-</tr>
-</thead>
-
-<tbody>
-
-{% for item in boletim %}
-
-<tr>
-
-<td class="disciplina">
-{{ item.disciplina }}
-</td>
-
-<td class="media">
-
-<!-- 🔥 CORREÇÃO 4 -->
-{% if turma.sistema_avaliacao == "CON" %}
-    {{ item.media_final|default:"-" }}
-{% else %}
-    {% if item.media_final %}
-        {{ item.media_final|floatformat:1 }}
-    {% else %}
-        -
-    {% endif %}
-{% endif %}
-
-</td>
-
-<td>
-{{ item.faltas|default:"0" }}
-</td>
-
-<td>
-
-<!-- 🔥 CORREÇÃO 5 -->
-{% if turma.sistema_avaliacao == "CON" %}
-    -
-{% else %}
-
-    {% if item.media_final %}
-
-        {% if item.media_final >= 7 %}
-        <span class="badge-aprovado">Aprovado</span>
-
-        {% elif item.media_final >= 5 %}
-        <span class="badge-recuperacao">Recuperação</span>
-
-        {% else %}
-        <span class="badge-reprovado">Reprovado</span>
-        {% endif %}
-
-    {% else %}
-        -
-    {% endif %}
-
-{% endif %}
-
-</td>
-
-</tr>
-
-{% empty %}
-
-<tr>
-<td colspan="4" class="text-center text-muted">
-Nenhuma nota registrada.
-</td>
-</tr>
-
-{% endfor %}
-
-</tbody>
-
-</table>
-
-</div>
-
-<div class="d-flex justify-content-between mt-4 no-print">
-
-<a href="{% url 'listar_turmas_boletim' %}" class="btn btn-secondary">
-<i class="bi bi-arrow-left"></i> Voltar
-</a>
-
-<div>
-
-<button onclick="window.print()" class="btn btn-print">
-<i class="bi bi-printer"></i> Imprimir
-</button>
-
-<button type="button"
-        class="btn btn-primary"
-        onclick="abrirPdfSeguro()">
-    <i class="bi bi-file-earmark-pdf"></i> Gerar PDF
-</button>
-
-</div>
-
-</div>
-
-{% endblock content %}
+      <button type="button" class="btn btn-primary" onclick="abrirPdfSeguro()"><i class="bi bi-file-earmark-pdf"></i> Gerar PDF</button>
+    </div>
+  </div>
+{% endblock %}
 
 {% block extra_js %}
-
-<script>
+  <script>
 let pdfAberto = false;
 
 function abrirPdfSeguro(){
@@ -408,5 +326,4 @@ function abrirPdfSeguro(){
     }, 3000);
 }
 </script>
-
-{% endblock extra_js %}
+{% endblock %}

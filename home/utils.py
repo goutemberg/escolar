@@ -16,14 +16,13 @@ from home.models import (
 
 def gerar_matricula_unica():
     from .models import Aluno
+
     prefixo = "ALU"
     ano = datetime.now().year
     base = f"{prefixo}{ano}"
 
     ultimo_aluno = (
-        Aluno.objects.filter(matricula__startswith=base)
-        .order_by('-id')
-        .first()
+        Aluno.objects.filter(matricula__startswith=base).order_by("-id").first()
     )
     numero = 1
 
@@ -39,18 +38,14 @@ def gerar_matricula_unica():
 
 def gerar_avaliacoes_para_turma(turma):
     from .models import Avaliacao, Disciplina, ModeloAvaliacao
+
     escola = turma.escola
 
     bimestres = [1, 2, 3, 4]
 
-    disciplinas = Disciplina.objects.filter(
-        turmadisciplina__turma=turma
-    )
+    disciplinas = Disciplina.objects.filter(turmadisciplina__turma=turma)
 
-    modelos = ModeloAvaliacao.objects.filter(
-        escola=escola,
-        ativo=True
-    )
+    modelos = ModeloAvaliacao.objects.filter(escola=escola, ativo=True)
 
     for disciplina in disciplinas:
 
@@ -64,10 +59,7 @@ def gerar_avaliacoes_para_turma(turma):
                     bimestre=bimestre,
                     descricao=modelo.nome,
                     escola=escola,
-                    defaults={
-                        "tipo": modelo.tipo,
-                        "data": timezone.now().date()
-                    }
+                    defaults={"tipo": modelo.tipo, "data": timezone.now().date()},
                 )
 
 
@@ -88,17 +80,17 @@ def validar_senha_forte(senha):
 
 
 def get_client_ip(request):
-    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
 
     if x_forwarded_for:
-        return x_forwarded_for.split(',')[0]
+        return x_forwarded_for.split(",")[0]
 
-    return request.META.get('REMOTE_ADDR')
-
+    return request.META.get("REMOTE_ADDR")
 
 
 def get_escola_ativa(request):
     from home.models import Escola
+
     escola_id = request.session.get("escola_id")
 
     if escola_id:
@@ -111,30 +103,29 @@ def get_escola_ativa(request):
 
 
 def arredondar_media_personalizada(media):
+
     if media is None:
         return None
 
     media = float(media)
 
-    # 🔥 REGRA ESPECIAL SÓ PARA 7.x
-    if 7.0 <= media < 8.0:
-        if media <= 7.2:
-            return 7.0
-        elif media <= 7.7:
-            return 7.5
-        else:
-            return 8.0
+    inteiro = int(media)
+    decimal = round(media - inteiro, 2)
 
-    return round(media)
+    if decimal <= 0.2:
+        return float(inteiro)
+
+    elif decimal <= 0.7:
+        return float(inteiro) + 0.5
+
+    else:
+        return float(inteiro) + 1
 
 
 def get_ano_ativo():
-    from .models import AnoLetivo  
+    from .models import AnoLetivo
 
-    return AnoLetivo.objects.filter(
-        ativo=True,
-        encerrado=False
-    ).first()
+    return AnoLetivo.objects.filter(ativo=True, encerrado=False).first()
 
 
 def get_turmas_ativas(escola, incluir_sem_ano=False):
@@ -146,16 +137,10 @@ def get_turmas_ativas(escola, incluir_sem_ano=False):
     if not ano:
         return Turma.objects.none()
 
-    qs = Turma.objects.filter(
-        escola=escola,
-        ano_letivo=ano
-    )
+    qs = Turma.objects.filter(escola=escola, ano_letivo=ano)
 
     if incluir_sem_ano:
-        qs = qs | Turma.objects.filter(
-            escola=escola,
-            ano_letivo__isnull=True
-        )
+        qs = qs | Turma.objects.filter(escola=escola, ano_letivo__isnull=True)
 
     return qs
 
@@ -168,25 +153,22 @@ def montar_boletim(aluno, turma):
     # DISCIPLINAS
     # ================================
     disciplinas = Disciplina.objects.filter(
-        turmadisciplina__turma=turma,
-        escola=escola
+        turmadisciplina__turma=turma, escola=escola
     ).distinct()
 
     # ================================
     # AVALIAÇÕES
     # ================================
-    avaliacoes = Avaliacao.objects.filter(
-        turma=turma,
-        escola=escola
-    ).select_related("disciplina", "tipo")
+    avaliacoes = Avaliacao.objects.filter(turma=turma, escola=escola).select_related(
+        "disciplina", "tipo"
+    )
 
     # ================================
     # NOTAS DO ALUNO
     # ================================
-    notas = Nota.objects.filter(
-        aluno=aluno,
-        avaliacao__in=avaliacoes
-    ).select_related("avaliacao")
+    notas = Nota.objects.filter(aluno=aluno, avaliacao__in=avaliacoes).select_related(
+        "avaliacao", "avaliacao__tipo"
+    )
 
     # ================================
     # ORGANIZAÇÃO DAS NOTAS
@@ -198,7 +180,9 @@ def montar_boletim(aluno, turma):
         disciplina_id = nota.avaliacao.disciplina_id
         bimestre = nota.avaliacao.bimestre
 
-        # 🔥 PRIORIDADE CORRETA
+        # ================================
+        # PRIORIDADE DA NOTA
+        # ================================
         if nota.recuperacao is not None:
             valor = float(nota.recuperacao)
 
@@ -211,23 +195,35 @@ def montar_boletim(aluno, turma):
         else:
             continue
 
-        notas_por_disciplina[disciplina_id][bimestre].append({
-            "valor": valor,
-            "tipo": nota.avaliacao.tipo.nome if nota.avaliacao.tipo else "Avaliação"
-        })
+        peso = 1
+
+        if nota.avaliacao.tipo and nota.avaliacao.tipo.peso:
+            try:
+                peso = float(nota.avaliacao.tipo.peso)
+            except:
+                peso = 1
+
+        notas_por_disciplina[disciplina_id][bimestre].append(
+            {
+                "valor": valor,
+                "peso": peso,
+                "tipo": (
+                    nota.avaliacao.tipo.nome if nota.avaliacao.tipo else "Avaliação"
+                ),
+            }
+        )
 
     # ================================
     # FALTAS
     # ================================
     faltas_por_disciplina = defaultdict(int)
 
-    chamadas = Chamada.objects.filter(
-        diario__turma=turma
-    ).select_related("diario__disciplina")
+    chamadas = Chamada.objects.filter(diario__turma=turma).select_related(
+        "diario__disciplina"
+    )
 
     presencas = Presenca.objects.filter(
-        aluno=aluno,
-        chamada__in=chamadas
+        aluno=aluno, chamada__in=chamadas
     ).select_related("chamada__diario")
 
     for p in presencas:
@@ -250,15 +246,21 @@ def montar_boletim(aluno, turma):
             lista = notas_por_disciplina[disciplina.id][b]
             notas_detalhadas[b] = lista
 
-            # 🔥 SÓ NUMÉRICO ENTRA NA MÉDIA
-            valores = [
-                n["valor"]
-                for n in lista
-                if isinstance(n["valor"], (int, float))
-            ]
+            numerador = 0
+            denominador = 0
 
-            if valores:
-                media = sum(valores) / len(valores)
+            for n in lista:
+
+                if not isinstance(n["valor"], (int, float)):
+                    continue
+
+                peso = n.get("peso", 1)
+
+                numerador += n["valor"] * peso
+                denominador += peso
+
+            if denominador > 0:
+                media = numerador / denominador
                 bimestres[b] = arredondar_media_personalizada(media)
             else:
                 bimestres[b] = None
@@ -266,10 +268,7 @@ def montar_boletim(aluno, turma):
         # ================================
         # MÉDIA FINAL
         # ================================
-        medias_validas = [
-            v for v in bimestres.values()
-            if v is not None
-        ]
+        medias_validas = [v for v in bimestres.values() if v is not None]
 
         media_final = None
 
@@ -295,14 +294,16 @@ def montar_boletim(aluno, turma):
         # ================================
         # RESULTADO FINAL
         # ================================
-        boletim.append({
-            "disciplina": disciplina.nome,
-            "disciplina_id": disciplina.id,
-            "bimestres": bimestres,
-            "notas": notas_detalhadas,
-            "media_final": media_final,
-            "faltas": faltas_por_disciplina.get(disciplina.id, 0),
-            "status": status
-        })
+        boletim.append(
+            {
+                "disciplina": disciplina.nome,
+                "disciplina_id": disciplina.id,
+                "bimestres": bimestres,
+                "notas": notas_detalhadas,
+                "media_final": media_final,
+                "faltas": faltas_por_disciplina.get(disciplina.id, 0),
+                "status": status,
+            }
+        )
 
     return boletim
