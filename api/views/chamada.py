@@ -66,7 +66,10 @@ def salvar_chamada_api(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=user.escola)
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=user.escola
+        )
     except Turma.DoesNotExist:
         return Response({
             "ok": False,
@@ -74,7 +77,10 @@ def salvar_chamada_api(request):
         }, status=status.HTTP_404_NOT_FOUND)
 
     try:
-        disciplina = Disciplina.objects.get(id=disciplina_id, escola=user.escola)
+        disciplina = Disciplina.objects.get(
+            id=disciplina_id,
+            escola=user.escola
+        )
     except Disciplina.DoesNotExist:
         return Response({
             "ok": False,
@@ -94,7 +100,13 @@ def salvar_chamada_api(request):
             "erro": "Você não tem permissão para lançar chamada nesta turma/disciplina."
         }, status=status.HTTP_403_FORBIDDEN)
 
-    status_validos = {"PLANEJADA", "REALIZADA", "CANCELADA", "INVALIDA"}
+    status_validos = {
+        "PLANEJADA",
+        "REALIZADA",
+        "CANCELADA",
+        "INVALIDA"
+    }
+
     if status_aula not in status_validos:
         return Response({
             "ok": False,
@@ -102,10 +114,13 @@ def salvar_chamada_api(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
     alunos_ids_turma = set(
-        turma.alunos.filter(escola=user.escola).values_list("id", flat=True)
+        turma.alunos.filter(
+            escola=user.escola
+        ).values_list("id", flat=True)
     )
 
     presencas_tratadas = []
+
     for item in presencas:
         aluno_id = item.get("aluno_id")
         status_presenca = (item.get("status") or "P").strip()
@@ -136,44 +151,68 @@ def salvar_chamada_api(request):
         })
 
     with transaction.atomic():
-        diario = DiarioDeClasse.objects.create(
+
+        diario, diario_criado = DiarioDeClasse.objects.get_or_create(
             turma=turma,
             disciplina=disciplina,
             professor=docente,
-            criado_por=user,
             data_ministrada=data_ministrada,
-            hora_inicio=hora_inicio or None,
-            hora_fim=hora_fim or None,
-            resumo_conteudo=resumo_conteudo,
-            status=status_aula,
-            escola=user.escola
+            escola=user.escola,
+            defaults={
+                "criado_por": user,
+                "hora_inicio": hora_inicio or None,
+                "hora_fim": hora_fim or None,
+                "resumo_conteudo": resumo_conteudo,
+                "status": status_aula,
+            }
         )
 
-        chamada = Chamada.objects.create(
+        if not diario_criado:
+            diario.hora_inicio = hora_inicio or diario.hora_inicio
+            diario.hora_fim = hora_fim or diario.hora_fim
+            diario.resumo_conteudo = resumo_conteudo
+            diario.status = status_aula
+            diario.save()
+
+        chamada, _ = Chamada.objects.get_or_create(
             diario=diario,
-            criado_por=user
+            defaults={
+                "criado_por": user
+            }
         )
 
         for item in presencas_tratadas:
-            aluno = Aluno.objects.get(id=item["aluno_id"], escola=user.escola)
 
-            Presenca.objects.create(
+            aluno = Aluno.objects.get(
+                id=item["aluno_id"],
+                escola=user.escola
+            )
+
+            Presenca.objects.update_or_create(
                 chamada=chamada,
                 aluno=aluno,
-                status=item["status"],
-                observacao=item["observacao"]
+                defaults={
+                    "status": item["status"],
+                    "presente": item["status"] in ["P", "J"],
+                    "observacao": item["observacao"]
+                }
             )
 
     return Response({
         "ok": True,
-        "mensagem": "Chamada realizada com sucesso.",
+        "mensagem": (
+            "Chamada atualizada com sucesso."
+            if not diario_criado
+            else "Chamada realizada com sucesso."
+        ),
         "diario_id": diario.id,
         "chamada_id": chamada.id,
         "turma": turma.nome,
         "disciplina": disciplina.nome,
         "data_ministrada": str(diario.data_ministrada),
-        "total_presencas": len(presencas_tratadas)
-    }, status=status.HTTP_201_CREATED)
+        "total_presencas": len(presencas_tratadas),
+        "atualizada": not diario_criado
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(["GET"])
@@ -447,3 +486,34 @@ def atualizar_chamada_api(request, diario_id):
         "data_ministrada": str(diario.data_ministrada),
         "total_presencas": len(presencas)
     }, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def datas_chamada_api(request):
+    user = request.user
+
+    turma_id = request.query_params.get("turma_id")
+    disciplina_id = request.query_params.get("disciplina_id")
+
+    if not turma_id or not disciplina_id:
+        return Response({
+            "ok": False,
+            "erro": "turma_id e disciplina_id são obrigatórios."
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    datas = (
+        DiarioDeClasse.objects
+        .filter(
+            escola=user.escola,
+            turma_id=turma_id,
+            disciplina_id=disciplina_id,
+        )
+        .values_list("data_ministrada", flat=True)
+        .distinct()
+    )
+
+    return Response({
+        "ok": True,
+        "datas": [str(d) for d in datas]
+    })

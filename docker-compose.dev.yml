@@ -1,22 +1,21 @@
-
 services:
   db:
-    container_name: psql_dev
-    image: postgres:15
+    container_name: db
+    image: postgres:18
     restart: always
     environment:
       POSTGRES_DB: escolinha_db
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: 34587895
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - pg_data_dev:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d escolinha_db || exit 1"]
       interval: 5s
       timeout: 3s
-      retries: 40      # aumentamos aqui
+      retries: 40
 
   pgadmin:
     container_name: pgadmin_dev
@@ -37,7 +36,10 @@ services:
     container_name: escolinha_dev
     build:
       context: .
-    command: [ "sh", "-lc", "chmod +x /scripts/*.sh || true; /scripts/dev.sh" ]
+    command:
+      - sh
+      - -lc
+      - chmod +x /scripts/*.sh || true; /scripts/dev.sh
     ports:
       - "8000:8000"
     volumes:
