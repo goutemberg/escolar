@@ -1924,6 +1924,161 @@ def impressao_dados(request):
     return render(request, "pages/print.html", context)
 
 
+# @csrf_exempt
+# @login_required
+# @role_required(["professor", "diretor", "coordenador"])
+# def lancar_notas(request):
+
+#     if request.method == "GET":
+#         return render(request, "pages/registrar_notas.html")
+
+#     if request.method != "POST":
+#         return JsonResponse({"erro": "Método não permitido."}, status=405)
+
+#     try:
+#         dados = json.loads(request.body)
+
+#         turma_id = dados.get("turma_id")
+#         disciplina_id = dados.get("disciplina_id")
+#         bimestre = dados.get("bimestre")
+#         notas = dados.get("notas", {})
+
+#         if not turma_id or not disciplina_id:
+#             return JsonResponse(
+#                 {"erro": "Turma e disciplina são obrigatórias."}, status=400
+#             )
+
+#         if not bimestre:
+#             return JsonResponse({"erro": "Bimestre é obrigatório."}, status=400)
+
+#         try:
+#             bimestre = int(bimestre)
+#         except ValueError:
+#             return JsonResponse({"erro": "Bimestre inválido."}, status=400)
+
+#         escola = request.user.escola  # 🔥 CORREÇÃO (era request.escola)
+
+#         try:
+#             turma = Turma.objects.get(id=turma_id, escola=escola, status="ATIVA")
+#             disciplina = Disciplina.objects.get(id=disciplina_id, escola=escola)
+#         except (Turma.DoesNotExist, Disciplina.DoesNotExist):
+#             return JsonResponse({"erro": "Turma ou disciplina inválida."}, status=400)
+
+#         salvas = 0
+#         alunos_afetados = set()  # 🔥 NOVO: pra invalidar boletim depois
+
+#         # 🔥 MAPA CONCEITO
+#         mapa_conceito = {"1": "B", "2": "O", "3": "E"}
+
+#         for aluno_id_str, notas_aluno in (notas or {}).items():
+
+#             try:
+#                 aluno_id = int(aluno_id_str)
+#                 aluno = Aluno.objects.get(id=aluno_id, escola=escola)
+#             except (ValueError, Aluno.DoesNotExist):
+#                 continue
+
+#             if not isinstance(notas_aluno, dict):
+#                 continue
+
+#             for avaliacao_id_str, valor in notas_aluno.items():
+
+#                 try:
+#                     avaliacao_id = int(avaliacao_id_str)
+#                 except (ValueError, TypeError):
+#                     continue
+
+#                 avaliacao = Avaliacao.objects.filter(
+#                     id=avaliacao_id,
+#                     turma=turma,
+#                     disciplina=disciplina,
+#                     escola=escola,
+#                     bimestre=bimestre,
+#                 ).first()
+
+#                 if not avaliacao:
+#                     continue
+
+#                 if valor is None or str(valor).strip() == "":
+#                     continue
+
+#                 valor_str = str(valor).strip()
+
+#                 # =========================================
+#                 # 🔥 CONCEITO
+#                 # =========================================
+#                 conceito = mapa_conceito.get(valor_str)
+
+#                 if conceito:
+#                     Nota.objects.update_or_create(
+#                         aluno=aluno,
+#                         avaliacao=avaliacao,
+#                         defaults={
+#                             "conceito": conceito,
+#                             "valor": None,
+#                             "escola": escola,
+#                         },
+#                     )
+
+#                     salvas += 1
+#                     alunos_afetados.add(aluno.id)
+#                     continue
+
+#                 # =========================================
+#                 # 🔥 NUMÉRICO
+#                 # =========================================
+#                 valor_str = valor_str.replace(",", ".")
+
+#                 try:
+#                     valor_dec = Decimal(valor_str)
+#                 except (InvalidOperation, TypeError, ValueError):
+#                     continue
+
+#                 Nota.objects.update_or_create(
+#                     aluno=aluno,
+#                     avaliacao=avaliacao,
+#                     defaults={"valor": valor_dec, "conceito": None, "escola": escola},
+#                 )
+
+#                 salvas += 1
+#                 alunos_afetados.add(aluno.id)
+
+#         # =========================================
+#         # 🔥 INVALIDAR BOLETIM (ESSENCIAL)
+#         # =========================================
+#         if alunos_afetados:
+#             from home.models import Boletim
+
+#             Boletim.objects.filter(aluno_id__in=alunos_afetados, turma=turma).update(
+#                 pdf=None
+#             )
+
+#         # =========================================
+#         # 🔥 RESPOSTA
+#         # =========================================
+#         total_alunos = len(notas or {})
+
+#         if salvas == 0:
+#             return JsonResponse(
+#                 {
+#                     "mensagem": "Nenhuma nota foi informada. Você pode salvar parcialmente."
+#                 }
+#             )
+
+#         if salvas < total_alunos:
+#             faltantes = total_alunos - salvas
+#             return JsonResponse(
+#                 {
+#                     "mensagem": f"Notas salvas com sucesso ({salvas}). {faltantes} aluno(s) sem nota."
+#                 }
+#             )
+
+#         return JsonResponse({"mensagem": f"Notas salvas com sucesso ({salvas})."})
+
+#     except Exception as e:
+#         return JsonResponse({"erro": f"Erro ao processar: {str(e)}"}, status=400)
+
+
 @csrf_exempt
 @login_required
 @role_required(["professor", "diretor", "coordenador"])
@@ -1933,7 +2088,10 @@ def lancar_notas(request):
         return render(request, "pages/registrar_notas.html")
 
     if request.method != "POST":
-        return JsonResponse({"erro": "Método não permitido."}, status=405)
+        return JsonResponse(
+            {"erro": "Método não permitido."},
+            status=405,
+        )
 
     try:
         dados = json.loads(request.body)
@@ -1945,37 +2103,113 @@ def lancar_notas(request):
 
         if not turma_id or not disciplina_id:
             return JsonResponse(
-                {"erro": "Turma e disciplina são obrigatórias."}, status=400
+                {"erro": "Turma e disciplina são obrigatórias."},
+                status=400,
             )
 
         if not bimestre:
-            return JsonResponse({"erro": "Bimestre é obrigatório."}, status=400)
+            return JsonResponse(
+                {"erro": "Bimestre é obrigatório."},
+                status=400,
+            )
 
         try:
             bimestre = int(bimestre)
         except ValueError:
-            return JsonResponse({"erro": "Bimestre inválido."}, status=400)
+            return JsonResponse(
+                {"erro": "Bimestre inválido."},
+                status=400,
+            )
 
-        escola = request.user.escola  # 🔥 CORREÇÃO (era request.escola)
+        escola = request.user.escola
 
         try:
-            turma = Turma.objects.get(id=turma_id, escola=escola, status="ATIVA")
-            disciplina = Disciplina.objects.get(id=disciplina_id, escola=escola)
+            turma = Turma.objects.get(
+                id=turma_id,
+                escola=escola,
+                status="ATIVA",
+            )
+
+            disciplina = Disciplina.objects.get(
+                id=disciplina_id,
+                escola=escola,
+            )
+
         except (Turma.DoesNotExist, Disciplina.DoesNotExist):
-            return JsonResponse({"erro": "Turma ou disciplina inválida."}, status=400)
+            return JsonResponse(
+                {"erro": "Turma ou disciplina inválida."},
+                status=400,
+            )
 
         salvas = 0
-        alunos_afetados = set()  # 🔥 NOVO: pra invalidar boletim depois
+        alunos_afetados = set()
 
-        # 🔥 MAPA CONCEITO
-        mapa_conceito = {"1": "B", "2": "O", "3": "E"}
+        mapa_conceito = {
+            "1": "B",
+            "2": "O",
+            "3": "E",
+        }
+
+        # =====================================================
+        # CARREGA TODOS OS ALUNOS DE UMA VEZ
+        # =====================================================
+
+        ids_alunos = [
+            int(aluno_id) for aluno_id in notas.keys() if str(aluno_id).isdigit()
+        ]
+
+        alunos_map = {
+            aluno.id: aluno
+            for aluno in Aluno.objects.filter(
+                id__in=ids_alunos,
+                escola=escola,
+            ).only("id")
+        }
+
+        # =====================================================
+        # CARREGA TODAS AS AVALIAÇÕES DE UMA VEZ
+        # =====================================================
+
+        avaliacoes_map = {
+            avaliacao.id: avaliacao
+            for avaliacao in Avaliacao.objects.filter(
+                turma=turma,
+                disciplina=disciplina,
+                escola=escola,
+                bimestre=bimestre,
+            ).only("id")
+        }
+
+        # =====================================================
+        # CARREGA TODAS AS NOTAS EXISTENTES DE UMA VEZ
+        # =====================================================
+
+        notas_existentes = {
+            (nota.aluno_id, nota.avaliacao_id): nota
+            for nota in Nota.objects.filter(
+                escola=escola,
+                aluno_id__in=ids_alunos,
+                avaliacao_id__in=avaliacoes_map.keys(),
+            )
+        }
+
+        notas_para_criar = []
+        notas_para_atualizar = []
+
+        # =====================================================
+        # PROCESSAMENTO
+        # =====================================================
 
         for aluno_id_str, notas_aluno in (notas or {}).items():
 
             try:
                 aluno_id = int(aluno_id_str)
-                aluno = Aluno.objects.get(id=aluno_id, escola=escola)
-            except (ValueError, Aluno.DoesNotExist):
+            except (ValueError, TypeError):
+                continue
+
+            aluno = alunos_map.get(aluno_id)
+
+            if not aluno:
                 continue
 
             if not isinstance(notas_aluno, dict):
@@ -1988,13 +2222,7 @@ def lancar_notas(request):
                 except (ValueError, TypeError):
                     continue
 
-                avaliacao = Avaliacao.objects.filter(
-                    id=avaliacao_id,
-                    turma=turma,
-                    disciplina=disciplina,
-                    escola=escola,
-                    bimestre=bimestre,
-                ).first()
+                avaliacao = avaliacoes_map.get(avaliacao_id)
 
                 if not avaliacao:
                     continue
@@ -2004,79 +2232,145 @@ def lancar_notas(request):
 
                 valor_str = str(valor).strip()
 
-                # =========================================
-                # 🔥 CONCEITO
-                # =========================================
+                nota_existente = notas_existentes.get((aluno_id, avaliacao_id))
+
+                # ==========================================
+                # CONCEITOS
+                # ==========================================
+
                 conceito = mapa_conceito.get(valor_str)
 
                 if conceito:
-                    Nota.objects.update_or_create(
-                        aluno=aluno,
-                        avaliacao=avaliacao,
-                        defaults={
-                            "conceito": conceito,
-                            "valor": None,
-                            "escola": escola,
-                        },
-                    )
+
+                    if nota_existente:
+                        nota_existente.conceito = conceito
+                        nota_existente.valor = None
+                        nota_existente.escola = escola
+
+                        notas_para_atualizar.append(nota_existente)
+                    else:
+                        notas_para_criar.append(
+                            Nota(
+                                aluno_id=aluno_id,
+                                avaliacao_id=avaliacao_id,
+                                conceito=conceito,
+                                valor=None,
+                                escola=escola,
+                            )
+                        )
 
                     salvas += 1
-                    alunos_afetados.add(aluno.id)
+                    alunos_afetados.add(aluno_id)
                     continue
 
-                # =========================================
-                # 🔥 NUMÉRICO
-                # =========================================
+                # ==========================================
+                # NUMÉRICO
+                # ==========================================
+
                 valor_str = valor_str.replace(",", ".")
 
                 try:
                     valor_dec = Decimal(valor_str)
-                except (InvalidOperation, TypeError, ValueError):
+                except (
+                    InvalidOperation,
+                    TypeError,
+                    ValueError,
+                ):
                     continue
 
-                Nota.objects.update_or_create(
-                    aluno=aluno,
-                    avaliacao=avaliacao,
-                    defaults={"valor": valor_dec, "conceito": None, "escola": escola},
-                )
+                if nota_existente:
+                    nota_existente.valor = valor_dec
+                    nota_existente.conceito = None
+                    nota_existente.escola = escola
+
+                    notas_para_atualizar.append(nota_existente)
+
+                else:
+                    notas_para_criar.append(
+                        Nota(
+                            aluno_id=aluno_id,
+                            avaliacao_id=avaliacao_id,
+                            valor=valor_dec,
+                            conceito=None,
+                            escola=escola,
+                        )
+                    )
 
                 salvas += 1
-                alunos_afetados.add(aluno.id)
+                alunos_afetados.add(aluno_id)
 
-        # =========================================
-        # 🔥 INVALIDAR BOLETIM (ESSENCIAL)
-        # =========================================
-        if alunos_afetados:
-            from home.models import Boletim
+        # =====================================================
+        # SALVAMENTO EM LOTE
+        # =====================================================
 
-            Boletim.objects.filter(aluno_id__in=alunos_afetados, turma=turma).update(
-                pdf=None
-            )
+        with transaction.atomic():
 
-        # =========================================
-        # 🔥 RESPOSTA
-        # =========================================
+            if notas_para_criar:
+                Nota.objects.bulk_create(
+                    notas_para_criar,
+                    batch_size=500,
+                )
+
+            if notas_para_atualizar:
+
+                notas_para_atualizar = list(
+                    {
+                        (n.aluno_id, n.avaliacao_id): n for n in notas_para_atualizar
+                    }.values()
+                )
+
+                Nota.objects.bulk_update(
+                    notas_para_atualizar,
+                    ["valor", "conceito", "escola"],
+                    batch_size=500,
+                )
+
+            # ==========================================
+            # INVALIDA BOLETIM
+            # ==========================================
+
+            if alunos_afetados:
+                from home.models import Boletim
+
+                Boletim.objects.filter(
+                    aluno_id__in=alunos_afetados,
+                    turma=turma,
+                ).update(pdf=None)
+
+        # =====================================================
+        # RESPOSTA
+        # =====================================================
+
         total_alunos = len(notas or {})
 
         if salvas == 0:
             return JsonResponse(
                 {
-                    "mensagem": "Nenhuma nota foi informada. Você pode salvar parcialmente."
+                    "mensagem": (
+                        "Nenhuma nota foi informada. " "Você pode salvar parcialmente."
+                    )
                 }
             )
 
         if salvas < total_alunos:
             faltantes = total_alunos - salvas
+
             return JsonResponse(
                 {
-                    "mensagem": f"Notas salvas com sucesso ({salvas}). {faltantes} aluno(s) sem nota."
+                    "mensagem": (
+                        f"Notas salvas com sucesso ({salvas}). "
+                        f"{faltantes} aluno(s) sem nota."
+                    )
                 }
             )
 
-        return JsonResponse({"mensagem": f"Notas salvas com sucesso ({salvas})."})
+        return JsonResponse({"mensagem": (f"Notas salvas com sucesso ({salvas}).")})
 
     except Exception as e:
-        return JsonResponse({"erro": f"Erro ao processar: {str(e)}"}, status=400)
+        return JsonResponse(
+            {"erro": f"Erro ao processar: {str(e)}"},
+            status=400,
+        )
 
 
 @login_required
@@ -3712,3 +4006,15 @@ def atualizar_vencimento(request, aluno_id):
 
         except Exception as e:
             return JsonResponse({"status": "erro", "mensagem": str(e)}, status=400)
+
+
+def app_mobile(request):
+    return render(
+        request,
+        "pages/app_mobile.html",
+        {
+            "versao": "1.0.1",
+            "build": "21/06/2026",
+            "download_url": "https://github.com/goutemberg/escolar/releases/download/v1.0.1/app-release-v1.0.1.apk",
+        },
+    )

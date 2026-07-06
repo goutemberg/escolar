@@ -1,0 +1,435 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Relatório de Chamadas dos Professores</h2>
+        <p class="page-subtitle">
+            Acompanhe quem realizou as chamadas e quando elas foram lançadas.
+        </p>
+    </div>
+</div>
+
+<div class="row mb-4">
+
+    <div class="col-md-3">
+        <div class="card shadow-sm text-center h-100">
+            <div class="card-body">
+                <i class="bi bi-journal-check fs-1"></i>
+                <h5 class="mt-3">Total de Chamadas</h5>
+                <h2>{{ total_chamadas }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm text-center h-100">
+            <div class="card-body">
+                <i class="bi bi-person-check-fill fs-1"></i>
+                <h5 class="mt-3">Pelo Professor</h5>
+                <h2>{{ chamadas_professor }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm text-center h-100">
+            <div class="card-body">
+                <i class="bi bi-person-workspace fs-1"></i>
+                <h5 class="mt-3">Por Terceiros</h5>
+                <h2>{{ chamadas_terceiros }}</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm text-center h-100">
+            <div class="card-body">
+                <i class="bi bi-people-fill fs-1"></i>
+                <h5 class="mt-3">Professores</h5>
+                <h2>{{ total_professores }}</h2>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="card shadow-sm mb-4">
+
+    <div class="card-header">
+        <strong>Filtros</strong>
+    </div>
+
+    <div class="card-body">
+
+        <!-- PRIMEIRA LINHA -->
+
+        <div class="row mb-3">
+
+            <div class="col-md-6">
+                <label class="form-label">Buscar</label>
+                <input
+    type="text"
+    id="filtroBusca"
+    class="form-control"
+    placeholder="Professor, turma ou usuário"
+    value="{{ busca|default:'' }}"
+>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Data Inicial</label>
+                <input
+                    type="date"
+                    id="dataInicio"
+                    class="form-control"
+                    value="{{ data_inicio|default:'' }}"
+                >
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Data Final</label>
+                <input
+                    type="date"
+                    id="dataFim"
+                    class="form-control"
+                    value="{{ data_fim|default:'' }}"
+                >
+            </div>
+
+        </div>
+
+        <!-- SEGUNDA LINHA -->
+
+        <div class="row g-3 align-items-end">
+
+            <div class="col-md-3">
+                <label class="form-label">Professor</label>
+
+                <select id="filtroProfessor" class="form-select">
+
+                    <option value="">Todos</option>
+
+                    {% for professor in professores %}
+                        <option
+                            value="{{ professor.id }}"
+                            {% if professor_selecionado == professor.id|stringformat:"s" %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ professor.nome }}
+                        </option>
+                    {% endfor %}
+
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label">Turma</label>
+
+                <select id="filtroTurma" class="form-select">
+
+                    <option value="">Todas</option>
+
+                    {% for turma in turmas %}
+                        <option
+                            value="{{ turma.id }}"
+                            {% if turma_selecionada == turma.id|stringformat:"s" %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ turma.nome }}
+                        </option>
+                    {% endfor %}
+
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Situação</label>
+
+                <select id="filtroSituacao" class="form-select">
+
+    <option value="">Todas</option>
+
+    <option
+        value="professor"
+        {% if situacao_selecionada == 'professor' %}
+            selected
+        {% endif %}
+    >
+        Professor
+    </option>
+
+    <option
+        value="terceiro"
+        {% if situacao_selecionada == 'terceiro' %}
+            selected
+        {% endif %}
+    >
+        Terceiro
+    </option>
+
+</select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label">Registros</label>
+
+                <select id="pageSize" class="form-select">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+
+            <div class="col-md-1 d-grid">
+    <button
+        id="btnFiltrar"
+        type="button"
+        class="btn"
+        style="
+            background:#0d6efd;
+            color:#fff;
+            border:1px solid #0d6efd;
+            font-weight:600;
+        ">
+        <i class="bi bi-search"></i>
+    </button>
+</div>
+
+            <div class="col-md-1 d-grid">
+                <button
+                    id="btnLimpar"
+                    type="button"
+                    class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="card shadow-sm">
+
+    <div class="card-header d-flex justify-content-between align-items-center">
+
+        <strong>Chamadas Registradas</strong>
+
+        <span id="resultsInfo" class="badge bg-primary">
+            {{ total_chamadas }} registros
+        </span>
+
+    </div>
+
+    <div class="card-body">
+
+        <div class="table-responsive">
+
+            <table
+                id="tabelaChamadas"
+                class="table table-hover align-middle">
+
+                <thead
+    style="
+        background:#f8f9fa !important;
+    ">
+
+    <tr>
+
+        <th style="
+            color:#212529 !important;
+            background:#f8f9fa !important;
+            font-weight:700;
+            padding:14px;
+        ">
+            Data Aula
+        </th>
+
+        <th style="
+            color:#212529 !important;
+            background:#f8f9fa !important;
+            font-weight:700;
+            padding:14px;
+        ">
+            Turma
+        </th>
+
+        <th style="
+            color:#212529 !important;
+            background:#f8f9fa !important;
+            font-weight:700;
+            padding:14px;
+        ">
+            Professor Responsável
+        </th>
+
+        <th style="
+            color:#212529 !important;
+            background:#f8f9fa !important;
+            font-weight:700;
+            padding:14px;
+        ">
+            Lançado Por
+        </th>
+
+        <th style="
+            color:#212529 !important;
+            background:#f8f9fa !important;
+            font-weight:700;
+            padding:14px;
+        ">
+            Data/Hora Lançamento
+        </th>
+
+        <th style="
+            color:#212529 !important;
+            background:#f8f9fa !important;
+            font-weight:700;
+            padding:14px;
+        ">
+            Situação
+        </th>
+
+    </tr>
+
+</thead>
+
+                <tbody id="tbodyChamadas">
+
+                    {% for item in chamadas %}
+
+                    <tr>
+
+                        <td>
+                            {{ item.diario.data_ministrada|date:'d/m/Y' }}
+                        </td>
+
+                        <td>
+                            {{ item.diario.turma.nome }}
+                        </td>
+
+                        <td>
+                            {% if item.diario.professor %}
+                                {{ item.diario.professor.nome }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {% if item.criado_por %}
+                                {{ item.criado_por.get_full_name|default:item.criado_por.username }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+
+                        <td>
+                            {{ item.criado_em|date:'d/m/Y H:i' }}
+                        </td>
+
+                        <td>
+                            {% if item.diario.professor and item.criado_por and item.diario.professor.user_id == item.criado_por.id %}
+                                <span class="badge bg-success">Professor</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">Terceiro</span>
+                            {% endif %}
+                        </td>
+
+                    </tr>
+
+                    {% empty %}
+
+                    <tr>
+                        <td colspan="6" class="text-center">
+                            Nenhuma chamada encontrada.
+                        </td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+
+document.addEventListener('DOMContentLoaded', function () {
+
+    const busca = document.getElementById('filtroBusca');
+    const dataInicio = document.getElementById('dataInicio');
+    const dataFim = document.getElementById('dataFim');
+    const professor = document.getElementById('filtroProfessor');
+    const turma = document.getElementById('filtroTurma');
+    const situacao = document.getElementById('filtroSituacao');
+
+    const btnFiltrar = document.getElementById('btnFiltrar');
+    const btnLimpar = document.getElementById('btnLimpar');
+
+    btnFiltrar.addEventListener('click', function () {
+
+        const params = new URLSearchParams();
+
+        if (busca.value) {
+            params.append('busca', busca.value);
+        }
+
+        if (dataInicio.value) {
+            params.append('data_inicio', dataInicio.value);
+        }
+
+        if (dataFim.value) {
+            params.append('data_fim', dataFim.value);
+        }
+
+        if (professor.value) {
+            params.append('professor', professor.value);
+        }
+
+        if (turma.value) {
+            params.append('turma', turma.value);
+        }
+
+        if (situacao.value) {
+            params.append('situacao', situacao.value);
+        }
+
+        window.location =
+            window.location.pathname +
+            '?' +
+            params.toString();
+
+    });
+
+    btnLimpar.addEventListener('click', function () {
+
+        window.location = window.location.pathname;
+
+    });
+
+});
+
+</script>
+
+{% endblock %}

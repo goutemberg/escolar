@@ -7,6 +7,9 @@ from home.models import (
     Docente,
     Turma,
     TurmaDisciplina,
+    DiarioDeClasse,
+    Presenca,
+    Chamada,
 )
 
 
@@ -16,25 +19,21 @@ def minhas_turmas(request):
     user = request.user
 
     if user.role != "professor":
-        return Response({
-            "ok": False,
-            "erro": "Apenas professores podem acessar este endpoint."
-        }, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"ok": False, "erro": "Apenas professores podem acessar este endpoint."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     try:
         docente = Docente.objects.get(user=user, escola=user.escola)
     except Docente.DoesNotExist:
-        return Response({
-            "ok": False,
-            "erro": "Docente não encontrado para este usuário."
-        }, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"ok": False, "erro": "Docente não encontrado para este usuário."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
     vinculos = (
-        TurmaDisciplina.objects
-        .filter(
-            professor=docente,
-            escola=user.escola
-        )
+        TurmaDisciplina.objects.filter(professor=docente, escola=user.escola)
         .select_related("turma", "disciplina")
         .order_by("turma__nome", "disciplina__nome")
     )
@@ -52,19 +51,18 @@ def minhas_turmas(request):
                 "ano": turma.ano,
                 "sala": turma.sala,
                 "sistema_avaliacao": turma.sistema_avaliacao,
-                "disciplinas": []
+                # "polivalente": turma.polivalente,
+                "disciplinas": [],
             }
 
-        turmas_map[turma.id]["disciplinas"].append({
-            "id": vinculo.disciplina.id,
-            "nome": vinculo.disciplina.nome
-        })
+        turmas_map[turma.id]["disciplinas"].append(
+            {"id": vinculo.disciplina.id, "nome": vinculo.disciplina.nome}
+        )
 
-    return Response({
-        "ok": True,
-        "professor": docente.nome,
-        "turmas": list(turmas_map.values())
-    }, status=status.HTTP_200_OK)
+    return Response(
+        {"ok": True, "professor": docente.nome, "turmas": list(turmas_map.values())},
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["GET"])
@@ -73,64 +71,103 @@ def alunos_da_turma(request, turma_id):
     user = request.user
 
     if user.role != "professor":
-        return Response({
-            "ok": False,
-            "erro": "Apenas professores podem acessar este endpoint."
-        }, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"ok": False, "erro": "Apenas professores podem acessar este endpoint."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
     try:
         docente = Docente.objects.get(user=user, escola=user.escola)
     except Docente.DoesNotExist:
-        return Response({
-            "ok": False,
-            "erro": "Docente não encontrado para este usuário."
-        }, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"ok": False, "erro": "Docente não encontrado para este usuário."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
     try:
         turma = Turma.objects.get(id=turma_id, escola=user.escola)
     except Turma.DoesNotExist:
-        return Response({
-            "ok": False,
-            "erro": "Turma não encontrada."
-        }, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"ok": False, "erro": "Turma não encontrada."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
     possui_vinculo = TurmaDisciplina.objects.filter(
-        turma=turma,
-        professor=docente,
-        escola=user.escola
+        turma=turma, professor=docente, escola=user.escola
     ).exists()
 
     if not possui_vinculo:
-        return Response({
-            "ok": False,
-            "erro": "Você não tem permissão para acessar esta turma."
-        }, status=status.HTTP_403_FORBIDDEN)
+        return Response(
+            {"ok": False, "erro": "Você não tem permissão para acessar esta turma."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
 
-    alunos = turma.alunos.filter(
-        escola=user.escola
-    ).order_by("nome")
+    alunos = turma.alunos.filter(escola=user.escola).order_by("nome")
+
+    # 🔥 NOVO: contexto da chamada
+    data_aula = request.GET.get("data")
+    disciplina_id = request.GET.get("disciplina")
+
+    presencas_map = {}
+
+    if data_aula and disciplina_id:
+
+        diario = (
+            DiarioDeClasse.objects.filter(
+                escola=user.escola,
+                turma=turma,
+                disciplina_id=disciplina_id,
+                data_ministrada=data_aula,
+            )
+            .order_by("-id")
+            .first()
+        )
+
+        if diario:
+            chamada = Chamada.objects.filter(diario=diario).first()
+
+            if chamada:
+                presencas = Presenca.objects.filter(chamada=chamada)
+
+                for p in presencas:
+                    presencas_map[p.aluno_id] = {
+                        "status": p.status,
+                        "observacao": p.observacao or "",
+                    }
 
     alunos_data = []
-    for aluno in alunos:
-        alunos_data.append({
-            "id": aluno.id,
-            "matricula": aluno.matricula,
-            "nome": aluno.nome,
-            "cpf": aluno.cpf,
-            "ativo": aluno.ativo,
-            "turma_principal_id": aluno.turma_principal_id,
-        })
 
-    return Response({
-        "ok": True,
-        "turma": {
-            "id": turma.id,
-            "nome": turma.nome,
-            "turno": turma.turno,
-            "ano": turma.ano,
-            "sala": turma.sala,
-            "sistema_avaliacao": turma.sistema_avaliacao,
+    for aluno in alunos:
+
+        extra = presencas_map.get(aluno.id, {})
+
+        alunos_data.append(
+            {
+                "id": aluno.id,
+                "matricula": aluno.matricula,
+                "nome": aluno.nome,
+                "cpf": aluno.cpf,
+                "ativo": aluno.ativo,
+                "turma_principal_id": aluno.turma_principal_id,
+                # 🔥 NOVOS CAMPOS
+                "status": extra.get("status", "P"),
+                "observacao": extra.get("observacao", ""),
+            }
+        )
+
+    return Response(
+        {
+            "ok": True,
+            "turma": {
+                "id": turma.id,
+                "nome": turma.nome,
+                "turno": turma.turno,
+                "ano": turma.ano,
+                "sala": turma.sala,
+                "sistema_avaliacao": turma.sistema_avaliacao,
+            },
+            "total_alunos": len(alunos_data),
+            "alunos": alunos_data,
         },
-        "total_alunos": len(alunos_data),
-        "alunos": alunos_data
-    }, status=status.HTTP_200_OK)
+        status=status.HTTP_200_OK,
+    )
