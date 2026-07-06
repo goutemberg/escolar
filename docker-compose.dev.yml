@@ -4,15 +4,20 @@ services:
     image: postgres:18
     restart: always
     environment:
-      POSTGRES_DB: escolinha_db
+      POSTGRES_DB: escolinha_prod_clone
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: 34587895
+      PGDATA: /var/lib/postgresql/18/docker
+
     ports:
       - "5434:5432"
+
     volumes:
-      - pg_data_dev:/var/lib/postgresql/data
+      - pg_data_dev:/var/lib/postgresql
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d escolinha_db || exit 1"]
+      test:
+        ["CMD-SHELL", "pg_isready -U admin -d escolinha_prod_clone || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 40
@@ -21,32 +26,42 @@ services:
     container_name: pgadmin_dev
     image: dpage/pgadmin4
     restart: always
+
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin123
+
     ports:
       - "5050:80"
+
     depends_on:
       db:
         condition: service_healthy
+
     volumes:
       - pgadmin_data_dev:/var/lib/pgadmin
 
   web:
     container_name: escolinha_dev
+
     build:
       context: .
+
     command:
       - sh
       - -lc
       - chmod +x /scripts/*.sh || true; /scripts/dev.sh
+
     ports:
       - "8000:8000"
+
     volumes:
       - .:/app
       - ./scripts:/scripts
+
     env_file:
       - ./dotenv_files/.env.dev
+
     depends_on:
       db:
         condition: service_healthy

@@ -2,6 +2,8 @@
 
 from django.db.models.signals import pre_save, post_save, post_delete
 from django.dispatch import receiver
+from django.db import connection
+from django.db.utils import ProgrammingError
 
 from auditoria.models import LogAuditoria
 from auditoria.middleware import get_current_user
@@ -46,6 +48,14 @@ def should_skip(sender):
     return False
 
 
+# 🔹 VERIFICA SE A TABELA DE AUDITORIA EXISTE
+def auditoria_disponivel():
+    try:
+        return "auditoria_logauditoria" in connection.introspection.table_names()
+    except Exception:
+        return False
+
+
 # 🔹 CAPTURA ESTADO ANTES
 @receiver(pre_save)
 def capture_old_data(sender, instance, **kwargs):
@@ -60,6 +70,7 @@ def capture_old_data(sender, instance, **kwargs):
     try:
         old_instance = sender.objects.get(pk=instance.pk)
         instance._old_data = model_to_dict(old_instance)
+
     except sender.DoesNotExist:
         instance._old_data = None
 
@@ -69,6 +80,10 @@ def capture_old_data(sender, instance, **kwargs):
 def log_save(sender, instance, created, **kwargs):
 
     if should_skip(sender):
+        return
+
+    # 🔥 evita erro durante migrate/flush
+    if not auditoria_disponivel():
         return
 
     usuario = get_current_user()
@@ -92,14 +107,18 @@ def log_save(sender, instance, created, **kwargs):
 
     acao = "CREATE" if created else "UPDATE"
 
-    LogAuditoria.objects.create(
-        usuario=usuario if usuario and usuario.is_authenticated else None,
-        acao=acao,
-        modelo=model_name(instance),
-        objeto_id=str(instance.pk),
-        descricao=f"{acao} em {model_name(instance)} (ID: {instance.pk})",
-        alteracoes=alteracoes if alteracoes else None,
-    )
+    try:
+        LogAuditoria.objects.create(
+            usuario=usuario if usuario and usuario.is_authenticated else None,
+            acao=acao,
+            modelo=model_name(instance),
+            objeto_id=str(instance.pk),
+            descricao=f"{acao} em {model_name(instance)} (ID: {instance.pk})",
+            alteracoes=alteracoes if alteracoes else None,
+        )
+
+    except ProgrammingError:
+        pass
 
 
 # 🔹 DELETE
@@ -109,12 +128,20 @@ def log_delete(sender, instance, **kwargs):
     if should_skip(sender):
         return
 
+    # 🔥 evita erro durante migrate/flush
+    if not auditoria_disponivel():
+        return
+
     usuario = get_current_user()
 
-    LogAuditoria.objects.create(
-        usuario=usuario if usuario and usuario.is_authenticated else None,
-        acao="DELETE",
-        modelo=model_name(instance),
-        objeto_id=str(instance.pk),
-        descricao=f"DELETE em {model_name(instance)} (ID: {instance.pk})",
-    )
+    try:
+        LogAuditoria.objects.create(
+            usuario=usuario if usuario and usuario.is_authenticated else None,
+            acao="DELETE",
+            modelo=model_name(instance),
+            objeto_id=str(instance.pk),
+            descricao=f"DELETE em {model_name(instance)} (ID: {instance.pk})",
+        )
+
+    except ProgrammingError:
+        pass

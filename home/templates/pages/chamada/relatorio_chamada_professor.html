@@ -183,11 +183,40 @@
                 <label class="form-label">Registros</label>
 
                 <select id="pageSize" class="form-select">
-                    <option value="10">10</option>
-                    <option value="25" selected>25</option>
-                    <option value="50">50</option>
-                    <option value="100">100</option>
-                </select>
+
+    <option value="10"
+        {% if page_size == 10 %}
+            selected
+        {% endif %}
+    >
+        10
+    </option>
+
+    <option value="25"
+        {% if page_size == 25 %}
+            selected
+        {% endif %}
+    >
+        25
+    </option>
+
+    <option value="50"
+        {% if page_size == 50 %}
+            selected
+        {% endif %}
+    >
+        50
+    </option>
+
+    <option value="100"
+        {% if page_size == 100 %}
+            selected
+        {% endif %}
+    >
+        100
+    </option>
+
+</select>
             </div>
 
             <div class="col-md-1 d-grid">
@@ -226,9 +255,11 @@
 
         <strong>Chamadas Registradas</strong>
 
-        <span id="resultsInfo" class="badge bg-primary">
-            {{ total_chamadas }} registros
-        </span>
+    <span id="resultsInfo" class="badge bg-primary">
+    Página {{ chamadas.number }}
+    de
+    {{ chamadas.paginator.num_pages }}
+</span>
 
     </div>
 
@@ -312,20 +343,24 @@
                     <tr>
 
                         <td>
-                            {{ item.diario.data_ministrada|date:'d/m/Y' }}
-                        </td>
+    {{ item.data|date:'d/m/Y' }}
+</td>
 
-                        <td>
-                            {{ item.diario.turma.nome }}
-                        </td>
+<td>
+    {% if item.turma %}
+        {{ item.turma.nome }}
+    {% else %}
+        -
+    {% endif %}
+</td>
 
-                        <td>
-                            {% if item.diario.professor %}
-                                {{ item.diario.professor.nome }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
+<td>
+    {% if item.professor %}
+        {{ item.professor.nome }}
+    {% else %}
+        -
+    {% endif %}
+</td>
 
                         <td>
                             {% if item.criado_por %}
@@ -340,7 +375,7 @@
                         </td>
 
                         <td>
-                            {% if item.diario.professor and item.criado_por and item.diario.professor.user_id == item.criado_por.id %}
+                            {% if item.professor and item.criado_por and item.professor.user_id == item.criado_por.id %}
                                 <span class="badge bg-success">Professor</span>
                             {% else %}
                                 <span class="badge bg-warning text-dark">Terceiro</span>
@@ -369,6 +404,100 @@
 
 </div>
 
+<div class="card-footer bg-white">
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+
+        <div class="text-muted small">
+            Mostrando
+            <strong>{{ chamadas.start_index }}</strong>
+            até
+            <strong>{{ chamadas.end_index }}</strong>
+            de
+            <strong>{{ chamadas.paginator.count }}</strong>
+            registros
+        </div>
+
+        <nav>
+
+            <ul class="pagination mb-0">
+
+                {% if chamadas.has_previous %}
+
+                    <li class="page-item">
+                        <a
+                            class="page-link"
+                            href="?page=1{% if query_string %}&{{ query_string }}{% endif %}">
+                            « Primeira
+                        </a>
+                    </li>
+
+                    <li class="page-item">
+                        <a
+                            class="page-link"
+                            href="?page={{ chamadas.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">
+                            ‹ Anterior
+                        </a>
+                    </li>
+
+                {% endif %}
+
+                {% for num in chamadas.paginator.page_range %}
+
+                    {% if num >= chamadas.number|add:'-2' and num <= chamadas.number|add:'2' %}
+
+                        {% if chamadas.number == num %}
+
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    {{ num }}
+                                </span>
+                            </li>
+
+                        {% else %}
+
+                            <li class="page-item">
+                                <a
+                                    class="page-link"
+                                    href="?page={{ num }}{% if query_string %}&{{ query_string }}{% endif %}">
+                                    {{ num }}
+                                </a>
+                            </li>
+
+                        {% endif %}
+
+                    {% endif %}
+
+                {% endfor %}
+
+                {% if chamadas.has_next %}
+
+                    <li class="page-item">
+                        <a
+                            class="page-link"
+                            href="?page={{ chamadas.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">
+                            Próxima ›
+                        </a>
+                    </li>
+
+                    <li class="page-item">
+                        <a
+                            class="page-link"
+                            href="?page={{ chamadas.paginator.num_pages }}{% if query_string %}&{{ query_string }}{% endif %}">
+                            Última »
+                        </a>
+                    </li>
+
+                {% endif %}
+
+            </ul>
+
+        </nav>
+
+    </div>
+
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -383,6 +512,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const professor = document.getElementById('filtroProfessor');
     const turma = document.getElementById('filtroTurma');
     const situacao = document.getElementById('filtroSituacao');
+    const pageSize = document.getElementById('pageSize');
 
     const btnFiltrar = document.getElementById('btnFiltrar');
     const btnLimpar = document.getElementById('btnLimpar');
@@ -413,6 +543,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (situacao.value) {
             params.append('situacao', situacao.value);
+        }
+
+        if (pageSize.value) {
+            params.append('page_size', pageSize.value);
         }
 
         window.location =

@@ -239,18 +239,27 @@ label{
 
                     <tbody>
                         {% for c in chamadas %}
-                        <tr class="{% if c.diario.data_ministrada|date:'Y-m-d' == data_hoje %}table-success{% endif %}">
+                        <tr class="{% if c.data|date:'Y-m-d' == data_hoje %}table-success{% endif %}">
 
-                            <td>{{ c.diario.data_ministrada|date:"d/m/Y" }}</td>
-                            <td>{{ c.diario.turma.nome }}</td>
-                            <td>{{ c.diario.disciplina.nome }}</td>
-                            <td>
-                                {% if c.diario.professor %}
-                                    {{ c.diario.professor.nome }}
-                                {% else %}
-                                    <span class="text-muted">—</span>
-                                {% endif %}
-                            </td>
+    <td>
+        {{ c.data|date:"d/m/Y" }}
+    </td>
+
+    <td>
+        {{ c.turma.nome }}
+    </td>
+
+    <td>
+        {{ c.disciplina.nome }}
+    </td>
+
+    <td>
+        {% if c.professor %}
+            {{ c.professor.nome }}
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </td>
 
                             <td>
                                 {% if c.criado_por %}
