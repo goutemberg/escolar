@@ -249,19 +249,33 @@
 
 </div>
 
-<div class="card shadow-sm">
+<div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
 
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <strong>Chamadas Registradas</strong>
 
-        <strong>Chamadas Registradas</strong>
+    <div class="d-flex align-items-center gap-2">
 
-    <span id="resultsInfo" class="badge bg-primary">
-    Página {{ chamadas.number }}
-    de
-    {{ chamadas.paginator.num_pages }}
-</span>
+        <a
+            id="btnPdf"
+            href="#"
+            class="btn btn-danger btn-sm">
+
+            <i class="bi bi-file-earmark-pdf"></i>
+            Gerar PDF
+
+        </a>
+
+        <span id="resultsInfo" class="badge bg-primary">
+
+            Página {{ chamadas.number }}
+            de
+            {{ chamadas.paginator.num_pages }}
+
+        </span>
 
     </div>
+
+</div>
 
     <div class="card-body">
 
@@ -516,8 +530,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const btnFiltrar = document.getElementById('btnFiltrar');
     const btnLimpar = document.getElementById('btnLimpar');
+    const btnPdf = document.getElementById('btnPdf');
 
-    btnFiltrar.addEventListener('click', function () {
+    function montarParametros() {
 
         const params = new URLSearchParams();
 
@@ -549,10 +564,28 @@ document.addEventListener('DOMContentLoaded', function () {
             params.append('page_size', pageSize.value);
         }
 
+        return params;
+
+    }
+
+    btnFiltrar.addEventListener('click', function () {
+
         window.location =
             window.location.pathname +
             '?' +
-            params.toString();
+            montarParametros().toString();
+
+    });
+
+    btnPdf.addEventListener('click', function (e) {
+
+        e.preventDefault();
+
+        window.open(
+    "{% url 'relatorio_chamada_professor:relatorio_chamada_professor_pdf' %}?" +
+    montarParametros().toString(),
+    "_blank"
+);
 
     });
 
