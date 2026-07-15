@@ -4013,8 +4013,8 @@ def app_mobile(request):
         request,
         "pages/app_mobile.html",
         {
-            "versao": "1.0.1",
-            "build": "21/06/2026",
+            "versao": "1.0.2",
+            "build": "15/07/2026",
             "download_url": "https://github.com/goutemberg/escolar/releases/download/v1.0.2/app-release-v1.0.2.apk",
         },
     )
