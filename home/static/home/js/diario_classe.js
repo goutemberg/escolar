@@ -182,10 +182,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <i class="bi bi-trash text-danger btn-excluir ${isSalvo ? "d-none" : ""}"
                title="Excluir"></i>
 
-            // <!-- 📋 CHAMADA -->
-            // <i class="bi bi-check2-square text-success btn-chamada ${isSalvo ? "d-none" : ""}"
-            //    title="Criar chamada"></i>
-
+       
             <!-- 🔒 STATUS FECHADO -->
             <div class="small mt-1 status-fechado ${isSalvo ? "" : "d-none"}"
                  style="color:#6c757d; display:flex; align-items:center; gap:4px;">
@@ -259,7 +256,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 btnSalvar.classList.remove("d-none");
                 btnExcluir.classList.remove("d-none");
-                //btnChamada.classList.remove("d-none");
+
 
                 statusFechado.classList.add("d-none");
                 btnEditar.classList.add("d-none");
@@ -278,7 +275,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 btnSalvar.classList.add("d-none");
                 btnExcluir.classList.add("d-none");
-                //btnChamada.classList.add("d-none");
+
 
                 btnEditar.classList.remove("d-none");
                 statusFechado.classList.remove("d-none");
@@ -297,7 +294,7 @@ document.addEventListener("DOMContentLoaded", function () {
         };
 
         btnExcluir.onclick = () => excluirRegistro(tr);
-        //btnChamada.onclick = () => criarChamada(tr);
+
 
         return tr;
     }
@@ -519,22 +516,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-
-    /* =========================
-       CRIAR CHAMADA
-    ========================= */
-
-    // function criarChamada(tr) {
-    //     const diarioId = tr.dataset.id;
-
-    //     if (!diarioId) {
-    //         alert("Salve o diário antes de criar a chamada.");
-    //         return;
-    //     }
-
-    //     window.location.href =
-    //         `/chamada/registrar/?diario=${diarioId}`;
-    // }
 
     /* =========================
        EVENTOS
