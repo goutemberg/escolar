@@ -259,7 +259,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 btnSalvar.classList.remove("d-none");
                 btnExcluir.classList.remove("d-none");
-                btnChamada.classList.remove("d-none");
+                //btnChamada.classList.remove("d-none");
 
                 statusFechado.classList.add("d-none");
                 btnEditar.classList.add("d-none");
@@ -278,7 +278,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 btnSalvar.classList.add("d-none");
                 btnExcluir.classList.add("d-none");
-                btnChamada.classList.add("d-none");
+                //btnChamada.classList.add("d-none");
 
                 btnEditar.classList.remove("d-none");
                 statusFechado.classList.remove("d-none");
@@ -297,7 +297,7 @@ document.addEventListener("DOMContentLoaded", function () {
         };
 
         btnExcluir.onclick = () => excluirRegistro(tr);
-        btnChamada.onclick = () => criarChamada(tr);
+        //btnChamada.onclick = () => criarChamada(tr);
 
         return tr;
     }
