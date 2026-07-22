@@ -10,7 +10,7 @@ import string
 
 def gerar_codigo_cliente():
     caracteres = string.ascii_uppercase + string.digits
-    return 'ESC-' + ''.join(random.choices(caracteres, k=6))
+    return "ESC-" + "".join(random.choices(caracteres, k=6))
 
 
 # ================================================
@@ -24,11 +24,7 @@ class Escola(models.Model):
     ]
 
     codigo_cliente = models.CharField(
-        max_length=10,
-        unique=True,
-        blank=True,
-        null=True,
-        editable=False
+        max_length=10, unique=True, blank=True, null=True, editable=False
     )
 
     nome = models.CharField(max_length=255, unique=True)
@@ -36,22 +32,16 @@ class Escola(models.Model):
     cnpj = models.CharField(
         max_length=18,
         unique=True,
-        validators=[
-            RegexValidator(
-                regex=r'^\d{14}$',
-                message='CNPJ inválido'
-            )
-        ]
+        validators=[RegexValidator(regex=r"^\d{14}$", message="CNPJ inválido")],
     )
 
     telefone = models.CharField(
         max_length=16,
         validators=[
             RegexValidator(
-                regex=r'^\(?\d{2}\)?[\s-]?\d{4,5}-?\d{4}$',
-                message='Telefone inválido'
+                regex=r"^\(?\d{2}\)?[\s-]?\d{4,5}-?\d{4}$", message="Telefone inválido"
             )
-        ]
+        ],
     )
 
     email = models.EmailField(max_length=100)
@@ -63,7 +53,7 @@ class Escola(models.Model):
     cidade = models.CharField(max_length=100)
     estado = models.CharField(max_length=2)
     site = models.CharField(max_length=200, blank=True, null=True)
-    cep = models.CharField(max_length=9, default='00000000')
+    cep = models.CharField(max_length=9, default="00000000")
 
     tema = models.CharField(
         max_length=20,
@@ -71,13 +61,12 @@ class Escola(models.Model):
         default="nucleo",
     )
     financeiro_ativo = models.BooleanField(
-        default=False,
-        verbose_name="Módulo financeiro ativo"
+        default=False, verbose_name="Módulo financeiro ativo"
     )
 
     def clean(self):
         if self.cnpj:
-            self.cnpj = self.cnpj.replace('.', '').replace('/', '').replace('-', '')
+            self.cnpj = self.cnpj.replace(".", "").replace("/", "").replace("-", "")
 
         if Escola.objects.filter(cnpj=self.cnpj).exclude(id=self.id).exists():
             raise ValidationError("Este CNPJ já está cadastrado no sistema.")
@@ -101,12 +90,12 @@ class Escola(models.Model):
 # ================================================
 class User(AbstractUser):
     ROLE_CHOICES = [
-        ('professor', 'Professor'),
-        ('diretor', 'Diretor'),
-        ('coordenador', 'Coordenador'),
-        ('secretaria', 'Secretária'),
-        ('responsavel', 'Responsável'),
-        ('financeiro', 'Financeiro'),
+        ("professor", "Professor"),
+        ("diretor", "Diretor"),
+        ("coordenador", "Coordenador"),
+        ("secretaria", "Secretária"),
+        ("responsavel", "Responsável"),
+        ("financeiro", "Financeiro"),
     ]
 
     cpf = models.CharField(
@@ -114,22 +103,17 @@ class User(AbstractUser):
         unique=True,
         null=True,
         blank=True,
-        help_text="CPF do usuário (apenas números)"
+        help_text="CPF do usuário (apenas números)",
     )
 
     role = models.CharField(
         max_length=20,
         choices=ROLE_CHOICES,
-        default='responsavel',
+        default="responsavel",
     )
-    roles = models.ManyToManyField('Role', blank=True)
+    roles = models.ManyToManyField("Role", blank=True)
 
-    escola = models.ForeignKey(
-        Escola,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
+    escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True, blank=True)
 
     senha_temporaria = models.BooleanField(default=False)
 
@@ -162,42 +146,36 @@ class Disciplina(models.Model):
 #  DOCENTE
 # ================================================
 class Docente(models.Model):
-    nome = models.CharField(max_length=100, default='')
-    cpf = models.CharField(max_length=14, unique=True, default='')
-    nascimento = models.DateField(default='1900-01-01')
-    email = models.EmailField(default='')
-    telefone = models.CharField(max_length=20, default='')
-    telefone_secundario = models.CharField(max_length=20, blank=True, default='')
+    nome = models.CharField(max_length=100, default="")
+    cpf = models.CharField(max_length=14, unique=True, default="")
+    nascimento = models.DateField(default="1900-01-01")
+    email = models.EmailField(default="")
+    telefone = models.CharField(max_length=20, default="")
+    telefone_secundario = models.CharField(max_length=20, blank=True, default="")
 
-    cep = models.CharField(max_length=9, default='00000-000')
-    endereco = models.CharField(max_length=100, default='')
-    numero = models.CharField(max_length=10, default='')
-    complemento = models.CharField(max_length=100, blank=True, default='')
-    bairro = models.CharField(max_length=50, default='')
-    cidade = models.CharField(max_length=50, default='')
-    estado = models.CharField(max_length=2, default='PE')
+    cep = models.CharField(max_length=9, default="00000-000")
+    endereco = models.CharField(max_length=100, default="")
+    numero = models.CharField(max_length=10, default="")
+    complemento = models.CharField(max_length=100, blank=True, default="")
+    bairro = models.CharField(max_length=50, default="")
+    cidade = models.CharField(max_length=50, default="")
+    estado = models.CharField(max_length=2, default="PE")
 
-    cargo = models.CharField(max_length=50, default='Professor')
-    grau_instrucao = models.CharField(max_length=30, default='')
+    cargo = models.CharField(max_length=50, default="Professor")
+    grau_instrucao = models.CharField(max_length=30, default="")
 
-    formacao = models.CharField(max_length=100, default='')
-    experiencia = models.TextField(default='')
+    formacao = models.CharField(max_length=100, default="")
+    experiencia = models.TextField(default="")
 
-    sexo = models.CharField(max_length=20, default='Masculino')
+    sexo = models.CharField(max_length=20, default="Masculino")
 
     # 🔑 AGORA SIM
     ativo = models.BooleanField(default=True)
 
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name="docente"
-    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="docente")
 
     escola = models.ForeignKey(
-        Escola,
-        on_delete=models.CASCADE,
-        related_name='docentes'
+        Escola, on_delete=models.CASCADE, related_name="docentes"
     )
 
     def __str__(self):
@@ -222,61 +200,75 @@ class Funcionario(models.Model):
 #  ALUNO
 # ================================================
 class Aluno(models.Model):
-    matricula = models.CharField(max_length=20, unique=True, default=gerar_matricula_unica)
-    nome = models.CharField(max_length=255, default='')
+    matricula = models.CharField(
+        max_length=20, unique=True, default=gerar_matricula_unica
+    )
+    nome = models.CharField(max_length=255, default="")
     data_nascimento = models.DateField(blank=True, null=True)
     cpf = models.CharField(max_length=14, null=True, blank=True, default="")
-    rg = models.CharField(max_length=20, blank=True, null=True, default='')
-    sexo = models.CharField(max_length=10, default='')
-    nacionalidade = models.CharField(max_length=50, default='')
-    naturalidade = models.CharField(max_length=50, default='')
-    certidao_numero = models.CharField(max_length=50, blank=True, null=True, default='')
-    certidao_livro = models.CharField(max_length=50, blank=True, null=True, default='')
-    tipo_sanguineo = models.CharField(max_length=3, default='')
-    rua = models.CharField(max_length=100, default='')
-    numero = models.CharField(max_length=10, default='')
-    cep = models.CharField(max_length=10, default='')
-    bairro = models.CharField(max_length=50, default='')
-    cidade = models.CharField(max_length=50, default='')
-    estado = models.CharField(max_length=2, default='')
-    email = models.EmailField(default='')
-    telefone = models.CharField(max_length=20, default='')
+    rg = models.CharField(max_length=20, blank=True, null=True, default="")
+    sexo = models.CharField(max_length=10, default="")
+    nacionalidade = models.CharField(max_length=50, default="")
+    naturalidade = models.CharField(max_length=50, default="")
+    certidao_numero = models.CharField(max_length=50, blank=True, null=True, default="")
+    certidao_livro = models.CharField(max_length=50, blank=True, null=True, default="")
+    tipo_sanguineo = models.CharField(max_length=3, default="")
+    rua = models.CharField(max_length=100, default="")
+    numero = models.CharField(max_length=10, default="")
+    cep = models.CharField(max_length=10, default="")
+    bairro = models.CharField(max_length=50, default="")
+    cidade = models.CharField(max_length=50, default="")
+    estado = models.CharField(max_length=2, default="")
+    email = models.EmailField(default="")
+    telefone = models.CharField(max_length=20, default="")
     ativo = models.BooleanField(default=True)
     escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True, blank=True)
     data_ingresso = models.DateField(null=True, blank=True)
     dia_vencimento = models.IntegerField(null=True, blank=True)
 
     cor_raca = models.CharField(
-        max_length=20, null=True, blank=True,
+        max_length=20,
+        null=True,
+        blank=True,
         choices=[
-            ('branca','Branca'),
-            ('preta','Preta'),
-            ('parda','Parda'),
-            ('amarela','Amarela'),
-            ('indigena','Indígena'),
-            ('nao_informado','Não informado'),
-        ]
+            ("branca", "Branca"),
+            ("preta", "Preta"),
+            ("parda", "Parda"),
+            ("amarela", "Amarela"),
+            ("indigena", "Indígena"),
+            ("nao_informado", "Não informado"),
+        ],
     )
 
     responsavel_financeiro = models.CharField(
-        max_length=10, null=True, blank=True,
-        choices=[('pai','Pai'), ('mae','Mãe'), ('outro','Outro')]
+        max_length=10,
+        null=True,
+        blank=True,
+        choices=[("pai", "Pai"), ("mae", "Mãe"), ("outro", "Outro")],
     )
 
     situacao_familiar = models.CharField(
-        max_length=12, null=True, blank=True,
-        choices=[('casados','Casados'), ('separados','Separados'), ('outros','Outros')]
+        max_length=12,
+        null=True,
+        blank=True,
+        choices=[
+            ("casados", "Casados"),
+            ("separados", "Separados"),
+            ("outros", "Outros"),
+        ],
     )
 
     dispensa_ensino_religioso = models.BooleanField(default=False)
     forma_acesso = models.CharField(max_length=50, null=True, blank=True)
     situacao_matricula = models.CharField(
-        max_length=20, null=True, blank=True,
+        max_length=20,
+        null=True,
+        blank=True,
         choices=[
             ("matricula", "Matrícula"),
             ("rematricula", "Rematrícula"),
             ("transferencia", "Transferência"),
-        ]
+        ],
     )
 
     bolsa_familia = models.BooleanField(default=False)
@@ -288,7 +280,7 @@ class Aluno(models.Model):
         max_digits=10,
         decimal_places=2,
         default=0,
-        help_text="Desconto automático aplicado nas mensalidades do aluno"
+        help_text="Desconto automático aplicado nas mensalidades do aluno",
     )
 
     turma_principal = models.ForeignKey(
@@ -296,7 +288,7 @@ class Aluno(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="alunos_principais"
+        related_name="alunos_principais",
     )
 
     # =========================================================
@@ -319,11 +311,14 @@ class Aluno(models.Model):
         super().save(*args, **kwargs)
 
         # 🔥 REGRA 2: garantir que turma_principal esteja no M2M
-        if self.turma_principal and not self.turmas.filter(id=self.turma_principal.id).exists():
+        if (
+            self.turma_principal
+            and not self.turmas.filter(id=self.turma_principal.id).exists()
+        ):
             self.turmas.add(self.turma_principal)
 
         # 🔥 REGRA 3: garantir apenas UMA turma ativa
-        turmas_ids = list(self.turmas.values_list('id', flat=True))
+        turmas_ids = list(self.turmas.values_list("id", flat=True))
 
         if len(turmas_ids) > 1:
             self.turmas.clear()
@@ -351,29 +346,34 @@ class Aluno(models.Model):
 #  RESPONSÁVEL (agora vários)
 # ================================================
 class Responsavel(models.Model):
-    aluno = models.ForeignKey(Aluno, on_delete=models.CASCADE, related_name="responsaveis")
-    nome = models.CharField(max_length=255, default='')
-    cpf = models.CharField(max_length=14, default='')
-    parentesco = models.CharField(max_length=50, default='')
-    telefone = models.CharField(max_length=20, default='')
-    telefone_secundario = models.CharField(max_length=20, blank=True, null=True, default='')
-    email = models.EmailField(default='')
+    aluno = models.ForeignKey(
+        Aluno, on_delete=models.CASCADE, related_name="responsaveis"
+    )
+    nome = models.CharField(max_length=255, default="")
+    cpf = models.CharField(max_length=14, default="")
+    parentesco = models.CharField(max_length=50, default="")
+    telefone = models.CharField(max_length=20, default="")
+    telefone_secundario = models.CharField(
+        max_length=20, blank=True, null=True, default=""
+    )
+    email = models.EmailField(default="")
 
     TIPO_CHOICES = [
-        ('pai', 'Pai'),
-        ('mae', 'Mãe'),
-        ('responsavel', 'Responsável'),
+        ("pai", "Pai"),
+        ("mae", "Mãe"),
+        ("responsavel", "Responsável"),
     ]
 
     tipo = models.CharField(
-    max_length=12,
-    choices=[
-        ('pai','Pai'),
-        ('mae','Mãe'),
-        ('responsavel','Responsável'),
-    ],
-    null=True, blank=True
-)
+        max_length=12,
+        choices=[
+            ("pai", "Pai"),
+            ("mae", "Mãe"),
+            ("responsavel", "Responsável"),
+        ],
+        null=True,
+        blank=True,
+    )
     identidade = models.CharField(max_length=30, null=True, blank=True)
     escolaridade = models.CharField(max_length=50, null=True, blank=True)
     profissao = models.CharField(max_length=60, null=True, blank=True)
@@ -385,11 +385,11 @@ class Responsavel(models.Model):
 class Saude(models.Model):
     aluno = models.OneToOneField(Aluno, on_delete=models.CASCADE)
     possui_necessidade_especial = models.BooleanField(default=False)
-    descricao_necessidade = models.TextField(blank=True, null=True, default='')
+    descricao_necessidade = models.TextField(blank=True, null=True, default="")
     usa_medicacao = models.BooleanField(default=False)
-    quais_medicacoes = models.TextField(blank=True, null=True, default='')
+    quais_medicacoes = models.TextField(blank=True, null=True, default="")
     possui_alergia = models.BooleanField(default=False)
-    descricao_alergia = models.TextField(blank=True, null=True, default='')
+    descricao_alergia = models.TextField(blank=True, null=True, default="")
 
 
 # ================================================
@@ -398,7 +398,7 @@ class Saude(models.Model):
 class TransporteEscolar(models.Model):
     aluno = models.OneToOneField(Aluno, on_delete=models.CASCADE)
     usa_transporte_escolar = models.BooleanField(default=False)
-    trajeto = models.CharField(max_length=255, blank=True, null=True, default='')
+    trajeto = models.CharField(max_length=255, blank=True, null=True, default="")
     usa_transporte_publico = models.BooleanField(default=False)
 
 
@@ -409,7 +409,7 @@ class Autorizacoes(models.Model):
     aluno = models.OneToOneField(Aluno, on_delete=models.CASCADE)
     autorizacao_saida_sozinho = models.BooleanField(default=False)
     autorizacao_fotos_eventos = models.BooleanField(default=False)
-    pessoa_autorizada_buscar = models.TextField(blank=True, null=True, default='')
+    pessoa_autorizada_buscar = models.TextField(blank=True, null=True, default="")
     usa_transporte_publico = models.BooleanField(default=False)
 
 
@@ -435,18 +435,17 @@ class Turma(models.Model):
 
     nome = models.CharField(max_length=100)
     turno = models.CharField(max_length=20)
-    ano = models.IntegerField()  
+    ano = models.IntegerField()
 
     sala = models.CharField(max_length=20)
     descricao = models.TextField(blank=True)
 
-    
     ano_letivo = models.ForeignKey(
-        'AnoLetivo',
+        "AnoLetivo",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='turmas'
+        related_name="turmas",
     )
 
     sistema_avaliacao = models.CharField(
@@ -467,18 +466,9 @@ class Turma(models.Model):
         default="ATIVA",
     )
 
-    alunos = models.ManyToManyField(
-        Aluno,
-        blank=True,
-        related_name='turmas'
-    )
+    alunos = models.ManyToManyField(Aluno, blank=True, related_name="turmas")
 
-    escola = models.ForeignKey(
-        Escola,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
+    escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True, blank=True)
 
     def __str__(self):
         if self.ano_letivo:
@@ -493,20 +483,18 @@ class TurmaDisciplina(models.Model):
     turma = models.ForeignKey(Turma, on_delete=models.CASCADE)
     disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE)
     professor = models.ForeignKey(
-        Docente,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
+        Docente, on_delete=models.CASCADE, null=True, blank=True
     )
     escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True)
 
     class Meta:
-        unique_together = ('turma', 'disciplina', 'professor')
+        unique_together = ("turma", "disciplina", "professor")
 
     def save(self, *args, **kwargs):
         if not self.escola and self.professor:
             self.escola = self.professor.escola
         super().save(*args, **kwargs)
+
 
 # ================================================
 #  DIÁRIO DE CLASSE
@@ -514,22 +502,16 @@ class TurmaDisciplina(models.Model):
 class DiarioDeClasse(models.Model):
 
     STATUS_AULA = [
-        ('PLANEJADA', 'Planejada'),
-        ('REALIZADA', 'Realizada'),
-        ('CANCELADA', 'Cancelada'),
-        ('INVALIDA', 'Inválida'),
+        ("PLANEJADA", "Planejada"),
+        ("REALIZADA", "Realizada"),
+        ("CANCELADA", "Cancelada"),
+        ("INVALIDA", "Inválida"),
     ]
 
-    turma = models.ForeignKey(
-        Turma,
-        on_delete=models.CASCADE,
-        related_name="diarios"
-    )
+    turma = models.ForeignKey(Turma, on_delete=models.CASCADE, related_name="diarios")
 
     disciplina = models.ForeignKey(
-        Disciplina,
-        on_delete=models.CASCADE,
-        related_name="diarios"
+        Disciplina, on_delete=models.CASCADE, related_name="diarios"
     )
 
     professor = models.ForeignKey(
@@ -537,7 +519,7 @@ class DiarioDeClasse(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="diarios"
+        related_name="diarios",
     )
 
     criado_por = models.ForeignKey(
@@ -545,7 +527,7 @@ class DiarioDeClasse(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="diarios_criados"
+        related_name="diarios_criados",
     )
 
     data_ministrada = models.DateField()
@@ -555,16 +537,10 @@ class DiarioDeClasse(models.Model):
     resumo_conteudo = models.TextField()
 
     # ✅ NOVO CAMPO (ETAPA 1 – SEGURO)
-    status = models.CharField(
-        max_length=10,
-        choices=STATUS_AULA,
-        default='REALIZADA'
-    )
+    status = models.CharField(max_length=10, choices=STATUS_AULA, default="REALIZADA")
 
     escola = models.ForeignKey(
-        Escola,
-        on_delete=models.CASCADE,
-        related_name="diarios_classe"
+        Escola, on_delete=models.CASCADE, related_name="diarios_classe"
     )
 
     criado_em = models.DateTimeField(auto_now_add=True)
@@ -580,33 +556,143 @@ class DiarioDeClasse(models.Model):
 
 
 # ================================================
-#  CHAMADA (REGISTRO DE PRESENÇA DA AULA)
+#  CHAMADA (CABEÇALHO DA FREQUÊNCIA)
 # ================================================
 class Chamada(models.Model):
 
-    diario = models.OneToOneField(
+    # =====================================================
+    # RELACIONAMENTO OPCIONAL COM O DIÁRIO
+    # =====================================================
+    diario = models.ForeignKey(
         "DiarioDeClasse",
-        on_delete=models.CASCADE,
-        related_name="chamada"
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="chamadas",
     )
 
+    # =====================================================
+    # CONTEXTO DA CHAMADA
+    # =====================================================
+    # OBS:
+    # Todos começam como nullable para permitir a migração
+    # dos dados antigos sem quebrar produção.
+    # Depois podemos tornar obrigatórios.
+    # =====================================================
+
+    turma = models.ForeignKey(
+        "Turma",
+        on_delete=models.CASCADE,
+        related_name="chamadas",
+        null=True,
+        blank=True,
+    )
+
+    disciplina = models.ForeignKey(
+        "Disciplina",
+        on_delete=models.CASCADE,
+        related_name="chamadas",
+        null=True,
+        blank=True,
+    )
+
+    professor = models.ForeignKey(
+        "Docente",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="chamadas",
+    )
+
+    data = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+
+    escola = models.ForeignKey(
+        "Escola",
+        on_delete=models.CASCADE,
+        related_name="chamadas",
+        null=True,
+        blank=True,
+    )
+
+    # =====================================================
+    # AUDITORIA
+    # =====================================================
     criado_por = models.ForeignKey(
         User,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name="chamadas_criadas"
+        related_name="chamadas_criadas",
     )
 
     criado_em = models.DateTimeField(auto_now_add=True)
+
+    atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Chamada"
         verbose_name_plural = "Chamadas"
 
-    def __str__(self):
-        return f"Chamada - {self.diario}"
+        ordering = [
+            "-data",
+            "turma__nome",
+            "disciplina__nome",
+        ]
 
+        constraints = [
+            models.UniqueConstraint(
+                fields=[
+                    "turma",
+                    "disciplina",
+                    "professor",
+                    "data",
+                ],
+                name="unique_chamada_por_turma_disciplina_professor_data",
+            )
+        ]
+
+        indexes = [
+            models.Index(fields=["data"]),
+            models.Index(fields=["turma", "data"]),
+            models.Index(fields=["disciplina", "data"]),
+            models.Index(fields=["escola", "data"]),
+        ]
+
+    def __str__(self):
+
+        turma_nome = self.turma.nome if self.turma else "Sem turma"
+        disciplina_nome = self.disciplina.nome if self.disciplina else "Sem disciplina"
+
+        professor_nome = self.professor.nome if self.professor else "Sem professor"
+
+        data_str = self.data.strftime("%d/%m/%Y") if self.data else "Sem data"
+
+        return (
+            f"{turma_nome} - "
+            f"{disciplina_nome} - "
+            f"{data_str} - "
+            f"{professor_nome}"
+        )
+
+    @property
+    def total_presentes(self):
+        return self.presencas.filter(status="P").count()
+
+    @property
+    def total_faltas(self):
+        return self.presencas.filter(status="F").count()
+
+    @property
+    def total_justificadas(self):
+        return self.presencas.filter(status="J").count()
+
+    @property
+    def total_alunos(self):
+        return self.presencas.count()
 
 
 class Presenca(models.Model):
@@ -616,7 +702,9 @@ class Presenca(models.Model):
         ("J", "Falta Justificada"),
     )
 
-    chamada = models.ForeignKey(Chamada, on_delete=models.CASCADE, related_name="presencas")
+    chamada = models.ForeignKey(
+        Chamada, on_delete=models.CASCADE, related_name="presencas"
+    )
     aluno = models.ForeignKey(Aluno, on_delete=models.CASCADE, related_name="presencas")
 
     # ✅ novo: status real
@@ -644,32 +732,37 @@ class Presenca(models.Model):
 
     def save(self, *args, **kwargs):
         # ✅ garante consistência: presente sempre acompanha o status
-        self.presente = (self.status == "P")
+        self.presente = self.status == "P"
         super().save(*args, **kwargs)
 
     def __str__(self):
         # tenta pegar data do diário (se existir) sem quebrar
         data_str = "-"
         try:
-            if hasattr(self.chamada, "diario") and self.chamada.diario and getattr(self.chamada.diario, "data_ministrada", None):
+            if (
+                hasattr(self.chamada, "diario")
+                and self.chamada.diario
+                and getattr(self.chamada.diario, "data_ministrada", None)
+            ):
                 data_str = self.chamada.diario.data_ministrada.strftime("%d/%m/%Y")
         except Exception:
             pass
 
         return f"{self.aluno.nome} - {data_str} - {self.get_status_display()}"
 
-   
+
 class NomeTurma(models.Model):
     nome = models.CharField(max_length=100)
     escola = models.ForeignKey(Escola, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.nome
-    
+
 
 # ===================================================================
 # Relatório Individual
 # ===================================================================
+
 
 class RelatorioIndividual(models.Model):
     BIMESTRES = (
@@ -693,9 +786,7 @@ class RelatorioIndividual(models.Model):
         verbose_name="Turma",
     )
 
-    ano_letivo = models.PositiveIntegerField(
-        verbose_name="Ano Letivo"
-    )
+    ano_letivo = models.PositiveIntegerField(verbose_name="Ano Letivo")
 
     bimestre = models.PositiveSmallIntegerField(
         choices=BIMESTRES,
@@ -740,14 +831,13 @@ class RelatorioIndividual(models.Model):
         return f"{self.aluno} - {self.get_bimestre_display()} ({self.ano_letivo})"
 
     def __str__(self):
-        return (
-            f"{self.aluno} - {self.get_trimestre_display()} "
-            f"({self.ano_letivo})"
-        )
+        return f"{self.aluno} - {self.get_trimestre_display()} " f"({self.ano_letivo})"
+
 
 # ===================================================================
 # Registro Pedagógico
 # ===================================================================
+
 
 class RegistroPedagogico(models.Model):
     BIMESTRES = (
@@ -771,9 +861,7 @@ class RegistroPedagogico(models.Model):
         verbose_name="Disciplina",
     )
 
-    ano_letivo = models.PositiveIntegerField(
-        verbose_name="Ano Letivo"
-    )
+    ano_letivo = models.PositiveIntegerField(verbose_name="Ano Letivo")
 
     bimestre = models.PositiveSmallIntegerField(
         choices=BIMESTRES,
@@ -817,18 +905,18 @@ class RegistroPedagogico(models.Model):
     def __str__(self):
         return f"{self.turma} - {self.disciplina} - {self.get_bimestre_display()} ({self.ano_letivo})"
 
+
 ###########################################################################
 # notas
 ###########################################################################
+
 
 class TipoAvaliacao(models.Model):
     nome = models.CharField(max_length=100)
     peso = models.DecimalField(max_digits=5, decimal_places=2, default=1)
 
     escola = models.ForeignKey(
-        'Escola',
-        on_delete=models.CASCADE,
-        related_name='tipos_avaliacao'
+        "Escola", on_delete=models.CASCADE, related_name="tipos_avaliacao"
     )
 
     ativo = models.BooleanField(default=True)
@@ -843,44 +931,36 @@ class TipoAvaliacao(models.Model):
 class Avaliacao(models.Model):
 
     BIMESTRES = [
-        (1, '1º Bimestre'),
-        (2, '2º Bimestre'),
-        (3, '3º Bimestre'),
-        (4, '4º Bimestre'),
+        (1, "1º Bimestre"),
+        (2, "2º Bimestre"),
+        (3, "3º Bimestre"),
+        (4, "4º Bimestre"),
     ]
 
     turma = models.ForeignKey(
-        'Turma',
+        "Turma",
         on_delete=models.CASCADE,
-        related_name='avaliacoes',
+        related_name="avaliacoes",
         null=True,
         blank=True,
     )
 
     disciplina = models.ForeignKey(
-        'Disciplina',
-        on_delete=models.CASCADE,
-        related_name='avaliacoes'
+        "Disciplina", on_delete=models.CASCADE, related_name="avaliacoes"
     )
 
     tipo = models.ForeignKey(
-        'TipoAvaliacao',
-        on_delete=models.PROTECT,
-        related_name='avaliacoes'
+        "TipoAvaliacao", on_delete=models.PROTECT, related_name="avaliacoes"
     )
 
     descricao = models.CharField(max_length=200)
 
-    bimestre = models.IntegerField(
-        choices=BIMESTRES
-    )
+    bimestre = models.IntegerField(choices=BIMESTRES)
 
     data = models.DateField()
 
     escola = models.ForeignKey(
-        'Escola',
-        on_delete=models.CASCADE,
-        related_name='avaliacoes'
+        "Escola", on_delete=models.CASCADE, related_name="avaliacoes"
     )
 
     criado_em = models.DateTimeField(auto_now_add=True)
@@ -893,24 +973,18 @@ class Avaliacao(models.Model):
 
         constraints = [
             models.UniqueConstraint(
-                fields=[
-                    'turma',
-                    'disciplina',
-                    'bimestre',
-                    'descricao',
-                    'escola'
-                ],
-                name='unique_avaliacao_por_turma_disciplina_bimestre_escola'
+                fields=["turma", "disciplina", "bimestre", "descricao", "escola"],
+                name="unique_avaliacao_por_turma_disciplina_bimestre_escola",
             )
         ]
 
         indexes = [
-            models.Index(fields=['turma', 'disciplina']),
-            models.Index(fields=['disciplina', 'bimestre']),
-            models.Index(fields=['escola', 'bimestre']),
+            models.Index(fields=["turma", "disciplina"]),
+            models.Index(fields=["disciplina", "bimestre"]),
+            models.Index(fields=["escola", "bimestre"]),
         ]
 
-        ordering = ['bimestre', 'data']
+        ordering = ["bimestre", "data"]
 
 
 class Nota(models.Model):
@@ -921,53 +995,32 @@ class Nota(models.Model):
         ("B", "Bom"),
     ]
 
-    aluno = models.ForeignKey(
-        'Aluno',
-        on_delete=models.CASCADE,
-        related_name='notas'
-    )
+    aluno = models.ForeignKey("Aluno", on_delete=models.CASCADE, related_name="notas")
 
     avaliacao = models.ForeignKey(
-        'Avaliacao',
-        on_delete=models.CASCADE,
-        related_name='notas'
+        "Avaliacao", on_delete=models.CASCADE, related_name="notas"
     )
 
     # ✅ nota normal
-    valor = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        null=True,
-        blank=True
-    )
+    valor = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
 
     # ✅ conceito
     conceito = models.CharField(
-        max_length=1,
-        choices=CONCEITO_CHOICES,
-        null=True,
-        blank=True
+        max_length=1, choices=CONCEITO_CHOICES, null=True, blank=True
     )
 
     # ✅ NOVO: recuperação do bimestre (opcional)
     recuperacao = models.DecimalField(
-        max_digits=5,
-        decimal_places=2,
-        null=True,
-        blank=True
+        max_digits=5, decimal_places=2, null=True, blank=True
     )
 
-    escola = models.ForeignKey(
-        'Escola',
-        on_delete=models.CASCADE,
-        related_name='notas'
-    )
+    escola = models.ForeignKey("Escola", on_delete=models.CASCADE, related_name="notas")
 
     criado_em = models.DateTimeField(auto_now_add=True)
     atualizado_em = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('aluno', 'avaliacao')
+        unique_together = ("aluno", "avaliacao")
 
     def clean(self):
 
@@ -988,16 +1041,16 @@ class Nota(models.Model):
             return f"{self.aluno.nome} - {self.avaliacao.descricao} - {self.get_conceito_display()}"
 
         return f"{self.aluno.nome} - {self.avaliacao.descricao} - {self.valor}"
-    
+
 
 class ModeloAvaliacao(models.Model):
 
-    escola = models.ForeignKey('Escola', on_delete=models.CASCADE)
+    escola = models.ForeignKey("Escola", on_delete=models.CASCADE)
 
-    disciplina = models.ForeignKey('Disciplina', on_delete=models.CASCADE)
+    disciplina = models.ForeignKey("Disciplina", on_delete=models.CASCADE)
 
     tipo = models.ForeignKey(
-        'TipoAvaliacao',
+        "TipoAvaliacao",
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -1007,7 +1060,7 @@ class ModeloAvaliacao(models.Model):
 
     peso = models.DecimalField(max_digits=4, decimal_places=2, default=1)
 
-    quantidade = models.IntegerField(default=1)  
+    quantidade = models.IntegerField(default=1)
 
     ativo = models.BooleanField(default=True)
 
@@ -1016,6 +1069,7 @@ class ModeloAvaliacao(models.Model):
 
 from django.utils import timezone
 from datetime import timedelta
+
 
 class PasswordResetToken(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -1031,6 +1085,7 @@ class PasswordResetToken(models.Model):
 
 # home/models.py
 
+
 class LoginLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     cpf = models.CharField(max_length=20, null=True, blank=True)
@@ -1040,17 +1095,17 @@ class LoginLog(models.Model):
 
     def __str__(self):
         return f"{self.cpf} - {'OK' if self.sucesso else 'FAIL'}"
-    
+
 
 class UserEscola(models.Model):
-    user = models.ForeignKey('User', on_delete=models.CASCADE)
-    escola = models.ForeignKey('Escola', on_delete=models.CASCADE)
-    roles = models.ManyToManyField('Role', blank=True)
+    user = models.ForeignKey("User", on_delete=models.CASCADE)
+    escola = models.ForeignKey("Escola", on_delete=models.CASCADE)
+    roles = models.ManyToManyField("Role", blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user', 'escola')
+        unique_together = ("user", "escola")
 
     def __str__(self):
         return f"{self.user} - {self.escola}"
@@ -1066,10 +1121,9 @@ class AvisoPublico(models.Model):
         return self.titulo
 
 
-
 class AvaliacaoCategoria(models.Model):
     nome = models.CharField(max_length=100)
-    escola = models.ForeignKey('Escola', on_delete=models.CASCADE)
+    escola = models.ForeignKey("Escola", on_delete=models.CASCADE)
     ordem = models.IntegerField(default=0)
 
     def __str__(self):
@@ -1077,12 +1131,10 @@ class AvaliacaoCategoria(models.Model):
 
 
 class AvaliacaoItem(models.Model):
-    escola = models.ForeignKey('Escola', on_delete=models.CASCADE)
+    escola = models.ForeignKey("Escola", on_delete=models.CASCADE)
 
     categoria = models.ForeignKey(
-        AvaliacaoCategoria,
-        on_delete=models.CASCADE,
-        related_name="itens"  # 🔥 AQUI
+        AvaliacaoCategoria, on_delete=models.CASCADE, related_name="itens"  # 🔥 AQUI
     )
 
     descricao = models.CharField(max_length=255)
@@ -1094,8 +1146,8 @@ class AvaliacaoItem(models.Model):
 
 
 class AvaliacaoInfantil(models.Model):
-    aluno = models.ForeignKey('Aluno', on_delete=models.CASCADE)
-    turma = models.ForeignKey('Turma', on_delete=models.CASCADE)
+    aluno = models.ForeignKey("Aluno", on_delete=models.CASCADE)
+    turma = models.ForeignKey("Turma", on_delete=models.CASCADE)
 
     bimestre = models.IntegerField()
     ano = models.IntegerField()
@@ -1103,14 +1155,14 @@ class AvaliacaoInfantil(models.Model):
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('aluno', 'turma', 'bimestre', 'ano')
+        unique_together = ("aluno", "turma", "bimestre", "ano")
 
 
 class AvaliacaoResposta(models.Model):
     OPCOES = [
-        ('O', 'Ótimo'),
-        ('B', 'Bom'),
-        ('E', 'Em evolução'),
+        ("O", "Ótimo"),
+        ("B", "Bom"),
+        ("E", "Em evolução"),
     ]
 
     avaliacao = models.ForeignKey(AvaliacaoInfantil, on_delete=models.CASCADE)
@@ -1118,7 +1170,7 @@ class AvaliacaoResposta(models.Model):
     valor = models.CharField(max_length=1, choices=OPCOES)
 
     class Meta:
-        unique_together = ('avaliacao', 'item')
+        unique_together = ("avaliacao", "item")
 
 
 class ObservacaoInfantil(models.Model):
@@ -1138,7 +1190,6 @@ class ObservacaoInfantil(models.Model):
         return f"{self.aluno.nome} - {self.bimestre}/{self.ano}"
 
 
-
 class AnoLetivo(models.Model):
     ano = models.IntegerField(unique=True)
     ativo = models.BooleanField(default=True)
@@ -1148,7 +1199,7 @@ class AnoLetivo(models.Model):
 
     def __str__(self):
         return str(self.ano)
-    
+
 
 class Boletim(models.Model):
 
