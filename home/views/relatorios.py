@@ -16,16 +16,11 @@ from reportlab.lib.units import cm
 from io import BytesIO
 import matplotlib.pyplot as plt
 from reportlab.lib.utils import ImageReader
-
+from reportlab.lib import colors
 
 
 @login_required
 def presenca_aluno_mensal(request):
-    """
-    Relatório de presença por aluno
-    - Mensal (quando mês é informado)
-    - Anual (quando mês NÃO é informado)
-    """
 
     user = request.user
     escola = user.escola
@@ -33,9 +28,18 @@ def presenca_aluno_mensal(request):
     # =====================================
     # CONTROLE DE ACESSO
     # =====================================
-    professor = Docente.objects.filter(user=user).first()
+    professor = None
 
-    if not professor and user.role not in ("diretor", "coordenador"):
+    if user.role == "professor":
+        professor = Docente.objects.filter(
+            user=user,
+            escola=escola,
+        ).first()
+
+        if not professor:
+            return render(request, "errors/403.html", status=403)
+
+    elif user.role not in ("diretor", "coordenador"):
         return render(request, "errors/403.html", status=403)
 
     hoje = date.today()
@@ -48,7 +52,7 @@ def presenca_aluno_mensal(request):
     turma_id = request.GET.get("turma")
 
     # =====================================
-    # PERÍODO (MENSAL OU ANUAL)
+    # PERÍODO
     # =====================================
     if mes:
         mes = int(mes)
@@ -67,54 +71,75 @@ def presenca_aluno_mensal(request):
     # BASE DE PRESENÇAS
     # =====================================
     presencas = Presenca.objects.filter(
-        chamada__diario__data_ministrada__range=(data_inicio, data_fim),
-        aluno__escola=escola
+        chamada__data__range=(data_inicio, data_fim),
+        aluno__escola=escola,
     )
 
-    if professor:
-        presencas = presencas.filter(
-            chamada__diario__professor=professor
-        )
+    # Apenas professores enxergam suas próprias chamadas
+    if user.role == "professor":
+        presencas = presencas.filter(chamada__professor=professor)
 
     if turma_id and turma_id != "None":
-        presencas = presencas.filter(
-            chamada__diario__turma_id=turma_id
-        )
+        presencas = presencas.filter(chamada__turma_id=turma_id)
 
     # =====================================
-    # AGRUPAMENTO POR ALUNO
+    # AGRUPAMENTO
     # =====================================
-    resumo = (
-        presencas
-        .values(
+    resumo = list(
+        presencas.values(
             "aluno_id",
             "aluno__nome",
             "aluno__turma_principal__nome",
         )
         .annotate(
             total_aulas=Count("id"),
-            total_presentes=Count("id", filter=Q(presente=True)),
-            total_ausentes=Count("id", filter=Q(presente=False)),
+            total_presentes=Count(
+                "id",
+                filter=Q(presente=True),
+            ),
+            total_ausentes=Count(
+                "id",
+                filter=Q(presente=False),
+            ),
         )
-        .annotate(
-            percentual_presenca=F("total_presentes") * 100.0 / F("total_aulas")
-        )
+        .annotate(percentual_presenca=F("total_presentes") * 100.0 / F("total_aulas"))
         .order_by("aluno__nome")
     )
 
-    # Evitar erro caso total_aulas seja 0
+    # =====================================
+    # AJUSTES
+    # =====================================
     for r in resumo:
         if r["total_aulas"] == 0:
             r["percentual_presenca"] = 0
         else:
-            r["percentual_presenca"] = round(r["percentual_presenca"], 1)
+            r["percentual_presenca"] = round(
+                r["percentual_presenca"],
+                1,
+            )
+
+    # =====================================
+    # DASHBOARD
+    # =====================================
+    total_alunos = len(resumo)
+
+    total_aulas = sum(r["total_aulas"] for r in resumo)
+
+    media_presenca = (
+        round(
+            sum(r["percentual_presenca"] for r in resumo) / total_alunos,
+            1,
+        )
+        if total_alunos
+        else 0
+    )
+
+    alunos_risco = sum(1 for r in resumo if r["percentual_presenca"] < 75)
 
     # =====================================
     # DADOS AUXILIARES
     # =====================================
-    turmas = Turma.objects.filter(
-        escola=escola
-    ).order_by("nome")
+    turmas = Turma.objects.filter(escola=escola).order_by("nome")
 
     meses = [
         {"valor": 1, "nome": "Janeiro"},
@@ -131,9 +156,6 @@ def presenca_aluno_mensal(request):
         {"valor": 12, "nome": "Dezembro"},
     ]
 
-    # =====================================
-    # RENDER
-    # =====================================
     return render(
         request,
         "pages/relatorios/presenca_aluno_mensal.html",
@@ -145,7 +167,11 @@ def presenca_aluno_mensal(request):
             "ano_atual": ano,
             "turma_selecionada": turma_id,
             "tipo_relatorio": tipo_relatorio,
-        }
+            "total_alunos": total_alunos,
+            "total_aulas": total_aulas,
+            "media_presenca": media_presenca,
+            "alunos_risco": alunos_risco,
+        },
     )
 
 
@@ -195,22 +221,17 @@ def export_presenca_aluno_mensal_excel(request):
     # ============================
     presencas = Presenca.objects.filter(
         chamada__diario__data_ministrada__range=(data_inicio, data_fim),
-        aluno__escola=user.escola
+        aluno__escola=user.escola,
     )
 
     if professor:
-        presencas = presencas.filter(
-            chamada__diario__professor=professor
-        )
+        presencas = presencas.filter(chamada__diario__professor=professor)
 
     if turma_id:
-        presencas = presencas.filter(
-            chamada__diario__turma_id=turma_id
-        )
+        presencas = presencas.filter(chamada__diario__turma_id=turma_id)
 
     resumo = (
-        presencas
-        .values(
+        presencas.values(
             "aluno__nome",
             "aluno__turma_principal__nome",
         )
@@ -219,11 +240,7 @@ def export_presenca_aluno_mensal_excel(request):
             total_presentes=Count("id", filter=Q(presente=True)),
             total_ausentes=Count("id", filter=Q(presente=False)),
         )
-        .annotate(
-            percentual_presenca=(
-                F("total_presentes") * 100.0 / F("total_aulas")
-            )
-        )
+        .annotate(percentual_presenca=(F("total_presentes") * 100.0 / F("total_aulas")))
         .order_by("aluno__nome")
     )
 
@@ -257,14 +274,16 @@ def export_presenca_aluno_mensal_excel(request):
 
     # DADOS
     for r in resumo:
-        ws.append([
-            r["aluno__nome"],
-            r["aluno__turma_principal__nome"] or "-",
-            r["total_aulas"],
-            r["total_presentes"],
-            r["total_ausentes"],
-            round(r["percentual_presenca"], 1),
-        ])
+        ws.append(
+            [
+                r["aluno__nome"],
+                r["aluno__turma_principal__nome"] or "-",
+                r["total_aulas"],
+                r["total_presentes"],
+                r["total_ausentes"],
+                round(r["percentual_presenca"], 1),
+            ]
+        )
 
     # AUTO WIDTH
     for column_cells in ws.columns:
@@ -286,7 +305,6 @@ def export_presenca_aluno_mensal_excel(request):
 
     wb.save(response)
     return response
-
 
 
 @login_required
@@ -336,22 +354,17 @@ def pdf_presenca_aluno_mensal(request):
     # ============================
     presencas = Presenca.objects.filter(
         chamada__diario__data_ministrada__range=(data_inicio, data_fim),
-        aluno__escola=escola
+        aluno__escola=escola,
     )
 
     if professor:
-        presencas = presencas.filter(
-            chamada__diario__professor=professor
-        )
+        presencas = presencas.filter(chamada__diario__professor=professor)
 
     if turma_id and turma_id != "None":
-        presencas = presencas.filter(
-            chamada__diario__turma_id=turma_id
-        )
+        presencas = presencas.filter(chamada__diario__turma_id=turma_id)
 
     resumo = (
-        presencas
-        .values(
+        presencas.values(
             "aluno__nome",
             "aluno__turma_principal__nome",
         )
@@ -360,9 +373,7 @@ def pdf_presenca_aluno_mensal(request):
             presentes=Count("id", filter=Q(presente=True)),
             faltas=Count("id", filter=Q(presente=False)),
         )
-        .annotate(
-            percentual=F("presentes") * 100.0 / F("total_aulas")
-        )
+        .annotate(percentual=F("presentes") * 100.0 / F("total_aulas"))
         .order_by("aluno__nome")
     )
 
@@ -390,21 +401,19 @@ def pdf_presenca_aluno_mensal(request):
     # ============================
     pdf.setFont("Helvetica", 10)
 
-    endereco_formatado = (
-        f"{escola.endereco}, {escola.numero} - {escola.bairro}"
-    )
+    endereco_formatado = f"{escola.endereco}, {escola.numero} - {escola.bairro}"
 
     pdf.drawString(2 * cm, altura - 3.2 * cm, f"CNPJ: {escola.cnpj}")
     pdf.drawString(2 * cm, altura - 3.8 * cm, f"Endereço: {endereco_formatado}")
     pdf.drawString(
         2 * cm,
         altura - 4.4 * cm,
-        f"{escola.cidade} - {escola.estado} | CEP: {escola.cep}"
+        f"{escola.cidade} - {escola.estado} | CEP: {escola.cep}",
     )
     pdf.drawString(
         2 * cm,
         altura - 5.0 * cm,
-        f"Telefone: {escola.telefone} | Email: {escola.email}"
+        f"Telefone: {escola.telefone} | Email: {escola.email}",
     )
 
     pdf.line(2 * cm, altura - 5.6 * cm, largura - 2 * cm, altura - 5.6 * cm)
@@ -483,9 +492,7 @@ def pdf_presenca_aluno_mensal(request):
     # ============================
     pdf.setFont("Helvetica", 8)
     pdf.drawString(
-        2 * cm,
-        1.5 * cm,
-        f"Documento emitido em {date.today().strftime('%d/%m/%Y')}"
+        2 * cm, 1.5 * cm, f"Documento emitido em {date.today().strftime('%d/%m/%Y')}"
     )
 
     pdf.showPage()
@@ -493,11 +500,12 @@ def pdf_presenca_aluno_mensal(request):
 
     return response
 
+
 @login_required
 def pdf_presenca_aluno_individual(request, aluno_id):
-
     user = request.user
     escola = user.escola
+
     professor = Docente.objects.filter(user=user).first()
 
     if not professor and user.role not in ("diretor", "coordenador"):
@@ -509,201 +517,494 @@ def pdf_presenca_aluno_individual(request, aluno_id):
     ano = int(request.GET.get("ano", hoje.year))
     turma_id = request.GET.get("turma")
 
-    # ============================
+    # ==========================================
     # PERÍODO
-    # ============================
+    # ==========================================
+
     if mes:
         mes = int(mes)
         _, ultimo_dia = monthrange(ano, mes)
+
         data_inicio = date(ano, mes, 1)
         data_fim = date(ano, mes, ultimo_dia)
+
         titulo_periodo = f"{mes:02d}/{ano}"
+
     else:
         data_inicio = date(ano, 1, 1)
         data_fim = date(ano, 12, 31)
+
         titulo_periodo = f"Ano {ano}"
 
     aluno = get_object_or_404(
         Aluno,
         id=aluno_id,
-        escola=escola
+        escola=escola,
     )
+
+    # ==========================================
+    # PRESENÇAS
+    # ==========================================
 
     presencas = Presenca.objects.filter(
         aluno=aluno,
-        chamada__diario__data_ministrada__range=(data_inicio, data_fim),
+        chamada__data__range=(data_inicio, data_fim),
     )
 
-    if professor:
-        presencas = presencas.filter(
-            chamada__diario__professor=professor
-        )
+    if user.role == "professor":
+        presencas = presencas.filter(chamada__professor=professor)
 
     if turma_id and turma_id != "None":
-        presencas = presencas.filter(
-            chamada__diario__turma_id=turma_id
-        )
+        presencas = presencas.filter(chamada__turma_id=turma_id)
 
     total_aulas = presencas.count()
     presentes = presencas.filter(presente=True).count()
-    faltas = presencas.filter(presente=False).count()
-    percentual = (presentes * 100 / total_aulas) if total_aulas else 0
 
-    # ============================
+    faltas = presencas.filter(presente=False).count()
+
+    percentual = presentes * 100 / total_aulas if total_aulas else 0
+
+    # ==========================================
     # STATUS
-    # ============================
+    # ==========================================
+
     if percentual >= 75:
         status = "Frequência Regular"
         status_color = (0.16, 0.62, 0.35)
+
     elif percentual >= 60:
         status = "Atenção"
-        status_color = (1, 0.6, 0)
+        status_color = (1, 0.60, 0)
+
     else:
         status = "Risco de Reprovação"
-        status_color = (0.8, 0.2, 0.2)
+        status_color = (0.80, 0.20, 0.20)
 
-    # ============================
-    # GRÁFICO DONUT PROFISSIONAL
-    # ============================
-    fig, ax = plt.subplots(figsize=(4, 4))
+    # ==========================================
+    # GRÁFICO
+    # ==========================================
 
-    colors = ["#2ecc71", "#e74c3c"]
+    fig, ax = plt.subplots(figsize=(5.3, 5.3))
 
-    wedges, texts, autotexts = ax.pie(
-        [presentes, faltas],
-        labels=None,
-        autopct='%1.1f%%',
-        startangle=90,
-        colors=colors,
-        wedgeprops=dict(width=0.4, edgecolor='white')
-    )
+    if total_aulas == 0:
 
-    ax.set_title("Distribuição de Frequência", fontsize=12, pad=15)
+        ax.pie(
+            [1],
+            colors=["#d9d9d9"],
+            startangle=90,
+            wedgeprops=dict(
+                width=0.4,
+                edgecolor="white",
+            ),
+        )
 
-    ax.text(
-        0, 0,
-        f"{round(percentual,1)}%",
-        ha='center',
-        va='center',
-        fontsize=18,
-        fontweight='bold'
-    )
+        ax.text(
+            0,
+            0,
+            "Sem\nDados",
+            ha="center",
+            va="center",
+            fontsize=15,
+            fontweight="bold",
+        )
+
+    else:
+
+        ax.pie(
+            [presentes, faltas],
+            colors=[
+                "#2ecc71",
+                "#e74c3c",
+            ],
+            startangle=90,
+            autopct=None,
+            wedgeprops=dict(
+                width=0.32,
+                edgecolor="white",
+                linewidth=2,
+            ),
+        )
+
+        ax.text(
+            0,
+            0,
+            f"{round(percentual, 1)}%",
+            ha="center",
+            va="center",
+            fontsize=22,
+            fontweight="bold",
+            color="#111827",
+        )
 
     plt.tight_layout()
 
     img_buffer = BytesIO()
-    plt.savefig(img_buffer, format='png', transparent=True)
+
+    plt.savefig(
+        img_buffer,
+        format="png",
+        transparent=True,
+    )
+
     plt.close(fig)
+
     img_buffer.seek(0)
 
-    # ============================
+    # ==========================================
     # PDF
-    # ============================
+    # ==========================================
+
     response = HttpResponse(content_type="application/pdf")
+
     response["Content-Disposition"] = (
-        f'inline; filename=frequencia_{aluno.nome.replace(" ", "_")}.pdf'
+        f'inline; filename="frequencia_{aluno.nome.replace(" ", "_")}.pdf"'
     )
 
-    pdf = canvas.Canvas(response, pagesize=A4)
+    pdf = canvas.Canvas(
+        response,
+        pagesize=A4,
+    )
+
     largura, altura = A4
 
-    # ============================
-    # BARRA SUPERIOR INSTITUCIONAL
-    # ============================
-    pdf.setFillColorRGB(0.98, 0.73, 0.51)  # #fab982
-    pdf.rect(0, altura - 2.5 * cm, largura, 2.5 * cm, fill=1)
+    # ==========================================
+    # CORES
+    # ==========================================
 
-    pdf.setFillColorRGB(0, 0, 0)
-    pdf.setFont("Helvetica-Bold", 16)
-    pdf.drawString(2 * cm, altura - 1.5 * cm, escola.nome)
+    azul = colors.HexColor("#2563EB")
+    cinza = colors.HexColor("#6B7280")
+    cinza_claro = colors.HexColor("#E5E7EB")
 
-    # ============================
+    # ==========================================
+    # CABEÇALHO
+    # ==========================================
+
+    pdf.setFillColor(azul)
+
+    pdf.rect(
+        0,
+        altura - 2.2 * cm,
+        largura,
+        2.2 * cm,
+        stroke=0,
+        fill=1,
+    )
+
+    pdf.setFillColor(colors.white)
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        22,
+    )
+
+    pdf.drawString(
+        2 * cm,
+        altura - 1.4 * cm,
+        escola.nome.upper(),
+    )
+
+    pdf.setFillColor(colors.black)
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        20,
+    )
+
+    pdf.drawString(
+        2 * cm,
+        altura - 3.3 * cm,
+        "RELATÓRIO INDIVIDUAL DE FREQUÊNCIA",
+    )
+
+    pdf.setStrokeColor(cinza_claro)
+
+    pdf.line(
+        2 * cm,
+        altura - 3.6 * cm,
+        largura - 2 * cm,
+        altura - 3.6 * cm,
+    )
+
+    # ==========================================
     # DADOS DA ESCOLA
-    # ============================
-    pdf.setFont("Helvetica", 10)
+    # ==========================================
 
-    endereco_formatado = (
-        f"{escola.endereco}, {escola.numero} - {escola.bairro}"
+    pdf.setFillColor(cinza)
+
+    pdf.setFont(
+        "Helvetica",
+        9,
     )
 
-    pdf.drawString(2 * cm, altura - 3.2 * cm, f"CNPJ: {escola.cnpj}")
-    pdf.drawString(2 * cm, altura - 3.8 * cm, f"Endereço: {endereco_formatado}")
+    endereco = (
+        f"{escola.endereco}, {escola.numero} - "
+        f"{escola.bairro} - "
+        f"{escola.cidade}/{escola.estado}"
+    )
+
     pdf.drawString(
         2 * cm,
-        altura - 4.4 * cm,
-        f"{escola.cidade} - {escola.estado} | CEP: {escola.cep}"
+        altura - 4.2 * cm,
+        f"CNPJ: {escola.cnpj}",
     )
+
+    pdf.drawString(
+        8.5 * cm,
+        altura - 4.2 * cm,
+        f"Telefone: {escola.telefone}",
+    )
+
     pdf.drawString(
         2 * cm,
-        altura - 5.0 * cm,
-        f"Telefone: {escola.telefone} | Email: {escola.email}"
+        altura - 4.8 * cm,
+        endereco,
     )
 
-    pdf.line(2 * cm, altura - 5.6 * cm, largura - 2 * cm, altura - 5.6 * cm)
+    pdf.drawString(
+        2 * cm,
+        altura - 5.4 * cm,
+        escola.email or "",
+    )
 
-    # ============================
-    # TÍTULO
-    # ============================
-    pdf.setFont("Helvetica-Bold", 14)
-    pdf.drawString(2 * cm, altura - 6.6 * cm, "Boletim de Frequência")
-
-    # ============================
+    # ==========================================
     # DADOS DO ALUNO
-    # ============================
-    pdf.setFont("Helvetica", 11)
-    pdf.drawString(2 * cm, altura - 7.6 * cm, f"Aluno: {aluno.nome}")
-    pdf.drawString(
-        2 * cm,
-        altura - 8.2 * cm,
-        f"Turma: {aluno.turma_principal.nome if aluno.turma_principal else '-'}"
-    )
-    pdf.drawString(2 * cm, altura - 8.8 * cm, f"Período: {titulo_periodo}")
+    # ==========================================
 
-    # ============================
-    # RESUMO
-    # ============================
-    pdf.drawString(2 * cm, altura - 9.8 * cm, f"Total de aulas: {total_aulas}")
-    pdf.drawString(2 * cm, altura - 10.4 * cm, f"Presenças: {presentes}")
-    pdf.drawString(2 * cm, altura - 11.0 * cm, f"Faltas: {faltas}")
-    pdf.drawString(
-        2 * cm,
-        altura - 11.6 * cm,
-        f"Percentual: {round(percentual, 1)}%"
+    y = altura - 6.8 * cm
+
+    pdf.setFillColor(colors.black)
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        16,
     )
 
-    # Status colorido
+    pdf.drawString(
+        2 * cm,
+        y,
+        aluno.nome,
+    )
+
+    pdf.setFont(
+        "Helvetica",
+        10,
+    )
+
+    pdf.setFillColor(cinza)
+
+    pdf.drawString(
+        2 * cm,
+        y - 0.6 * cm,
+        f"Turma: {aluno.turma_principal.nome if aluno.turma_principal else '-'}",
+    )
+
+    pdf.drawString(
+        9 * cm,
+        y - 0.6 * cm,
+        f"Período: {titulo_periodo}",
+    )
+
+    # ==========================================
+    # CARDS
+    # ==========================================
+
+    card_y = altura - 10.5 * cm
+
+    card_w = 3.3 * cm
+    card_h = 2.6 * cm
+    espaco = 0.35 * cm
+
+    cards = [
+        ("Aulas", total_aulas, "#2563EB"),
+        ("Presentes", presentes, "#22C55E"),
+        ("Faltas", faltas, "#EF4444"),
+        ("Frequência", f"{round(percentual, 1)}%", "#F59E0B"),
+    ]
+
+    for i, (titulo, valor, cor) in enumerate(cards):
+        x = 2 * cm + (card_w + espaco) * i
+
+        pdf.setFillColor(colors.white)
+
+        pdf.roundRect(
+            x,
+            card_y,
+            card_w,
+            card_h,
+            8,
+            stroke=1,
+            fill=1,
+        )
+
+        pdf.setStrokeColor(colors.HexColor("#DDDDDD"))
+
+        pdf.roundRect(
+            x,
+            card_y,
+            card_w,
+            card_h,
+            8,
+            stroke=1,
+            fill=0,
+        )
+
+        pdf.setFillColor(colors.HexColor(cor))
+
+        pdf.setFont(
+            "Helvetica-Bold",
+            16,
+        )
+
+        pdf.drawCentredString(
+            x + card_w / 2,
+            card_y + 1.45 * cm,
+            str(valor),
+        )
+
+        pdf.setFillColor(cinza)
+
+        pdf.setFont(
+            "Helvetica",
+            9,
+        )
+
+        pdf.drawCentredString(
+            x + card_w / 2,
+            card_y + 0.55 * cm,
+            titulo,
+        )
+
+        # ==========================================
+    # STATUS
+    # ==========================================
+
+    status_y = card_y - 2.9 * cm
+
+    pdf.setFillColor(colors.HexColor("#F8FAFC"))
+
+    pdf.roundRect(
+        2 * cm,
+        status_y,
+        8.5 * cm,
+        2.2 * cm,
+        8,
+        stroke=0,
+        fill=1,
+    )
+
+    pdf.setFillColor(cinza)
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        10,
+    )
+
+    pdf.drawString(
+        3.4 * cm,
+        status_y + 1.5 * cm,
+        "SITUAÇÃO DO ALUNO",
+    )
+
     pdf.setFillColorRGB(*status_color)
-    pdf.drawString(
-        2 * cm,
-        altura - 12.2 * cm,
-        f"Situação: {status}"
-    )
-    pdf.setFillColorRGB(0, 0, 0)
 
-    # ============================
-    # INSERIR GRÁFICO
-    # ============================
+    pdf.setFont(
+        "Helvetica-Bold",
+        14,
+    )
+
+    pdf.drawString(
+        2.0 * cm,
+        status_y + 0.5 * cm,
+        status.upper(),
+    )
+
+    # ==========================================
+    # GRÁFICO
+    # ==========================================
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        12,
+    )
+
     image = ImageReader(img_buffer)
+
+    pdf.setFillColor(colors.black)
+
     pdf.drawImage(
         image,
-        10 * cm,
-        altura - 14 * cm,
-        width=6 * cm,
-        height=6 * cm,
-        mask='auto'
+        11.2 * cm,
+        altura - 18.8 * cm,
+        width=8.4 * cm,
+        height=8.4 * cm,
+        mask="auto",
     )
 
-    # ============================
-    # RODAPÉ
-    # ============================
-    pdf.setFont("Helvetica", 8)
+    resumo_y = 4.2 * cm
+
+    pdf.setFillColor(colors.black)
+
+    pdf.setFont(
+        "Helvetica-Bold",
+        11,
+    )
+
+    pdf.drawString(2 * cm, resumo_y + 1.2 * cm, "Resumo")
+
+    pdf.setFont(
+        "Helvetica",
+        9,
+    )
+
+    texto = (
+        f"No período analisado o aluno participou de "
+        f"{total_aulas} aulas, registrando presença em "
+        f"{presentes} delas, alcançando frequência de "
+        f"{round(percentual,1)}%."
+    )
+
     pdf.drawString(
         2 * cm,
-        1.5 * cm,
-        f"Documento emitido em {date.today().strftime('%d/%m/%Y')}"
+        resumo_y + 0.5 * cm,
+        texto,
     )
 
+    # ==========================================
+    # RODAPÉ
+    # ==========================================
+
+    pdf.setStrokeColor(cinza_claro)
+
+    pdf.line(
+        2 * cm,
+        2.3 * cm,
+        largura - 2 * cm,
+        2.3 * cm,
+    )
+
+    pdf.setFillColor(cinza)
+
+    pdf.setFont(
+        "Helvetica",
+        8,
+    )
+
+    pdf.drawString(
+        2 * cm,
+        1.7 * cm,
+        f"Documento emitido automaticamente em {date.today().strftime('%d/%m/%Y')}",
+    )
+
+    pdf.drawRightString(
+        largura - 2 * cm,
+        1.7 * cm,
+        escola.nome,
+    )
+
+    # Finaliza a página
     pdf.showPage()
+
+    # Grava o PDF
     pdf.save()
 
     return response

@@ -11,6 +11,36 @@
 <link rel="stylesheet" href="{% static 'css/pages/arquivo.css' %}">
 {% endif %}
 {% endwith %}
+
+<style>
+/* Cabeçalho da tabela */
+.table thead th {
+    color: #212529 !important;
+}
+
+/* Labels dos filtros */
+.card label,
+.card label strong {
+    color: #212529 !important;
+}
+
+/* Texto dos botões */
+.btn {
+    color: inherit;
+}
+
+.btn-outline-secondary {
+    color: #6c757d !important;
+}
+
+.btn-outline-success {
+    color: #198754 !important;
+}
+
+.btn-primary {
+    color: #fff !important;
+}
+</style>
 {% endblock extra_head %}
 
 {% block content %}
@@ -81,9 +111,18 @@ value="{{ ano_atual }}"
 
 <div class="col-md-2">
 
-<button class="btn btn-primary w-100">
-<i class="bi bi-search"></i>
-Filtrar
+<button
+    class="btn btn-primary w-100"
+    style="color:#fff !important;
+           -webkit-text-fill-color:#fff !important;">
+    <i class="bi bi-search"
+       style="color:#fff !important;
+              -webkit-text-fill-color:#fff !important;"></i>
+    <span
+       style="color:#fff !important;
+              -webkit-text-fill-color:#fff !important;">
+        Filtrar
+    </span>
 </button>
 
 </div>

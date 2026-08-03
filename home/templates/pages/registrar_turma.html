@@ -41,7 +41,7 @@ Criar Turma
 </div>
 
 <section class="content-wrapper" style="margin-top:15px;">
-<form id="turmaForm" method="post" action="{% url 'turmas:salvar_turma' %}">
+<form id="turmaForm" method="post">
 {% csrf_token %}
 
 <input type="hidden" name="turma_id" value="{{ turma.id }}">
@@ -82,17 +82,19 @@ Criar Turma
 
 
 <div class="form-group short-field">
-<label for="anoTurma">Ano *</label>
+    <label for="anoTurma">Ano *</label>
 
-<input id="anoTurma"
-name="ano"
-type="number"
-min="1900"
-max="2100"
-required
-class="form-control">
+    <input
+        id="anoTurma"
+        name="ano"
+        type="number"
+        min="1900"
+        max="2100"
+        value="{% now 'Y' %}"
+        required
+        class="form-control">
 
-<div class="mensagem-erro" id="erroAno"></div>
+    <div class="mensagem-erro" id="erroAno"></div>
 </div>
 
 
@@ -126,7 +128,6 @@ class="form-control"></textarea>
 
 </div>
 <div class="form-row">
-
 <div class="form-group short-field">
 <label for="tipoTurma">Tipo de Turma *</label>
 
@@ -137,6 +138,65 @@ class="form-control"></textarea>
 </select>
 
 </div>
+
+  <div class="form-group short-field">
+    <label for="sistemaAvaliacao">
+        Sistema de Avaliação
+    </label>
+
+    <select
+        id="sistemaAvaliacao"
+        name="sistema_avaliacao"
+        class="form-control">
+
+        <option value="NUM">Numérica (Nota)</option>
+        <option value="CON">Conceito (E/O/B)</option>
+
+    </select>
+</div>
+
+<div class="form-group short-field">
+    <label for="chamadaPolivalente">
+        Chamada Polivalente
+    </label>
+
+    <select
+        id="chamadaPolivalente"
+        name="polivalente"
+        class="form-control">
+
+        <option value="false" selected>Não</option>
+        <option value="true">Sim</option>
+
+    </select>
+</div>
+</div>
+<div class="form-row">
+
+    <div class="form-group" style="width:100%">
+        <label for="coordenadoresSelect">
+            Coordenadores
+        </label>
+
+        <select
+            id="coordenadoresSelect"
+            name="coordenadores_ids"
+            class="form-control"
+            multiple>
+
+            {% for coordenador in coordenadores %}
+                <option value="{{ coordenador.id }}">
+                    {{ coordenador.first_name }} {{ coordenador.last_name|default:'' }}
+                </option>
+            {% endfor %}
+
+        </select>
+
+        <small class="text-muted">
+            Segure Ctrl (Windows) ou ⌘ (Mac) para selecionar mais de um coordenador.
+        </small>
+
+    </div>
 
 </div>
 
@@ -431,6 +491,9 @@ document.getElementById("descricaoTurma").value = "{{ turma.descricao|default:''
 
 </script>
 
+<script>
+    window.URL_LISTAR_TURMAS = "{% url 'turmas:listar' %}";
+</script>
 
 <script src="{% static 'home/js/formulario_turma_dinamico.js' %}"></script>
 

@@ -1336,6 +1336,7 @@ def export_resumo_mensal_excel(request):
 def relatorio_anual_chamadas(request):
 
     acesso = get_professor_or_gestor(request.user)
+
     if acesso == "bloqueado":
         return render(request, "errors/403.html", status=403)
 
@@ -1347,7 +1348,10 @@ def relatorio_anual_chamadas(request):
         ano = int(ano)
 
     resumo = (
-        DiarioDeClasse.objects.filter(escola=request.escola, data_ministrada__year=ano)
+        Chamada.objects.filter(
+            escola=request.escola,
+            data__year=ano,
+        )
         .values(
             "turma__nome",
             "disciplina__nome",
@@ -1356,17 +1360,21 @@ def relatorio_anual_chamadas(request):
         .annotate(
             total_aulas=Count("id", distinct=True),
             total_presentes=Count(
-                "chamada__presencas",
-                filter=Q(chamada__presencas__presente=True),
+                "presencas",
+                filter=Q(presencas__presente=True),
                 distinct=True,
             ),
             total_ausentes=Count(
-                "chamada__presencas",
-                filter=Q(chamada__presencas__presente=False),
+                "presencas",
+                filter=Q(presencas__presente=False),
                 distinct=True,
             ),
         )
-        .order_by("turma__nome", "disciplina__nome")
+        .order_by(
+            "turma__nome",
+            "disciplina__nome",
+            "professor__nome",
+        )
     )
 
     return render(
@@ -1383,6 +1391,7 @@ def relatorio_anual_chamadas(request):
 def relatorio_anual_chamadas_pdf(request):
 
     acesso = get_professor_or_gestor(request.user)
+
     if acesso == "bloqueado":
         return render(request, "errors/403.html", status=403)
 
@@ -1395,22 +1404,29 @@ def relatorio_anual_chamadas_pdf(request):
 
     resumo = (
         Presenca.objects.filter(
-            chamada__diario__data_ministrada__year=ano,
-            chamada__diario__turma__escola=request.escola,
+            chamada__data__year=ano,
+            chamada__escola=request.escola,
         )
         .values(
-            "chamada__diario__turma__nome",
-            "chamada__diario__disciplina__nome",
-            "chamada__diario__professor__nome",
+            "chamada__turma__nome",
+            "chamada__disciplina__nome",
+            "chamada__professor__nome",
         )
         .annotate(
             total_aulas=Count("chamada", distinct=True),
-            total_presentes=Count("id", filter=Q(presente=True)),
-            total_ausentes=Count("id", filter=Q(presente=False)),
+            total_presentes=Count(
+                "id",
+                filter=Q(presente=True),
+            ),
+            total_ausentes=Count(
+                "id",
+                filter=Q(presente=False),
+            ),
         )
         .order_by(
-            "chamada__diario__turma__nome",
-            "chamada__diario__disciplina__nome",
+            "chamada__turma__nome",
+            "chamada__disciplina__nome",
+            "chamada__professor__nome",
         )
     )
 
@@ -1432,7 +1448,7 @@ def relatorio_anual_chamadas_pdf(request):
     pdf.drawString(2 * cm, y, f"Escola: {request.escola.nome}")
     y -= 1.2 * cm
 
-    # CABEÇALHO DA TABELA
+    # CABEÇALHO
     pdf.setFont("Helvetica-Bold", 10)
     pdf.drawString(2 * cm, y, "Turma")
     pdf.drawString(6 * cm, y, "Disciplina")
@@ -1448,35 +1464,58 @@ def relatorio_anual_chamadas_pdf(request):
     pdf.setFont("Helvetica", 10)
 
     for r in resumo:
+
         if y < 2 * cm:
             pdf.showPage()
             y = height - 2 * cm
+
+            pdf.setFont("Helvetica-Bold", 10)
+            pdf.drawString(2 * cm, y, "Turma")
+            pdf.drawString(6 * cm, y, "Disciplina")
+            pdf.drawString(10 * cm, y, "Professor")
+            pdf.drawString(14 * cm, y, "Aulas")
+            pdf.drawString(15.5 * cm, y, "P")
+            pdf.drawString(17 * cm, y, "F")
+
+            y -= 0.4 * cm
+            pdf.line(2 * cm, y, 19 * cm, y)
+            y -= 0.5 * cm
+
             pdf.setFont("Helvetica", 10)
 
-        pdf.drawString(2 * cm, y, r["chamada__diario__turma__nome"][:20])
-        pdf.drawString(6 * cm, y, r["chamada__diario__disciplina__nome"][:20])
-        pdf.drawString(10 * cm, y, (r["chamada__diario__professor__nome"] or "—")[:18])
+        pdf.drawString(2 * cm, y, r["chamada__turma__nome"][:20])
+        pdf.drawString(6 * cm, y, r["chamada__disciplina__nome"][:20])
+        pdf.drawString(
+            10 * cm,
+            y,
+            (r["chamada__professor__nome"] or "—")[:18],
+        )
         pdf.drawRightString(15 * cm, y, str(r["total_aulas"]))
         pdf.drawRightString(16.5 * cm, y, str(r["total_presentes"]))
         pdf.drawRightString(18 * cm, y, str(r["total_ausentes"]))
 
         y -= 0.45 * cm
 
-    pdf.showPage()
     pdf.save()
 
     buffer.seek(0)
-    return HttpResponse(buffer, content_type="application/pdf")
+
+    return HttpResponse(
+        buffer,
+        content_type="application/pdf",
+    )
 
 
 @login_required
 def relatorio_anual_chamadas_excel(request):
 
     acesso = get_professor_or_gestor(request.user)
+
     if acesso == "bloqueado":
         return JsonResponse({"erro": "Acesso negado"}, status=403)
 
     ano = request.GET.get("ano")
+
     if not ano:
         return JsonResponse({"erro": "Ano não informado"}, status=400)
 
@@ -1484,22 +1523,29 @@ def relatorio_anual_chamadas_excel(request):
 
     resumo = (
         Presenca.objects.filter(
-            chamada__diario__data_ministrada__year=ano,
-            chamada__diario__turma__escola=request.escola,
+            chamada__data__year=ano,
+            chamada__escola=request.escola,
         )
         .values(
-            "chamada__diario__turma__nome",
-            "chamada__diario__disciplina__nome",
-            "chamada__diario__professor__nome",
+            "chamada__turma__nome",
+            "chamada__disciplina__nome",
+            "chamada__professor__nome",
         )
         .annotate(
             total_aulas=Count("chamada", distinct=True),
-            total_presentes=Count("id", filter=Q(presente=True)),
-            total_ausentes=Count("id", filter=Q(presente=False)),
+            total_presentes=Count(
+                "id",
+                filter=Q(presente=True),
+            ),
+            total_ausentes=Count(
+                "id",
+                filter=Q(presente=False),
+            ),
         )
         .order_by(
-            "chamada__diario__turma__nome",
-            "chamada__diario__disciplina__nome",
+            "chamada__turma__nome",
+            "chamada__disciplina__nome",
+            "chamada__professor__nome",
         )
     )
 
@@ -1507,7 +1553,6 @@ def relatorio_anual_chamadas_excel(request):
     ws = wb.active
     ws.title = f"Chamadas {ano}"
 
-    # CABEÇALHO
     headers = [
         "Turma",
         "Disciplina",
@@ -1518,28 +1563,27 @@ def relatorio_anual_chamadas_excel(request):
     ]
 
     ws.append(headers)
+
     from openpyxl.styles import Font, Alignment
 
-    # ESTILO DO CABEÇALHO
     for col in range(1, len(headers) + 1):
         cell = ws.cell(row=1, column=col)
         cell.font = Font(bold=True)
         cell.alignment = Alignment(horizontal="center")
 
-    # DADOS
     for r in resumo:
         ws.append(
             [
-                r["chamada__diario__turma__nome"],
-                r["chamada__diario__disciplina__nome"],
-                r["chamada__diario__professor__nome"] or "-",
+                r["chamada__turma__nome"],
+                r["chamada__disciplina__nome"],
+                r["chamada__professor__nome"] or "-",
                 r["total_aulas"],
                 r["total_presentes"],
                 r["total_ausentes"],
             ]
         )
 
-    # AUTO AJUSTE DE COLUNAS
+    # Autoajuste das colunas
     for col in ws.columns:
         max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
         ws.column_dimensions[col[0].column_letter].width = max_length + 3
@@ -1547,9 +1591,11 @@ def relatorio_anual_chamadas_excel(request):
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
     response["Content-Disposition"] = (
         f'attachment; filename="relatorio_chamadas_{ano}.xlsx"'
     )
 
     wb.save(response)
+
     return response

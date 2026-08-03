@@ -460,15 +460,36 @@ class Turma(models.Model):
         default="FUN",
     )
 
+    polivalente = models.BooleanField(
+        default=False,
+        verbose_name="Chamada Polivalente",
+    )
+
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
         default="ATIVA",
     )
 
-    alunos = models.ManyToManyField(Aluno, blank=True, related_name="turmas")
+    alunos = models.ManyToManyField(
+        Aluno,
+        blank=True,
+        related_name="turmas",
+    )
 
-    escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True, blank=True)
+    # NOVO CAMPO
+    coordenadores = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name="turmas_coordenadas",
+    )
+
+    escola = models.ForeignKey(
+        Escola,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         if self.ano_letivo:

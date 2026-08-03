@@ -1,7 +1,7 @@
 body.theme-legacy {
 
-    --primary: rgba(255,255,255,.06);
-    --primary-hover: rgba(255,255,255,.06);
+    --primary: #1565C0;
+    --primary-hover: #0D47A1;
     --secondary: #28a745;
     --accent: #ffc107;
     --warning: #f57c00;
@@ -13,11 +13,11 @@ body.theme-legacy {
     --text-light: #6c757d;
 
     --radius: 8px;
-    --shadow-sm: 0 2px 4px rgba(0,0,0,.08);
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, .08);
 
     /* Sidebar */
     --sidebar-bg: #1f2937;
-    --sidebar-active: rgba(255,255,255,.06);
+    --sidebar-active: rgba(255, 255, 255, .06);
 
 }
 
@@ -25,7 +25,7 @@ body.theme-legacy {
 /* comportamento da sidebar */
 
 body.theme-legacy .nav-item.active {
-    background: rgba(255,255,255,.06);
+    background: rgba(255, 255, 255, .06);
 }
 
 body.theme-legacy .nav-item {

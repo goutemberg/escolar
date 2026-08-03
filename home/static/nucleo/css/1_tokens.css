@@ -10,7 +10,7 @@ body.theme-nucleo {
 
     /* FUNDOS */
     --sidebar-bg: #0F2B46;
-    --sidebar-active: rgba(21,101,192,.18);
+    --sidebar-active: rgba(21, 101, 192, .18);
 
     --page-bg: #F4F8FC;
     --card-bg: #FFFFFF;
@@ -21,5 +21,5 @@ body.theme-nucleo {
 
     /* ESTRUTURA */
     --radius: 14px;
-    --shadow-sm: 0 2px 6px rgba(0,0,0,.05);
+    --shadow-sm: 0 2px 6px rgba(0, 0, 0, .05);
 }
