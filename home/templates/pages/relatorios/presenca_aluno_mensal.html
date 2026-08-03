@@ -11,105 +11,444 @@
 <link rel="stylesheet" href="{% static 'css/pages/relatorio_presenca/relatorio_presenca.css' %}">
 {% endif %}
 {% endwith %}
+
+<style>
+
+.filtro-card{
+    border:none;
+    border-radius:14px;
+}
+
+.relatorio-card{
+    border:none;
+    border-radius:14px;
+}
+
+.nome-aluno{
+    font-size:15px;
+    font-weight:700;
+}
+
+.nome-turma{
+    margin-top:3px;
+    display:inline-block;
+    padding:2px 8px;
+    background:#eef4ff;
+    color:#0d6efd;
+    border-radius:20px;
+    font-size:12px;
+}
+
+.table thead th{
+    background:#f8f9fa;
+    font-weight:600;
+    white-space:nowrap;
+}
+
+.table td{
+    vertical-align:middle;
+}
+
+.nome-aluno{
+    font-weight:600;
+    margin-bottom:2px;
+}
+
+.nome-turma{
+    font-size:.82rem;
+    color:#6c757d;
+}
+
+.progress-bar{
+    font-size:13px;
+    font-weight:700;
+}
+
+.progress-bar{
+    font-size:12px;
+    font-weight:600;
+}
+
+tr.baixo-rendimento{
+    background:#fff3f3;
+}
+
+tr.alerta{
+    background:#fffbea;
+}
+
+#buscaAluno{
+    max-width:320px;
+}
+
+.dashboard-card{
+    border: none;
+    border-radius: 16px;
+    transition: all .25s ease;
+    overflow: hidden;
+}
+
+.dashboard-card:hover{
+    transform: translateY(-4px);
+    box-shadow: 0 .75rem 1.5rem rgba(0,0,0,.12) !important;
+}
+
+.dashboard-card .card-body{
+    padding: 1.25rem;
+}
+
+.dashboard-card h3{
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.dashboard-card small{
+    font-size: .85rem;
+    letter-spacing: .3px;
+}
+
+.dashboard-card i{
+    opacity: .85;
+}
+
+.table thead th{
+    background: #0d6efd !important;
+    color: #fff !important;
+    border: none;
+    font-weight: 600;
+    padding: 14px;
+}
+
+</style>
+
 {% endblock extra_head %}
+
 
 {% block content %}
 
-<div class="titulo-pagina">
-Relatório de Presença por Aluno
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
+
+<div>
+
+<div class="titulo-pagina mb-1">
+Relatório de Frequência dos Alunos
 </div>
 
-<div class="box-body">
+<div class="text-muted">
+Consulte rapidamente a frequência individual dos alunos.
+</div>
 
-<!-- BOTÕES -->
-<div class="row mb-3">
-<div class="col-md-12 d-flex justify-content-end gap-2 flex-wrap">
+</div>
+
+<div class="d-flex gap-2 mt-3 mt-md-0">
 
 <a href="{% url 'relatorios:export_presenca_aluno_mensal_excel' %}?{% if mes_atual %}mes={{ mes_atual }}&{% endif %}ano={{ ano_atual }}&turma={{ turma_selecionada }}"
-class="btn btn-success btn-sm">
+class="btn btn-success">
+
 <i class="bi bi-file-earmark-excel"></i>
+
 Excel
+
 </a>
 
 <a href="{% url 'relatorios:pdf_presenca_aluno_mensal' %}?{% if mes_atual %}mes={{ mes_atual }}&{% endif %}ano={{ ano_atual }}&turma={{ turma_selecionada }}"
-class="btn btn-danger btn-sm"
+class="btn btn-danger"
 target="_blank">
-<i class="bi bi-file-earmark-pdf"></i>
+
+
+
 PDF
+
 </a>
 
 </div>
+
 </div>
 
-<!-- FILTROS -->
-<div class="card shadow-sm mb-3">
+<div class="row mb-4">
+
+    <div class="col-lg-3 col-md-6 mb-3">
+
+        <div class="card shadow-sm dashboard-card h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+
+                        <small class="text-muted">Alunos</small>
+
+                        <h3 class="mb-0 fw-bold">
+                            {{ total_alunos }}
+                        </h3>
+
+                    </div>
+
+                    <i class="bi bi-people-fill text-primary fs-2"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+
+        <div class="card shadow-sm dashboard-card h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+
+                        <small class="text-muted">
+                            Média Geral
+                        </small>
+
+                        <h3 class="mb-0 fw-bold">
+                            {{ media_presenca }}%
+                        </h3>
+
+                    </div>
+
+                    <i class="bi bi-graph-up-arrow text-success fs-2"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+
+        <div class="card shadow-sm dashboard-card h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+
+                        <small class="text-muted">
+                            Em Risco
+                        </small>
+
+                        <h3 class="mb-0 fw-bold text-danger">
+                            {{ alunos_risco }}
+                        </h3>
+
+                    </div>
+
+                    <i class="bi bi-exclamation-triangle-fill text-danger fs-2"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+
+        <div class="card shadow-sm dashboard-card h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+
+                        <small class="text-muted">
+                            Total de Aulas
+                        </small>
+
+                        <h3 class="mb-0 fw-bold">
+                            {{ total_aulas }}
+                        </h3>
+
+                    </div>
+
+                    <i class="bi bi-journal-bookmark-fill text-warning fs-2"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div class="card shadow-sm filtro-card mb-4">
+
+
 <div class="card-body">
 
-<form method="get" class="row align-items-end g-2">
+<form method="get" class="row g-3 align-items-end">
 
-<div class="col-md-3">
-<label><strong>Mês</strong></label>
-<select name="mes" class="form-control">
-<option value="">Anual (todos os meses)</option>
+<div class="col-lg-3">
+
+<label class="form-label fw-semibold">
+Mês
+</label>
+
+<select name="mes" class="form-select">
+
+<option value="">
+Anual (todos os meses)
+</option>
+
 {% for m in meses %}
+
 <option value="{{ m.valor }}"
 {% if m.valor == mes_atual %}selected{% endif %}>
+
 {{ m.nome }}
+
 </option>
+
 {% endfor %}
+
 </select>
+
 </div>
 
-<div class="col-md-2">
-<label><strong>Ano</strong></label>
-<input type="number"
+
+<div class="col-lg-2">
+
+<label class="form-label fw-semibold">
+Ano
+</label>
+
+<input
+type="number"
 name="ano"
 class="form-control"
 value="{{ ano_atual }}"
 required>
+
 </div>
 
-<div class="col-md-4">
-<label><strong>Turma</strong></label>
-<select name="turma" class="form-control">
-<option value="">Todas</option>
+
+<div class="col-lg-4">
+
+<label class="form-label fw-semibold">
+Turma
+</label>
+
+<select name="turma" class="form-select">
+
+<option value="">
+Todas
+</option>
+
 {% for turma in turmas %}
+
 <option value="{{ turma.id }}"
 {% if turma_selecionada == turma.id|stringformat:"s" %}selected{% endif %}>
+
 {{ turma.nome }}
+
 </option>
+
 {% endfor %}
+
 </select>
+
 </div>
 
-<div class="col-md-2">
+
+<div class="col-lg-2">
+
 <button class="btn btn-primary w-100">
+
 <i class="bi bi-search"></i>
+
 Filtrar
+
 </button>
+
 </div>
 
 </form>
 
 </div>
+
 </div>
 
-<!-- TABELA -->
-<div class="card shadow-sm">
+
+
+<div class="card shadow-sm relatorio-card">
+
 <div class="card-body">
 
-<table class="table table-bordered table-hover align-middle">
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
 
-<thead class="thead-light">
+<h5 class="mb-2 mb-md-0">
+
+<i class="bi bi-people-fill"></i>
+
+Alunos
+
+</h5>
+
+<div class="input-group" style="max-width:350px;">
+
+    <span class="input-group-text bg-white">
+        <i class="bi bi-search"></i>
+    </span>
+
+    <input
+        type="text"
+        class="form-control"
+        id="buscaAluno"
+        placeholder="Pesquisar aluno...">
+
+</div>
+
+</div>
+
+
+<div class="table-responsive">
+
+<table class="table table-hover align-middle">
+
+<thead>
+
 <tr>
+
 <th>Aluno</th>
-<th>Turma</th>
-<th class="text-center">Aulas</th>
-<th class="text-center">Presentes</th>
-<th class="text-center">Ausentes</th>
-<th class="text-center">Presença (%)</th>
-<th class="text-center">PDF</th>
+
+<th width="100" class="text-center">
+Aulas
+</th>
+
+<th width="110" class="text-center">
+Presentes
+</th>
+
+<th width="100" class="text-center">
+Faltas
+</th>
+
+<th width="300">
+Frequência
+</th>
+
+<th width="80" class="text-center">
+
+</th>
+
 </tr>
+
 </thead>
 
 <tbody>
@@ -117,41 +456,108 @@ Filtrar
 {% if resumo %}
 
 {% for r in resumo %}
-<tr>
 
-<td>{{ r.aluno__nome }}</td>
-<td>{{ r.aluno__turma_principal__nome|default:"—" }}</td>
+<tr
 
-<td class="text-center">{{ r.total_aulas }}</td>
-<td class="text-center">{{ r.total_presentes }}</td>
-<td class="text-center">{{ r.total_ausentes }}</td>
+{% if r.percentual_presenca < 50 %}
+class="baixo-rendimento"
 
-<td class="text-center">
+{% elif r.percentual_presenca < 75 %}
+class="alerta"
 
-{% if r.percentual_presenca >= 75 %}
-<span class="badge bg-success badge-presenca">
-{{ r.percentual_presenca|floatformat:1 }}%
-</span>
-
-{% elif r.percentual_presenca >= 50 %}
-<span class="badge bg-warning text-dark badge-presenca">
-{{ r.percentual_presenca|floatformat:1 }}%
-</span>
-
-{% else %}
-<span class="badge bg-danger badge-presenca">
-{{ r.percentual_presenca|floatformat:1 }}%
-</span>
 {% endif %}
+
+>
+
+<td>
+
+<div class="nome-aluno">
+
+{{ r.aluno__nome }}
+
+</div>
+
+<div class="nome-turma">
+
+{{ r.aluno__turma_principal__nome|default:"Sem turma" }}
+
+</div>
 
 </td>
 
 <td class="text-center">
 
-<a href="{% url 'relatorios:pdf_presenca_aluno_individual' r.aluno_id %}?mes={{ mes_atual|default:'' }}&ano={{ ano_atual }}&turma={{ turma_selecionada|default:'' }}"
+{{ r.total_aulas }}
+
+</td>
+
+<td class="text-center">
+
+<span class="badge bg-success">
+
+{{ r.total_presentes }}
+
+</span>
+
+</td>
+
+<td class="text-center">
+
+<span class="badge bg-danger">
+
+{{ r.total_ausentes }}
+
+</span>
+
+</td>
+
+<td>
+
+<div class="progress">
+
+{% if r.percentual_presenca >= 75 %}
+
+<div
+class="progress-bar bg-success"
+style="width:{{ r.percentual_presenca }}%;">
+
+{{ r.percentual_presenca|floatformat:1 }}%
+
+</div>
+
+{% elif r.percentual_presenca >= 50 %}
+
+<div
+class="progress-bar bg-warning text-dark"
+style="width:{{ r.percentual_presenca }}%;">
+
+{{ r.percentual_presenca|floatformat:1 }}%
+
+</div>
+
+{% else %}
+
+<div
+class="progress-bar bg-danger"
+style="width:{{ r.percentual_presenca }}%;">
+
+{{ r.percentual_presenca|floatformat:1 }}%
+
+</div>
+
+{% endif %}
+
+</div>
+
+</td>
+
+<td class="text-center">
+
+<a
+href="{% url 'relatorios:pdf_presenca_aluno_individual' r.aluno_id %}?mes={{ mes_atual|default:'' }}&ano={{ ano_atual }}&turma={{ turma_selecionada|default:'' }}"
 class="btn btn-outline-danger btn-sm"
 target="_blank"
-title="PDF do aluno">
+title="Gerar PDF">
 
 <i class="bi bi-file-earmark-pdf"></i>
 
@@ -160,43 +566,58 @@ title="PDF do aluno">
 </td>
 
 </tr>
+
 {% endfor %}
 
 {% else %}
 
 <tr>
-<td colspan="7" class="text-center text-muted py-4">
-Nenhum dado encontrado para o período selecionado.
+
+<td colspan="6"
+class="text-center text-muted py-5">
+
+<i class="bi bi-search fs-1 d-block mb-3"></i>
+
+Nenhum registro encontrado para os filtros selecionados.
+
 </td>
+
 </tr>
 
 {% endif %}
 
 </tbody>
+
 </table>
 
 </div>
+
 </div>
 
 </div>
 
 {% endblock content %}
 
-{% block extra_js %}
-<script>
-function ensureFuse(cb){
-if (window.Fuse) return cb();
-var s = document.createElement("script");
-s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
-s.onload = cb;
-s.onerror = function(){
-console.error("Falha ao carregar Fuse.js");
-alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
-};
-document.head.appendChild(s);
-}
 
-// js aqui
+
+{% block extra_js %}
+
+<script>
+
+const busca = document.getElementById("buscaAluno");
+
+busca.addEventListener("keyup",function(){
+
+const termo=this.value.toLowerCase();
+
+document.querySelectorAll("tbody tr").forEach(function(linha){
+
+linha.style.display=linha.innerText.toLowerCase().includes(termo)?"":"none";
+
+});
+
+});
 
 </script>
+
 {% endblock extra_js %}
