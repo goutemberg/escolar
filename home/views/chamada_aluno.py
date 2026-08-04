@@ -3,7 +3,23 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction, IntegrityError
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 
+
+import csv
+
+from openpyxl import Workbook
+from openpyxl.styles import (
+    Alignment,
+    Border,
+    Font,
+    PatternFill,
+    Side,
+)
+
+from django.db.models import Count, Q
+from django.http import HttpResponse
+from django.utils import timezone
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -1140,41 +1156,120 @@ def relatorio_chamadas_pdf(request):
     return response
 
 
+@login_required
 def resumo_mensal_turma_professor(request):
     hoje = timezone.now().date()
 
     mes = int(request.GET.get("mes", hoje.month))
     ano = int(request.GET.get("ano", hoje.year))
 
-    # ===============================
-    # BASE QUERYSET
-    # ===============================
-    resumo = (
-        Chamada.objects.select_related(
-            "diario",
-            "diario__turma",
-            "diario__professor",
+    # =====================================
+    # BASE
+    # =====================================
+
+    resumo = list(
+        Chamada.objects.filter(
+            data__year=ano,
+            data__month=mes,
         )
-        .filter(
-            diario__data_ministrada__year=ano,
-            diario__data_ministrada__month=mes,
+        .select_related(
+            "turma",
+            "professor",
         )
         .values(
-            "diario__turma__id",
-            "diario__turma__nome",
-            "diario__professor__id",
-            "diario__professor__nome",
+            "turma__id",
+            "turma__nome",
+            "professor__id",
+            "professor__nome",
         )
         .annotate(
-            total_aulas=Count("id", distinct=True),
-            total_presentes=Count("presencas", filter=Q(presencas__presente=True)),
-            total_ausentes=Count("presencas", filter=Q(presencas__presente=False)),
+            total_aulas=Count(
+                "id",
+                distinct=True,
+            ),
+            total_presentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=True),
+            ),
+            total_ausentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=False),
+            ),
         )
         .order_by(
-            "diario__turma__nome",
-            "diario__professor__nome",
+            "turma__nome",
+            "professor__nome",
         )
     )
+
+    # =====================================
+    # PAGINAÇÃO
+    # =====================================
+
+    paginator = Paginator(resumo, 25)
+
+    page_number = request.GET.get("page")
+
+    resumo = paginator.get_page(page_number)
+
+    pagina_atual = resumo.number
+
+    inicio = max(pagina_atual - 2, 1)
+
+    fim = min(
+        pagina_atual + 2,
+        paginator.num_pages,
+    )
+
+    page_range = range(inicio, fim + 1)
+
+    # =====================================
+    # AJUSTES
+    # =====================================
+
+    for item in resumo:
+
+        total = item["total_presentes"] + item["total_ausentes"]
+
+        if total:
+
+            item["percentual"] = round(
+                item["total_presentes"] * 100 / total,
+                1,
+            )
+
+        else:
+
+            item["percentual"] = 0
+
+    # =====================================
+    # DASHBOARD
+    # =====================================
+
+    total_turmas = len({item["turma__id"] for item in resumo})
+
+    total_professores = len(
+        {item["professor__id"] for item in resumo if item["professor__id"]}
+    )
+
+    total_aulas = sum(item["total_aulas"] for item in resumo)
+
+    total_presentes = sum(item["total_presentes"] for item in resumo)
+
+    total_ausentes = sum(item["total_ausentes"] for item in resumo)
+
+    media_presenca = (
+        round(
+            total_presentes * 100 / (total_presentes + total_ausentes),
+            1,
+        )
+        if (total_presentes + total_ausentes)
+        else 0
+    )
+
+    # =====================================
+    # MESES
+    # =====================================
 
     meses = [
         {"valor": 1, "nome": "Janeiro"},
@@ -1191,16 +1286,32 @@ def resumo_mensal_turma_professor(request):
         {"valor": 12, "nome": "Dezembro"},
     ]
 
+    # =====================================
+    # CONTEXT
+    # =====================================
+
     context = {
         "resumo": resumo,
         "meses": meses,
         "mes_atual": mes,
         "ano_atual": ano,
+        "total_turmas": total_turmas,
+        "total_professores": total_professores,
+        "total_aulas": total_aulas,
+        "total_presentes": total_presentes,
+        "total_ausentes": total_ausentes,
+        "media_presenca": media_presenca,
+        "page_range": page_range,
     }
 
-    return render(request, "pages/chamada/resumo_mensal_turma_professor.html", context)
+    return render(
+        request,
+        "pages/chamada/resumo_mensal_turma_professor.html",
+        context,
+    )
 
 
+@login_required
 def export_resumo_mensal_csv(request):
     hoje = timezone.now().date()
 
@@ -1208,34 +1319,46 @@ def export_resumo_mensal_csv(request):
     ano = int(request.GET.get("ano", hoje.year))
 
     resumo = (
-        Chamada.objects.select_related(
-            "diario",
-            "diario__turma",
-            "diario__professor",
+        Chamada.objects.filter(
+            data__year=ano,
+            data__month=mes,
         )
-        .filter(
-            diario__data_ministrada__year=ano,
-            diario__data_ministrada__month=mes,
+        .select_related(
+            "turma",
+            "professor",
         )
         .values(
-            "diario__turma__nome",
-            "diario__professor__nome",
+            "turma__nome",
+            "professor__nome",
         )
         .annotate(
-            total_aulas=Count("id", distinct=True),
-            total_presentes=Count("presencas", filter=Q(presencas__presente=True)),
-            total_ausentes=Count("presencas", filter=Q(presencas__presente=False)),
+            total_aulas=Count(
+                "id",
+                distinct=True,
+            ),
+            total_presentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=True),
+            ),
+            total_ausentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=False),
+            ),
         )
         .order_by(
-            "diario__turma__nome",
-            "diario__professor__nome",
+            "turma__nome",
+            "professor__nome",
         )
     )
 
-    response = HttpResponse(content_type="text/csv")
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+
     response["Content-Disposition"] = (
-        f'attachment; filename="resumo_mensal_{mes:02d}_{ano}.csv"'
+        f'attachment; filename="painel_gerencial_{mes:02d}_{ano}.csv"'
     )
+
+    # UTF-8 BOM para abrir corretamente no Excel
+    response.write("\ufeff")
 
     writer = csv.writer(response)
 
@@ -1243,88 +1366,271 @@ def export_resumo_mensal_csv(request):
         [
             "Turma",
             "Professor",
-            "Total de Aulas",
-            "Total de Presentes",
-            "Total de Ausentes",
+            "Aulas",
+            "Presenças",
+            "Faltas",
+            "Frequência (%)",
         ]
     )
 
     for item in resumo:
+
+        total = item["total_presentes"] + item["total_ausentes"]
+
+        percentual = (
+            round(
+                item["total_presentes"] * 100 / total,
+                1,
+            )
+            if total
+            else 0
+        )
+
         writer.writerow(
             [
-                item["diario__turma__nome"],
-                item["diario__professor__nome"] or "-",
+                item["turma__nome"],
+                item["professor__nome"] or "-",
                 item["total_aulas"],
                 item["total_presentes"],
                 item["total_ausentes"],
+                percentual,
             ]
         )
 
     return response
 
 
+@login_required
 def export_resumo_mensal_excel(request):
     hoje = timezone.now().date()
 
     mes = int(request.GET.get("mes", hoje.month))
     ano = int(request.GET.get("ano", hoje.year))
 
-    resumo = (
-        Chamada.objects.select_related(
-            "diario",
-            "diario__turma",
-            "diario__professor",
+    resumo = list(
+        Chamada.objects.filter(
+            data__year=ano,
+            data__month=mes,
         )
-        .filter(
-            diario__data_ministrada__year=ano,
-            diario__data_ministrada__month=mes,
+        .select_related(
+            "turma",
+            "professor",
         )
         .values(
-            "diario__turma__nome",
-            "diario__professor__nome",
+            "turma__nome",
+            "professor__nome",
         )
         .annotate(
-            total_aulas=Count("id", distinct=True),
-            total_presentes=Count("presencas", filter=Q(presencas__presente=True)),
-            total_ausentes=Count("presencas", filter=Q(presencas__presente=False)),
+            total_aulas=Count(
+                "id",
+                distinct=True,
+            ),
+            total_presentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=True),
+            ),
+            total_ausentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=False),
+            ),
         )
         .order_by(
-            "diario__turma__nome",
-            "diario__professor__nome",
+            "turma__nome",
+            "professor__nome",
         )
+    )
+
+    total_turmas = len({item["turma__nome"] for item in resumo})
+
+    total_professores = len(
+        {item["professor__nome"] for item in resumo if item["professor__nome"]}
+    )
+
+    total_aulas = sum(item["total_aulas"] for item in resumo)
+
+    total_presentes = sum(item["total_presentes"] for item in resumo)
+
+    total_ausentes = sum(item["total_ausentes"] for item in resumo)
+
+    media_presenca = (
+        round(
+            total_presentes * 100 / (total_presentes + total_ausentes),
+            1,
+        )
+        if (total_presentes + total_ausentes)
+        else 0
     )
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Resumo Mensal"
+    ws.title = "Painel Gerencial"
 
-    ws.append(
-        [
-            "Turma",
-            "Professor",
-            "Total de Aulas",
-            "Total de Presentes",
-            "Total de Ausentes",
-        ]
+    azul = PatternFill("solid", fgColor="2563EB")
+    cinza = PatternFill("solid", fgColor="F3F4F6")
+    verde = PatternFill("solid", fgColor="22C55E")
+    amarelo = PatternFill("solid", fgColor="F59E0B")
+    vermelho = PatternFill("solid", fgColor="EF4444")
+
+    titulo = Font(
+        bold=True,
+        color="FFFFFF",
+        size=18,
     )
 
-    for item in resumo:
-        ws.append(
-            [
-                item["diario__turma__nome"],
-                item["diario__professor__nome"] or "-",
-                item["total_aulas"],
-                item["total_presentes"],
-                item["total_ausentes"],
-            ]
+    cabecalho = Font(
+        bold=True,
+        color="FFFFFF",
+    )
+
+    bold = Font(bold=True)
+
+    center = Alignment(
+        horizontal="center",
+        vertical="center",
+    )
+
+    thin = Side(
+        border_style="thin",
+        color="DDDDDD",
+    )
+
+    border = Border(
+        left=thin,
+        right=thin,
+        top=thin,
+        bottom=thin,
+    )
+
+    # ==========================
+    # CABEÇALHO
+    # ==========================
+
+    ws.merge_cells("A1:G1")
+
+    ws["A1"] = "PAINEL GERENCIAL DE CHAMADAS"
+    ws["A1"].fill = azul
+    ws["A1"].font = titulo
+    ws["A1"].alignment = center
+
+    ws["A3"] = "Período"
+    ws["B3"] = f"{mes:02d}/{ano}"
+
+    ws["A4"] = "Turmas"
+    ws["B4"] = total_turmas
+
+    ws["A5"] = "Professores"
+    ws["B5"] = total_professores
+
+    ws["A6"] = "Aulas"
+    ws["B6"] = total_aulas
+
+    ws["A7"] = "Presenças"
+    ws["B7"] = total_presentes
+
+    ws["A8"] = "Faltas"
+    ws["B8"] = total_ausentes
+
+    ws["A9"] = "Frequência Média"
+    ws["B9"] = f"{media_presenca}%"
+
+    for linha in range(3, 10):
+        ws[f"A{linha}"].font = bold
+
+    # ==========================
+    # TABELA
+    # ==========================
+
+    headers = [
+        "Turma",
+        "Professor",
+        "Aulas",
+        "Presenças",
+        "Faltas",
+        "Frequência (%)",
+    ]
+
+    linha_inicio = 11
+
+    for col, texto in enumerate(headers, start=1):
+
+        cell = ws.cell(
+            row=linha_inicio,
+            column=col,
+            value=texto,
         )
+
+        cell.fill = azul
+        cell.font = cabecalho
+        cell.alignment = center
+        cell.border = border
+
+    linha = linha_inicio + 1
+
+    for item in resumo:
+
+        total = item["total_presentes"] + item["total_ausentes"]
+
+        percentual = (
+            round(
+                item["total_presentes"] * 100 / total,
+                1,
+            )
+            if total
+            else 0
+        )
+
+        dados = [
+            item["turma__nome"],
+            item["professor__nome"] or "-",
+            item["total_aulas"],
+            item["total_presentes"],
+            item["total_ausentes"],
+            percentual,
+        ]
+
+        for col, valor in enumerate(dados, start=1):
+
+            cell = ws.cell(
+                row=linha,
+                column=col,
+                value=valor,
+            )
+
+            cell.border = border
+
+            if col >= 3:
+                cell.alignment = center
+
+        if percentual >= 75:
+            ws.cell(row=linha, column=6).fill = verde
+        elif percentual >= 50:
+            ws.cell(row=linha, column=6).fill = amarelo
+        else:
+            ws.cell(row=linha, column=6).fill = vermelho
+
+        if linha % 2 == 0:
+            for col in range(1, 7):
+                if col != 6:
+                    ws.cell(row=linha, column=col).fill = cinza
+
+        linha += 1
+
+    ws.freeze_panes = "A12"
+    ws.auto_filter.ref = f"A11:F{linha-1}"
+
+    ws.column_dimensions["A"].width = 28
+    ws.column_dimensions["B"].width = 30
+    ws.column_dimensions["C"].width = 12
+    ws.column_dimensions["D"].width = 14
+    ws.column_dimensions["E"].width = 12
+    ws.column_dimensions["F"].width = 18
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
     response["Content-Disposition"] = (
-        f'attachment; filename="resumo_mensal_{mes:02d}_{ano}.xlsx"'
+        f'attachment; filename="painel_gerencial_{mes:02d}_{ano}.xlsx"'
     )
 
     wb.save(response)

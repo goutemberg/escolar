@@ -2,153 +2,382 @@
 {% load static %}
 
 {% block extra_head %}
+
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
 {% with tema=user.escola.tema|default:"legacy" %}
-{% if tema == "nucleo" %}
-<link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
-{% else %}
-<link rel="stylesheet" href="{% static 'css/pages/arquivo.css' %}">
-{% endif %}
+    {% if tema == "nucleo" %}
+        <link rel="stylesheet" href="{% static 'css/pages/nucleo.css' %}">
+    {% else %}
+        <link rel="stylesheet" href="{% static 'css/pages/arquivo.css' %}">
+    {% endif %}
 {% endwith %}
 
 <style>
-/* Cabeçalho da tabela */
-.table thead th {
-    color: #212529 !important;
+
+.filtro-card{
+    border:none;
+    border-radius:14px;
 }
 
-/* Labels dos filtros */
-.card label,
-.card label strong {
-    color: #212529 !important;
+.dashboard-card{
+    border:none;
+    border-radius:16px;
+    transition:all .25s ease;
 }
 
-/* Texto dos botões */
-.btn {
-    color: inherit;
+.dashboard-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 .75rem 1.5rem rgba(0,0,0,.12)!important;
 }
 
-.btn-outline-secondary {
-    color: #6c757d !important;
+.dashboard-card .card-body{
+    padding:1.25rem;
 }
 
-.btn-outline-success {
-    color: #198754 !important;
+.dashboard-card h3{
+    font-size:1.8rem;
+    font-weight:700;
 }
 
-.btn-primary {
-    color: #fff !important;
+.dashboard-card small{
+    font-size:.85rem;
 }
+
+.table thead th{
+    background:#0d6efd!important;
+    color:#fff!important;
+    border:none;
+    font-weight:600;
+    padding:14px;
+}
+
+.btn-primary{
+    color:#fff!important;
+}
+
 </style>
+
 {% endblock extra_head %}
+
 
 {% block content %}
 
-<div class="titulo-pagina">
-Resumo Mensal por Turma / Professor
-</div>
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
 
-<div class="box-body">
+    <div>
 
-<!-- BOTÕES EXPORTAÇÃO -->
-<div class="row mb-3">
-<div class="col-md-12 d-flex justify-content-end gap-2 flex-wrap">
+        <div class="titulo-pagina mb-1">
 
-<a href="{% url 'chamada:export_resumo_mensal_csv' %}?mes={{ mes_atual }}&ano={{ ano_atual }}"
-class="btn btn-outline-secondary btn-sm">
-<i class="bi bi-filetype-csv"></i>
-Exportar CSV
-</a>
+            Painel Gerencial de Chamadas
 
-<a href="{% url 'chamada:export_resumo_mensal_excel' %}?mes={{ mes_atual }}&ano={{ ano_atual }}"
-class="btn btn-outline-success btn-sm">
-<i class="bi bi-file-earmark-excel"></i>
-Exportar Excel
-</a>
+        </div>
 
-</div>
-</div>
+        <div class="text-muted">
 
+            Acompanhe as aulas ministradas por turma e professor.
 
-<!-- FILTROS -->
-<div class="card shadow-sm mb-3">
-<div class="card-body">
+        </div>
 
-<form method="get" class="row align-items-end g-2">
+    </div>
 
-<div class="col-md-3">
+    <div class="d-flex gap-2 mt-3 mt-md-0">
 
-<label><strong>Mês</strong></label>
+        <a href="{% url 'chamada:export_resumo_mensal_excel' %}?mes={{ mes_atual }}&ano={{ ano_atual }}"
+           class="btn btn-success">
 
-<select name="mes" class="form-control">
+            <i class="bi bi-file-earmark-excel"></i>
 
-{% for m in meses %}
-<option value="{{ m.valor }}"
-{% if m.valor == mes_atual %}selected{% endif %}>
-{{ m.nome }}
-</option>
-{% endfor %}
+            Excel
 
-</select>
+        </a>
+
+        <a href="{% url 'chamada:export_resumo_mensal_csv' %}?mes={{ mes_atual }}&ano={{ ano_atual }}"
+           class="btn btn-secondary">
+
+            <i class="bi bi-filetype-csv"></i>
+
+            CSV
+
+        </a>
+
+    </div>
 
 </div>
 
 
-<div class="col-md-2">
+<div class="row mb-4">
 
-<label><strong>Ano</strong></label>
+    <div class="col-lg-3 col-md-6 mb-3">
 
-<input
-type="number"
-name="ano"
-class="form-control"
-value="{{ ano_atual }}"
->
+        <div class="card shadow-sm dashboard-card h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+
+                        <small class="text-muted">
+
+                            Turmas
+
+                        </small>
+
+                        <h3 class="mb-0">
+
+                            {{ total_turmas }}
+
+                        </h3>
+
+                    </div>
+
+                    <i class="bi bi-house-door-fill text-primary fs-2"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+
+        <div class="card shadow-sm dashboard-card h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+
+                        <small class="text-muted">
+
+                            Professores
+
+                        </small>
+
+                        <h3 class="mb-0">
+
+                            {{ total_professores }}
+
+                        </h3>
+
+                    </div>
+
+                    <i class="bi bi-person-workspace text-success fs-2"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+
+        <div class="card shadow-sm dashboard-card h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+
+                        <small class="text-muted">
+
+                            Aulas
+
+                        </small>
+
+                        <h3 class="mb-0">
+
+                            {{ total_aulas }}
+
+                        </h3>
+
+                    </div>
+
+                    <i class="bi bi-journal-bookmark-fill text-warning fs-2"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="col-lg-3 col-md-6 mb-3">
+
+        <div class="card shadow-sm dashboard-card h-100">
+
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center">
+
+                    <div>
+
+                        <small class="text-muted">
+
+                            Frequência Média
+
+                        </small>
+
+                        <h3 class="mb-0">
+
+                            {{ media_presenca }}%
+
+                        </h3>
+
+                    </div>
+
+                    <i class="bi bi-graph-up-arrow text-danger fs-2"></i>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
 
 </div>
 
 
-<div class="col-md-2">
+<div class="card shadow-sm filtro-card mb-4">
 
-<button
-    class="btn btn-primary w-100"
-    style="color:#fff !important;
-           -webkit-text-fill-color:#fff !important;">
-    <i class="bi bi-search"
-       style="color:#fff !important;
-              -webkit-text-fill-color:#fff !important;"></i>
-    <span
-       style="color:#fff !important;
-              -webkit-text-fill-color:#fff !important;">
-        Filtrar
-    </span>
-</button>
+    <div class="card-body">
 
-</div>
+        <form method="get" class="row g-3 align-items-end">
 
-</form>
+            <div class="col-lg-3">
 
-</div>
+                <label class="form-label fw-semibold">
+
+                    Mês
+
+                </label>
+
+                <select name="mes" class="form-select">
+
+                    {% for m in meses %}
+
+                        <option value="{{ m.valor }}"
+                            {% if m.valor == mes_atual %}selected{% endif %}>
+
+                            {{ m.nome }}
+
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </div>
+
+            <div class="col-lg-2">
+
+                <label class="form-label fw-semibold">
+
+                    Ano
+
+                </label>
+
+                <input
+                    type="number"
+                    name="ano"
+                    class="form-control"
+                    value="{{ ano_atual }}">
+
+            </div>
+
+            <div class="col-lg-3">
+
+                <button class="btn btn-primary w-100">
+
+                    <i class="bi bi-search"></i>
+
+                    Filtrar
+
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
 </div>
 
 
 <!-- TABELA -->
-<div class="card shadow-sm">
-<div class="card-body p-0">
+<div class="card shadow-sm relatorio-card">
 
-<table class="table table-striped table-hover mb-0">
+<div class="card-body">
 
-<thead class="table-light">
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
+
+    <h5 class="mb-2 mb-md-0">
+
+        <i class="bi bi-table"></i>
+
+        Resumo por Turma / Professor
+
+    </h5>
+
+    <div class="input-group" style="max-width:350px;">
+
+        <span class="input-group-text bg-white">
+
+            <i class="bi bi-search"></i>
+
+        </span>
+
+        <input
+            type="text"
+            class="form-control"
+            id="buscaTabela"
+            placeholder="Pesquisar turma ou professor...">
+
+    </div>
+
+</div>
+
+
+
+<div class="table-responsive">
+
+<table class="table table-hover align-middle">
+
+<thead>
+
 <tr>
 
 <th>Turma</th>
+
 <th>Professor</th>
-<th class="text-center">Aulas</th>
-<th class="text-center">Presentes</th>
-<th class="text-center">Ausentes</th>
+
+<th width="90" class="text-center">
+Aulas
+</th>
+
+<th width="110" class="text-center">
+Presentes
+</th>
+
+<th width="110" class="text-center">
+Ausentes
+</th>
+
+<th width="280">
+Frequência
+</th>
 
 </tr>
+
 </thead>
 
 <tbody>
@@ -159,15 +388,87 @@ value="{{ ano_atual }}"
 
 <tr>
 
-<td>{{ item.diario__turma__nome }}</td>
+<td>
 
-<td>{{ item.diario__professor__nome|default:"-" }}</td>
+<strong>
 
-<td class="text-center">{{ item.total_aulas }}</td>
+{{ item.turma__nome }}
 
-<td class="text-center">{{ item.total_presentes }}</td>
+</strong>
 
-<td class="text-center">{{ item.total_ausentes }}</td>
+</td>
+
+<td>
+
+{{ item.professor__nome|default:"-" }}
+
+</td>
+
+<td class="text-center">
+
+{{ item.total_aulas }}
+
+</td>
+
+<td class="text-center">
+
+<span class="badge bg-success">
+
+{{ item.total_presentes }}
+
+</span>
+
+</td>
+
+<td class="text-center">
+
+<span class="badge bg-danger">
+
+{{ item.total_ausentes }}
+
+</span>
+
+</td>
+
+<td>
+
+<div class="progress">
+
+{% if item.percentual >= 75 %}
+
+<div
+class="progress-bar bg-success"
+style="width:{{ item.percentual }}%;">
+
+{{ item.percentual }}%
+
+</div>
+
+{% elif item.percentual >= 50 %}
+
+<div
+class="progress-bar bg-warning text-dark"
+style="width:{{ item.percentual }}%;">
+
+{{ item.percentual }}%
+
+</div>
+
+{% else %}
+
+<div
+class="progress-bar bg-danger"
+style="width:{{ item.percentual }}%;">
+
+{{ item.percentual }}%
+
+</div>
+
+{% endif %}
+
+</div>
+
+</td>
 
 </tr>
 
@@ -177,8 +478,12 @@ value="{{ ano_atual }}"
 
 <tr>
 
-<td colspan="5" class="text-center text-muted py-4">
+<td colspan="6" class="text-center text-muted py-5">
+
+<i class="bi bi-search fs-1 d-block mb-3"></i>
+
 Nenhum dado encontrado para o período selecionado.
+
 </td>
 
 </tr>
@@ -190,43 +495,145 @@ Nenhum dado encontrado para o período selecionado.
 </table>
 
 </div>
+
 </div>
 
 </div>
+
+
+{% if resumo.paginator.num_pages > 1 %}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap mt-4">
+
+    <div class="text-muted mb-2 mb-md-0">
+
+        Mostrando
+        <strong>{{ resumo.start_index }}</strong>
+        até
+        <strong>{{ resumo.end_index }}</strong>
+        de
+        <strong>{{ resumo.paginator.count }}</strong>
+        registros
+
+    </div>
+
+    <nav>
+
+        <ul class="pagination mb-0">
+
+            {% if resumo.has_previous %}
+
+            <li class="page-item">
+
+                <a
+                    class="page-link"
+                    href="?page=1&mes={{ mes_atual }}&ano={{ ano_atual }}">
+
+                    <i class="bi bi-chevron-double-left"></i>
+
+                </a>
+
+            </li>
+
+            <li class="page-item">
+
+                <a
+                    class="page-link"
+                    href="?page={{ resumo.previous_page_number }}&mes={{ mes_atual }}&ano={{ ano_atual }}">
+
+                    <i class="bi bi-chevron-left"></i>
+
+                </a>
+
+            </li>
+
+            {% endif %}
+
+            {% for num in page_range %}
+
+            <li class="page-item {% if resumo.number == num %}active{% endif %}">
+
+                <a
+                    class="page-link"
+                    href="?page={{ num }}&mes={{ mes_atual }}&ano={{ ano_atual }}">
+
+                    {{ num }}
+
+                </a>
+
+            </li>
+
+            {% endfor %}
+
+            {% if resumo.has_next %}
+
+            <li class="page-item">
+
+                <a
+                    class="page-link"
+                    href="?page={{ resumo.next_page_number }}&mes={{ mes_atual }}&ano={{ ano_atual }}">
+
+                    <i class="bi bi-chevron-right"></i>
+
+                </a>
+
+            </li>
+
+            <li class="page-item">
+
+                <a
+                    class="page-link"
+                    href="?page={{ resumo.paginator.num_pages }}&mes={{ mes_atual }}&ano={{ ano_atual }}">
+
+                    <i class="bi bi-chevron-double-right"></i>
+
+                </a>
+
+            </li>
+
+            {% endif %}
+
+        </ul>
+
+    </nav>
+
+</div>
+
+{% endif %}
+
+</div>
+
+</div>
+
 
 {% endblock content %}
-
 
 
 {% block extra_js %}
 
 <script>
 
-function ensureFuse(cb){
-if (window.Fuse) return cb();
+const busca = document.getElementById("buscaTabela");
 
-var s = document.createElement("script");
-s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
+if (busca){
 
-s.onload = cb;
+    busca.addEventListener("keyup", function(){
 
-s.onerror = function(){
-console.error("Falha ao carregar Fuse.js");
-alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
-};
+        const termo = this.value.toLowerCase();
 
-document.head.appendChild(s);
+        document.querySelectorAll("tbody tr").forEach(function(linha){
+
+            linha.style.display = linha.innerText
+                .toLowerCase()
+                .includes(termo)
+                ? ""
+                : "none";
+
+        });
+
+    });
+
 }
-
-document.addEventListener("DOMContentLoaded", function () {
-
-ensureFuse(function() {
-
-// Seu JS aqui
-
-});
-
-});
 
 </script>
 
