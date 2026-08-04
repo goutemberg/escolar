@@ -119,6 +119,20 @@ tr.alerta{
     padding: 14px;
 }
 
+.pagination .page-link{
+    min-width:42px;
+    text-align:center;
+}
+
+.pagination .page-item.active .page-link{
+    background:#0d6efd;
+    border-color:#0d6efd;
+}
+
+.pagination .page-link{
+    padding:.55rem .9rem;
+}
+
 </style>
 
 {% endblock extra_head %}
@@ -591,6 +605,114 @@ Nenhum registro encontrado para os filtros selecionados.
 </table>
 
 </div>
+
+</div>
+
+</div>
+
+</table>
+
+</div>
+
+{% if resumo.paginator.num_pages > 1 %}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap mt-4">
+
+    <div class="text-muted mb-2 mb-md-0">
+
+        Mostrando
+        <strong>{{ resumo.start_index }}</strong>
+        até
+        <strong>{{ resumo.end_index }}</strong>
+        de
+        <strong>{{ resumo.paginator.count }}</strong>
+        alunos
+
+    </div>
+
+    <nav>
+
+        <ul class="pagination mb-0">
+
+            {% if resumo.has_previous %}
+
+            <li class="page-item">
+
+                <a
+                    class="page-link"
+                    href="?page=1&{% if mes_atual %}mes={{ mes_atual }}&{% endif %}ano={{ ano_atual }}&turma={{ turma_selecionada }}">
+
+                    <i class="bi bi-chevron-double-left"></i>
+
+                </a>
+
+            </li>
+
+            <li class="page-item">
+
+                <a
+                    class="page-link"
+                    href="?page={{ resumo.previous_page_number }}&{% if mes_atual %}mes={{ mes_atual }}&{% endif %}ano={{ ano_atual }}&turma={{ turma_selecionada }}">
+
+                    <i class="bi bi-chevron-left"></i>
+
+                </a>
+
+            </li>
+
+            {% endif %}
+
+            {% for num in page_range %}
+
+            <li class="page-item {% if resumo.number == num %}active{% endif %}">
+
+                <a
+                    class="page-link"
+                    href="?page={{ num }}&{% if mes_atual %}mes={{ mes_atual }}&{% endif %}ano={{ ano_atual }}&turma={{ turma_selecionada }}">
+
+                    {{ num }}
+
+                </a>
+
+            </li>
+
+            {% endfor %}
+
+            {% if resumo.has_next %}
+
+            <li class="page-item">
+
+                <a
+                    class="page-link"
+                    href="?page={{ resumo.next_page_number }}&{% if mes_atual %}mes={{ mes_atual }}&{% endif %}ano={{ ano_atual }}&turma={{ turma_selecionada }}">
+
+                    <i class="bi bi-chevron-right"></i>
+
+                </a>
+
+            </li>
+
+            <li class="page-item">
+
+                <a
+                    class="page-link"
+                    href="?page={{ resumo.paginator.num_pages }}&{% if mes_atual %}mes={{ mes_atual }}&{% endif %}ano={{ ano_atual }}&turma={{ turma_selecionada }}">
+
+                    <i class="bi bi-chevron-double-right"></i>
+
+                </a>
+
+            </li>
+
+            {% endif %}
+
+        </ul>
+
+    </nav>
+
+</div>
+
+{% endif %}
 
 </div>
 
