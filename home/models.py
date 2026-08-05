@@ -576,10 +576,18 @@ class DiarioDeClasse(models.Model):
         return f"{self.turma} - {self.data_ministrada}"
 
 
+class ChamadaManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(excluido=False)
+
+
 # ================================================
 #  CHAMADA (CABEÇALHO DA FREQUÊNCIA)
 # ================================================
 class Chamada(models.Model):
+
+    objects = ChamadaManager()
+    all_objects = models.Manager()
 
     # =====================================================
     # RELACIONAMENTO OPCIONAL COM O DIÁRIO
@@ -594,11 +602,6 @@ class Chamada(models.Model):
 
     # =====================================================
     # CONTEXTO DA CHAMADA
-    # =====================================================
-    # OBS:
-    # Todos começam como nullable para permitir a migração
-    # dos dados antigos sem quebrar produção.
-    # Depois podemos tornar obrigatórios.
     # =====================================================
 
     turma = models.ForeignKey(
@@ -642,6 +645,7 @@ class Chamada(models.Model):
     # =====================================================
     # AUDITORIA
     # =====================================================
+
     criado_por = models.ForeignKey(
         User,
         null=True,
@@ -653,6 +657,28 @@ class Chamada(models.Model):
     criado_em = models.DateTimeField(auto_now_add=True)
 
     atualizado_em = models.DateTimeField(auto_now=True)
+
+    # =====================================================
+    # EXCLUSÃO LÓGICA
+    # =====================================================
+
+    excluido = models.BooleanField(
+        default=False,
+        db_index=True,
+    )
+
+    excluido_por = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="chamadas_excluidas",
+    )
+
+    data_exclusao = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         verbose_name = "Chamada"
@@ -672,7 +698,8 @@ class Chamada(models.Model):
                     "professor",
                     "data",
                 ],
-                name="unique_chamada_por_turma_disciplina_professor_data",
+                condition=models.Q(excluido=False),
+                name="unique_chamada_ativa_por_turma_disciplina_professor_data",
             )
         ]
 
@@ -687,9 +714,7 @@ class Chamada(models.Model):
 
         turma_nome = self.turma.nome if self.turma else "Sem turma"
         disciplina_nome = self.disciplina.nome if self.disciplina else "Sem disciplina"
-
         professor_nome = self.professor.nome if self.professor else "Sem professor"
-
         data_str = self.data.strftime("%d/%m/%Y") if self.data else "Sem data"
 
         return (

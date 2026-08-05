@@ -4,6 +4,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction, IntegrityError
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from home.services.chamada_config import ConfiguracaoChamada
+from home.services.chamada_permission import pode_excluir_chamada
+from django.views.decorators.http import require_POST
+from django.core.exceptions import PermissionDenied
+from django.contrib import messages
+from django.shortcuts import redirect
 
 
 import csv
@@ -491,7 +497,10 @@ def listar_chamadas(request):
 
     sem_filtros = not filtro_data and not filtro_turma and not filtro_disciplina
 
-    professor = Docente.objects.filter(user=user, escola=user.escola).first()
+    professor = Docente.objects.filter(
+        user=user,
+        escola=user.escola,
+    ).first()
 
     # =====================================================
     # PERFIL PROFESSOR
@@ -507,90 +516,62 @@ def listar_chamadas(request):
             .order_by("nome")
         )
 
-        disciplinas = (
-            Disciplina.objects.filter(
-                turmadisciplina__professor=professor,
-                escola=user.escola,
-            )
-            .distinct()
-            .order_by("nome")
-        )
-
         turmas_ids = list(turmas.values_list("id", flat=True))
 
-        disciplinas_ids = list(disciplinas.values_list("id", flat=True))
-
-        # ==============================================
-        # NOVA ESTRUTURA
-        # ==============================================
         base = Chamada.objects.filter(
             escola=user.escola,
             turma_id__in=turmas_ids,
-            disciplina_id__in=disciplinas_ids,
-        )
-
-        # Professor enxerga apenas suas chamadas
-        # ou chamadas antigas sem professor definido
-        base = base.filter(Q(professor=professor) | Q(professor__isnull=True))
+        ).filter(Q(professor=professor) | Q(professor__isnull=True))
 
     # =====================================================
     # DIRETOR / COORDENADOR
     # =====================================================
     else:
 
-        base = Chamada.objects.filter(escola=user.escola)
+        turmas = Turma.objects.filter(
+            escola=user.escola,
+        ).order_by("nome")
 
-        turmas = Turma.objects.filter(escola=user.escola).order_by("nome")
-
-        disciplinas = Disciplina.objects.filter(escola=user.escola).order_by("nome")
-
-    # =====================================================
-    # DATAS DISPONÍVEIS
-    # =====================================================
-    datas_chamadas = (
-        Chamada.objects.filter(escola=user.escola)
-        .values_list(
-            "data",
-            flat=True,
+        base = Chamada.objects.filter(
+            escola=user.escola,
         )
-        .distinct()
-        .order_by("-data")
-    )
 
     # =====================================================
-    # SEM FILTROS -> MOSTRA HOJE
+    # SEM FILTROS
     # =====================================================
     if sem_filtros:
-        base = base.filter(data=hoje)
 
+        base = base.filter(data=hoje)
         filtro_data = hoje_str
 
     # =====================================================
-    # FILTRO DATA
+    # FILTROS
     # =====================================================
+    if filtro_turma:
+        base = base.filter(
+            turma_id=filtro_turma,
+        )
+
+    if filtro_disciplina:
+        base = base.filter(
+            disciplina_id=filtro_disciplina,
+        )
+
     if filtro_data:
+
         try:
+
             data_convertida = datetime.strptime(
                 filtro_data,
                 "%Y-%m-%d",
             ).date()
 
-            base = base.filter(data=data_convertida)
+            base = base.filter(
+                data=data_convertida,
+            )
 
         except ValueError:
             pass
-
-    # =====================================================
-    # FILTRO TURMA
-    # =====================================================
-    if filtro_turma:
-        base = base.filter(turma_id=filtro_turma)
-
-    # =====================================================
-    # FILTRO DISCIPLINA
-    # =====================================================
-    if filtro_disciplina:
-        base = base.filter(disciplina_id=filtro_disciplina)
 
     # =====================================================
     # QUERY FINAL
@@ -618,9 +599,7 @@ def listar_chamadas(request):
         20,
     )
 
-    pagina = request.GET.get("page")
-
-    chamadas = paginator.get_page(pagina)
+    chamadas = paginator.get_page(request.GET.get("page"))
 
     # =====================================================
     # RENDER
@@ -631,12 +610,10 @@ def listar_chamadas(request):
         {
             "chamadas": chamadas,
             "turmas": turmas,
-            "disciplinas": disciplinas,
             "data_hoje": hoje_str,
             "filtro_data": filtro_data or "",
             "filtro_turma": filtro_turma or "",
             "filtro_disciplina": filtro_disciplina or "",
-            "datas_chamadas": datas_chamadas,
         },
     )
 
@@ -1905,3 +1882,97 @@ def relatorio_anual_chamadas_excel(request):
     wb.save(response)
 
     return response
+
+
+@login_required
+def api_disciplinas_por_turma(request):
+
+    turma_id = request.GET.get("turma")
+
+    if not turma_id:
+        return JsonResponse([], safe=False)
+
+    disciplinas = (
+        Disciplina.objects.filter(
+            escola=request.user.escola,
+            turmadisciplina__turma_id=turma_id,
+        )
+        .distinct()
+        .order_by("nome")
+        .values("id", "nome")
+    )
+
+    return JsonResponse(list(disciplinas), safe=False)
+
+
+@login_required
+def api_datas_chamada(request):
+
+    turma_id = request.GET.get("turma")
+    disciplina_id = request.GET.get("disciplina")
+
+    if not turma_id or not disciplina_id:
+        return JsonResponse([], safe=False)
+
+    base = Chamada.objects.filter(
+        escola=request.user.escola,
+        turma_id=turma_id,
+        disciplina_id=disciplina_id,
+    )
+
+    professor = Docente.objects.filter(
+        user=request.user,
+        escola=request.user.escola,
+    ).first()
+
+    if request.user.role == "professor" and professor:
+        base = base.filter(Q(professor=professor) | Q(professor__isnull=True))
+
+    datas = base.order_by("data").values_list("data", flat=True).distinct()
+
+    return JsonResponse(
+        [data.strftime("%Y-%m-%d") for data in datas],
+        safe=False,
+    )
+
+
+@login_required
+@require_POST
+def excluir_chamada(request, chamada_id):
+
+    chamada = get_object_or_404(
+        Chamada.all_objects,
+        id=chamada_id,
+        escola=request.user.escola,
+    )
+
+    if chamada.excluido:
+
+        messages.warning(request, "Esta chamada já foi excluída.")
+
+        return redirect("chamada:listar_chamadas")
+
+    config = ConfiguracaoChamada(request.user.escola)
+
+    if not pode_excluir_chamada(
+        request.user,
+        chamada,
+        config,
+    ):
+        raise PermissionDenied
+
+    chamada.excluido = True
+    chamada.excluido_por = request.user
+    chamada.data_exclusao = timezone.now()
+
+    chamada.save(
+        update_fields=[
+            "excluido",
+            "excluido_por",
+            "data_exclusao",
+        ]
+    )
+
+    messages.success(request, "Chamada excluída com sucesso.")
+
+    return redirect("chamada:listar_chamadas")

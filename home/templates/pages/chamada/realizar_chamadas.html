@@ -183,380 +183,689 @@
   color:#111 !important;
 }
 
+
+.flatpickr-day.dia-com-chamada{
+    background: #eaf8ee !important;
+    color: #198754 !important;
+    border: 1px solid #b9e4c7 !important;
+    font-weight: 600;
+}
+
+.flatpickr-day.dia-com-chamada.selected{
+    background:#198754 !important;
+    border-color:#198754 !important;
+    color:#fff !important;
+}
 </style>
 {% endblock extra_head %}
 
 {% block content %}
-  <div class="titulo-pagina">Realizar Chamada
+
+<div class="titulo-pagina">
+    Realizar Chamada
+
     <button onclick="abrirAjuda('professor')" class="btn btn-warning btn-sm">
         🎥 Ajuda
     </button>
-  </div>
+</div>
 
-  <div class="row mb-2">
-    <div class="form-group col-md-4">
-      <label>Data da aula</label>
-      <input type="text" id="data_aula" class="form-control" value="{{ data_hoje }}" placeholder="Selecione a data">
+<div class="card shadow-sm mb-4">
+
+    <div class="card-body">
+
+        <div class="row g-3 align-items-end">
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">
+                    Turma
+                </label>
+
+                <select id="turma_id" class="form-control">
+                    <option value="">Selecione uma turma</option>
+
+                    {% for turma in turmas %}
+                        <option value="{{ turma.id }}">
+                            {{ turma.nome }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">
+                    Disciplina
+                </label>
+
+                <select
+                    id="disciplina_id"
+                    name="disciplina"
+                    class="form-control"
+                    disabled>
+
+                    <option value="">
+                        Selecione a turma primeiro
+                    </option>
+
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label class="form-label fw-semibold">
+                    Data
+                </label>
+
+                <input
+                    type="text"
+                    id="data_aula"
+                    class="form-control"
+                    value="{{ data_hoje }}"
+                    placeholder="Selecione a data"
+                    disabled>
+            </div>
+
+            <div class="col-md-2 d-grid">
+
+                <button
+                    class="btn btn-primary"
+                    id="carregarButton"
+                    type="button"
+                    disabled>
+
+                    <i class="bi bi-people-fill"></i>
+                    Carregar alunos
+
+                </button>
+
+            </div>
+
+        </div>
+
     </div>
 
-    <div class="form-group col-md-4">
-      <label>Turma</label>
-      <select id="turma_id" class="form-control">
-        <option value="">Selecione...</option>
-        {% for turma in turmas %}
-          <option value="{{ turma.id }}">{{ turma.nome }}</option>
-        {% endfor %}
-      </select>
-    </div>
+</div>
 
-    <div class="form-group col-md-4">
-      <label for="disciplina_id">Disciplina</label>
-      <select id="disciplina_id" name="disciplina" class="form-control" disabled>
-        <option value="">Selecione a turma primeiro</option>
-      </select>
-    </div>
-  </div>
-
-  <button class="btn btn-primary mb-2" id="carregarButton" style="width: 220px;">
-    Carregar alunos
-  </button>
-
-  <hr style="margin:15px 0;">
-
-  <div id="areaTabela" style="display:none;">
+<div id="areaTabela" style="display:none;">
 
     <table class="chamada-table" id="tabelaChamada">
-      <thead>
-        <tr>
-          <th>Aluno</th>
-          <th style="width:260px; text-align:center;">Status</th>
-          <th>Observação / Justificativa</th>
-          <th style="width:40px;"></th>
-        </tr>
-      </thead>
-      <tbody id="tbodyChamada"></tbody>
+
+        <thead>
+            <tr>
+                <th>Aluno</th>
+                <th style="width:260px;text-align:center;">
+                    Status
+                </th>
+                <th>Observação / Justificativa</th>
+                <th style="width:40px;"></th>
+            </tr>
+        </thead>
+
+        <tbody id="tbodyChamada"></tbody>
+
     </table>
 
     <div class="resumo-box">
-      Presentes: <span id="countP">0</span> |
-      Faltas: <span id="countF">0</span> |
-      Justificadas: <span id="countJ">0</span> |
-      Presença: <span id="percentP">0%</span>
+        Presentes:
+        <span id="countP">0</span>
+        |
+
+        Faltas:
+        <span id="countF">0</span>
+        |
+
+        Justificadas:
+        <span id="countJ">0</span>
+        |
+
+        Presença:
+        <span id="percentP">0%</span>
     </div>
 
-    <div class="mt-2">
-      <button class="btn btn-success" id="salvarChamadaBtn" type="button">
-        Salvar Chamada
-      </button>
-      <span class="loader" id="loader" style="display:none;">⏳ Salvando...</span>
+    <div class="mt-3">
+
+        <button
+            class="btn btn-success"
+            id="salvarChamadaBtn"
+            type="button">
+
+            <i class="bi bi-check-circle"></i>
+            Salvar Chamada
+
+        </button>
+
+        <span
+            class="loader ms-2"
+            id="loader"
+            style="display:none;">
+
+            ⏳ Salvando...
+
+        </span>
+
     </div>
-  </div>
+
+</div>
+
 {% endblock content %}
 
 {% block extra_js %}
 <script>
-  function ensureFuse(cb){
-    if (window.Fuse) return cb();
-    var s = document.createElement("script");
+
+function ensureFuse(cb){
+    if(window.Fuse) return cb();
+
+    const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/fuse.js@6.6.2";
     s.onload = cb;
     s.onerror = function(){
-      console.error("Falha ao carregar Fuse.js");
-      alert("Não foi possível carregar o Fuse.js. Verifique bloqueio de CDN/CSP ou internet.");
+        console.error("Falha ao carregar Fuse.js");
+        alert("Não foi possível carregar o Fuse.js. Verifique sua conexão.");
     };
+
     document.head.appendChild(s);
-  }
+}
 
-  function getCsrfFromCookie(){
+function getCsrfFromCookie(){
+
     const name = "csrftoken=";
+
     const parts = document.cookie.split(";");
-    for (let p of parts){
-      p = p.trim();
-      if (p.startsWith(name)) return decodeURIComponent(p.slice(name.length));
+
+    for(let p of parts){
+
+        p = p.trim();
+
+        if(p.startsWith(name)){
+            return decodeURIComponent(
+                p.slice(name.length)
+            );
+        }
+
     }
+
     return "";
-  }
 
-  document.addEventListener("DOMContentLoaded", function () {
-    ensureFuse(function() {
+}
 
-      const turmaSelect = document.getElementById("turma_id");
-      const disciplinaSelect = document.getElementById("disciplina_id");
+document.addEventListener("DOMContentLoaded", function(){
 
-      if (disciplinaSelect) {
-        disciplinaSelect.innerHTML = '<option value="">Selecione a turma primeiro</option>';
+    ensureFuse(function(){
+
+        const turmaSelect = document.getElementById("turma_id");
+        const disciplinaSelect = document.getElementById("disciplina_id");
+        const dataInput = document.getElementById("data_aula");
+        const carregarButton = document.getElementById("carregarButton");
+
         disciplinaSelect.disabled = true;
-      }
+        dataInput.disabled = true;
+        carregarButton.disabled = true;
 
-      if (turmaSelect && disciplinaSelect) {
-        turmaSelect.addEventListener("change", function () {
-          const turmaId = this.value;
+        turmaSelect.addEventListener("change", function(){
 
-          disciplinaSelect.innerHTML = '<option value="">Carregando disciplinas...</option>';
-          disciplinaSelect.disabled = true;
+            const turmaId = this.value;
 
-          if (!turmaId) {
-            disciplinaSelect.innerHTML = '<option value="">Selecione a turma primeiro</option>';
-            return;
-          }
+            disciplinaSelect.innerHTML =
+                '<option value="">Carregando disciplinas...</option>';
 
-          fetch(`/chamada/api/disciplinas_por_turma/${turmaId}/`)
-            .then(res => res.json())
-            .then(data => {
-              disciplinaSelect.innerHTML = '<option value="">Selecione a disciplina</option>';
+            disciplinaSelect.disabled = true;
 
-              if (!data || !data.length) {
-                disciplinaSelect.innerHTML = '<option value="">Nenhuma disciplina vinculada</option>';
+            dataInput.value = "";
+            dataInput.disabled = true;
+
+            carregarButton.disabled = true;
+
+            if(!turmaId){
+
+                disciplinaSelect.innerHTML =
+                    '<option value="">Selecione a turma primeiro</option>';
+
                 return;
-              }
 
-              data.forEach(d => {
-                const opt = document.createElement("option");
-                opt.value = d.id;
-                opt.textContent = d.nome;
-                disciplinaSelect.appendChild(opt);
-              });
+            }
 
-              disciplinaSelect.disabled = false;
-            })
-            .catch(() => {
-              disciplinaSelect.innerHTML = '<option value="">Erro ao carregar disciplinas</option>';
-            });
+            fetch(`/chamada/api/disciplinas/?turma=${turmaId}`)
+                .then(res => res.json())
+                .then(data => {
+
+                    disciplinaSelect.innerHTML =
+                        '<option value="">Selecione a disciplina</option>';
+
+                    if(!data.length){
+
+                        disciplinaSelect.innerHTML =
+                            '<option value="">Nenhuma disciplina encontrada</option>';
+
+                        return;
+
+                    }
+
+                    data.forEach(function(item){
+
+                        disciplinaSelect.innerHTML += `
+                            <option value="${item.id}">
+                                ${item.nome}
+                            </option>
+                        `;
+
+                    });
+
+                    disciplinaSelect.disabled = false;
+
+                })
+                .catch(function(){
+
+                    disciplinaSelect.innerHTML =
+                        '<option value="">Erro ao carregar disciplinas</option>';
+
+                });
+
         });
+
+        let calendario = null;
+
+disciplinaSelect.addEventListener("change", async function(){
+
+    dataInput.value = "";
+    carregarButton.disabled = true;
+
+    if(calendario){
+        calendario.destroy();
+    }
+
+    if(!this.value){
+
+        dataInput.disabled = true;
+
+        return;
+
+    }
+
+    const response = await fetch(
+        `/chamada/api/datas-chamada/?turma=${turmaSelect.value}&disciplina=${this.value}`
+    );
+
+    const datas = await response.json();
+
+    dataInput.disabled = false;
+
+    calendario = flatpickr(dataInput, {
+
+        dateFormat: "Y-m-d",
+
+        onDayCreate: function(dObj, dStr, fp, dayElem){
+
+            const data =
+                dayElem.dateObj
+                    .toISOString()
+                    .split("T")[0];
+
+            if(datas.includes(data)){
+
+          dayElem.classList.add("dia-com-chamada");
+
       }
 
-      document.getElementById("carregarButton").addEventListener("click", function () {
-        const turma = document.getElementById("turma_id").value;
-        const disciplina = document.getElementById("disciplina_id").value;
-        const dataAula = document.getElementById("data_aula").value;
+        },
 
-        if (!turma) {
-          alert("Selecione uma turma.");
-          return;
+        onChange: function(){
+
+            carregarButton.disabled = !dataInput.value;
+
         }
 
-        if (!disciplina) {
-          alert("Selecione uma disciplina.");
-          return;
-        }
+    });
 
-        if (!dataAula) {
-          alert("Selecione a data da aula.");
-          return;
-        }
+});
 
-        const urlCarregar = "{% url 'chamada:api_carregar_alunos' 0 %}"
-          .replace("0", turma)
-          + `?data=${encodeURIComponent(dataAula)}&disciplina=${encodeURIComponent(disciplina)}`;
+        dataInput.addEventListener("change", function(){
 
-        fetch(urlCarregar)
-          .then(res => res.json())
-          .then(data => {
+            carregarButton.disabled =
+                !(
+                    turmaSelect.value &&
+                    disciplinaSelect.value &&
+                    dataInput.value
+                );
 
-            if (!data.alunos || data.alunos.length === 0) {
-              alert("Nenhum aluno encontrado.");
-              return;
+        });
+
+    document.getElementById("carregarButton").addEventListener("click", function () {
+
+    const turma = turmaSelect.value;
+    const disciplina = disciplinaSelect.value;
+    const dataAula = dataInput.value;
+
+    if (!turma) {
+        alert("Selecione uma turma.");
+        return;
+    }
+
+    if (!disciplina) {
+        alert("Selecione uma disciplina.");
+        return;
+    }
+
+    if (!dataAula) {
+        alert("Selecione a data da aula.");
+        return;
+    }
+
+    const urlCarregar =
+        "{% url 'chamada:api_carregar_alunos' 0 %}"
+            .replace("0", turma) +
+        `?data=${encodeURIComponent(dataAula)}&disciplina=${encodeURIComponent(disciplina)}`;
+
+    fetch(urlCarregar)
+        .then(res => res.json())
+        .then(data => {
+
+            if (!data.alunos || !data.alunos.length) {
+                alert("Nenhum aluno encontrado.");
+                return;
             }
 
             const tbody = document.getElementById("tbodyChamada");
             tbody.innerHTML = "";
 
-            data.alunos.forEach(a => {
-              const st = (a.status || "P").toUpperCase();
-              const obs = (a.observacao || "").replace(/"/g, "&quot;");
+            data.alunos.forEach(function(a){
 
-              const checkedP = st === "P" ? "checked" : "";
-              const checkedF = st === "F" ? "checked" : "";
-              const checkedJ = st === "J" ? "checked" : "";
+                const status = (a.status || "P").toUpperCase();
+                const obs = (a.observacao || "").replace(/"/g, "&quot;");
 
-              tbody.innerHTML += `
-                <tr data-id="${a.id}">
-                  <td>${a.nome}</td>
+                tbody.innerHTML += `
+                    <tr data-id="${a.id}">
 
-                  <td style="text-align:center;">
-                    <div class="status-presenca">
-                      <input type="radio" name="status_${a.id}" id="p_${a.id}" class="status-radio" value="P" ${checkedP}>
-                      <label class="btn btn-outline-success" for="p_${a.id}">P</label>
+                        <td>${a.nome}</td>
 
-                      <input type="radio" name="status_${a.id}" id="f_${a.id}" class="status-radio" value="F" ${checkedF}>
-                      <label class="btn btn-outline-danger" for="f_${a.id}">F</label>
+                        <td class="text-center">
 
-                      <input type="radio" name="status_${a.id}" id="j_${a.id}" class="status-radio" value="J" ${checkedJ}>
-                      <label class="btn btn-outline-warning" for="j_${a.id}">J</label>
-                    </div>
-                  </td>
+                            <div class="status-presenca">
 
-                  <td>
-                    <input type="text" class="form-control obs-input" placeholder="Observação ou justificativa (opcional)" value="${obs}">
-                    <div class="erro-msg"></div>
-                  </td>
-                  <td></td>
-                </tr>
-              `;
-            });
+                                <input
+                                    type="radio"
+                                    name="status_${a.id}"
+                                    id="p_${a.id}"
+                                    class="status-radio"
+                                    value="P"
+                                    ${status === "P" ? "checked" : ""}>
 
+                                <label
+                                    class="btn btn-outline-success"
+                                    for="p_${a.id}">
+                                    P
+                                </label>
+
+                                <input
+                                    type="radio"
+                                    name="status_${a.id}"
+                                    id="f_${a.id}"
+                                    class="status-radio"
+                                    value="F"
+                                    ${status === "F" ? "checked" : ""}>
+
+                                <label
+                                    class="btn btn-outline-danger"
+                                    for="f_${a.id}">
+                                    F
+                                </label>
+
+                                <input
+                                    type="radio"
+                                    name="status_${a.id}"
+                                    id="j_${a.id}"
+                                    class="status-radio"
+                                    value="J"
+                                    ${status === "J" ? "checked" : ""}>
+
+                                <label
+                                    class="btn btn-outline-warning"
+                                    for="j_${a.id}">
+                                    J
+                                </label>
+
+                            </div>
+
+                        </td>
+
+                        <td>
+
+                            <input
+                                type="text"
+                                class="form-control obs-input"
+                                placeholder="Observação ou justificativa (opcional)"
+                                value="${obs}">
+
+                            <div class="erro-msg"></div>
+
+                        </td>
+
+                        <td></td>
+
+                    </tr>
+                `;
+
+             });
             document.getElementById("areaTabela").style.display = "block";
+
             atualizarResumo();
             bindEventosTabela();
-          });
-      });
 
-      function getStatusRow(row){
-        const checked = row.querySelector(".status-radio:checked");
-        return checked ? checked.value : "F";
-      }
-
-      function atualizarResumo() {
-        const rows = document.querySelectorAll("#tbodyChamada tr");
-        let p = 0, f = 0, j = 0;
-
-        rows.forEach(r => {
-          const st = getStatusRow(r);
-          if (st === "P") p++;
-          else if (st === "J") j++;
-          else f++;
+        })
+        .catch(() => {
+            alert("Erro ao carregar alunos.");
         });
 
-        const total = p + f + j;
-        const perc = total === 0 ? 0 : Math.round((p / total) * 100);
+});
 
-        document.getElementById("countP").textContent = p;
-        document.getElementById("countF").textContent = f;
-        document.getElementById("countJ").textContent = j;
-        document.getElementById("percentP").textContent = perc + "%";
-      }
+function getStatusRow(row){
 
-      function bindEventosTabela() {
-        document.querySelectorAll(".status-radio").forEach(r => {
-          r.addEventListener("change", atualizarResumo);
+    const checked = row.querySelector(".status-radio:checked");
+
+    return checked ? checked.value : "F";
+
+}
+
+function atualizarResumo(){
+
+    const rows = document.querySelectorAll("#tbodyChamada tr");
+
+    let p = 0;
+    let f = 0;
+    let j = 0;
+
+    rows.forEach(function(row){
+
+        const status = getStatusRow(row);
+
+        if(status === "P") p++;
+        else if(status === "J") j++;
+        else f++;
+
+    });
+
+    const total = p + f + j;
+
+    document.getElementById("countP").textContent = p;
+    document.getElementById("countF").textContent = f;
+    document.getElementById("countJ").textContent = j;
+
+    document.getElementById("percentP").textContent =
+        total ? Math.round((p / total) * 100) + "%" : "0%";
+
+}
+
+function bindEventosTabela(){
+
+    document
+        .querySelectorAll(".status-radio")
+        .forEach(function(r){
+
+            r.addEventListener(
+                "change",
+                atualizarResumo
+            );
+
         });
-      }
 
-      document.getElementById("salvarChamadaBtn").addEventListener("click", function () {
+}
 
-        const loader = document.getElementById("loader");
+document
+    .getElementById("salvarChamadaBtn")
+    .addEventListener("click", function(){
+
+        const loader =
+            document.getElementById("loader");
+
         loader.style.display = "inline";
 
         const lista = [];
 
-        document.querySelectorAll("#tbodyChamada tr").forEach(row => {
-          const status = getStatusRow(row);
-          const presenteBool = (status === "P");
+        document
+            .querySelectorAll("#tbodyChamada tr")
+            .forEach(function(row){
 
-          lista.push({
-            aluno_id: row.dataset.id,
-            status: status,
-            presente: presenteBool,
-            observacao: row.querySelector(".obs-input").value.trim()
-          });
-        });
+                const status = getStatusRow(row);
 
-        const urlSalvar = "{% url 'chamada:salvar_presencas' %}";
+                lista.push({
 
-        fetch(urlSalvar, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCsrfFromCookie() || "{{ csrf_token }}"
-          },
-          body: JSON.stringify({
-            turma: document.getElementById("turma_id").value,
-            disciplina: document.getElementById("disciplina_id").value,
-            data: document.getElementById("data_aula").value,
-            lista: lista
-          })
-        })
-        .then(res => {
+                    aluno_id: row.dataset.id,
+                    status: status,
+                    presente: status === "P",
+                    observacao: row
+                        .querySelector(".obs-input")
+                        .value
+                        .trim()
 
-          if(res.status === 403){
-            loader.style.display = "none";
-            alert("Sua sessão expirou. Faça login novamente.");
-            window.location.href = "/login/";
-            return null;
-          }
+                });
 
-          return res.json();
-        })
-        .then(data => {
-
-          if(!data) return;
-
-          loader.style.display = "none";
-
-          if (data.status === "sucesso") {
-            alert("Chamada salva com sucesso!");
-            resetarTelaChamada();
-            return;
-          }
-
-          if (data.status === "parcial") {
-            alert("Alguns registros não foram salvos.");
-
-            (data.erros || []).forEach(err => {
-              const row = document.querySelector(`tr[data-id="${err.aluno_id}"]`);
-              if (row) {
-                row.classList.add("erro-linha");
-                const msg = row.querySelector(".erro-msg");
-                if (msg) {
-                  msg.style.display = "block";
-                  msg.textContent = err.mensagem;
-                }
-              }
             });
-            return;
-          }
 
-          alert("Erro ao salvar chamada.");
+        fetch("{% url 'chamada:salvar_presencas' %}",{
+
+            method:"POST",
+
+            headers:{
+                "Content-Type":"application/json",
+                "X-CSRFToken":
+                    getCsrfFromCookie() ||
+                    "{{ csrf_token }}"
+            },
+
+            body:JSON.stringify({
+
+                turma: turmaSelect.value,
+                disciplina: disciplinaSelect.value,
+                data: dataInput.value,
+                lista: lista
+
+            })
+
         })
-        .catch(() => {
-          loader.style.display = "none";
-          alert("Erro inesperado ao salvar chamada.");
+
+        .then(function(res){
+
+            if(res.status === 403){
+
+                loader.style.display = "none";
+
+                alert("Sua sessão expirou.");
+
+                window.location.href="/login/";
+
+                return null;
+
+            }
+
+            return res.json();
+
+        })
+
+        .then(function(data){
+
+            if(!data) return;
+
+            loader.style.display = "none";
+
+            if(data.status === "sucesso"){
+
+                alert("Chamada salva com sucesso!");
+
+                resetarTelaChamada();
+
+                return;
+
+            }
+
+            if(data.status === "parcial"){
+
+                alert("Alguns registros não foram salvos.");
+
+                (data.erros || []).forEach(function(err){
+
+                    const row = document.querySelector(
+                        `tr[data-id="${err.aluno_id}"]`
+                    );
+
+                    if(!row) return;
+
+                    row.classList.add("erro-linha");
+
+                    const msg =
+                        row.querySelector(".erro-msg");
+
+                    if(msg){
+
+                        msg.style.display = "block";
+                        msg.textContent = err.mensagem;
+
+                    }
+
+                });
+
+                return;
+
+            }
+
+            alert("Erro ao salvar chamada.");
+
+        })
+
+        .catch(function(){
+
+            loader.style.display = "none";
+
+            alert("Erro inesperado ao salvar chamada.");
+
         });
-      });
 
-      function resetarTelaChamada() {
-
-        const turma = document.getElementById("turma_id");
-        const disciplina = document.getElementById("disciplina_id");
-
-        const tbody = document.getElementById("tbodyChamada");
-        const areaTabela = document.getElementById("areaTabela");
-
-        if (turma) turma.value = "";
-
-        if (disciplina) {
-          disciplina.innerHTML = '<option value="">Selecione a turma primeiro</option>';
-          disciplina.disabled = true;
-        }
-
-        if (tbody) tbody.innerHTML = "";
-        if (areaTabela) areaTabela.style.display = "none";
-
-        document.getElementById("countP").textContent = "0";
-        document.getElementById("countF").textContent = "0";
-        document.getElementById("countJ").textContent = "0";
-        document.getElementById("percentP").textContent = "0%";
-      }
-
-    });
-    flatpickr("#data_aula", {
-    dateFormat: "Y-m-d",
-
-    onDayCreate: function(dObj, dStr, fp, dayElem) {
-        const date = dayElem.dateObj.toISOString().split("T")[0];
-
-        if (datasComChamada.includes(date)) {
-            dayElem.style.backgroundColor = "#fab982";
-            dayElem.style.color = "#fff";
-            dayElem.style.borderRadius = "6px";
-        }
-    }
 });
-  });
-   const datasComChamada = [
-    {% for d in datas_chamadas %}
-      "{{ d|date:'Y-m-d' }}",
-    {% endfor %}
-  ];
+
+function resetarTelaChamada(){
+
+    turmaSelect.value = "";
+
+    disciplinaSelect.innerHTML =
+        '<option value="">Selecione a turma primeiro</option>';
+
+    disciplinaSelect.disabled = true;
+
+    dataInput.value = "";
+    dataInput.disabled = true;
+
+    document.getElementById("carregarButton").disabled = true;
+
+    document.getElementById("tbodyChamada").innerHTML = "";
+
+    document.getElementById("areaTabela").style.display = "none";
+
+    document.getElementById("countP").textContent = "0";
+    document.getElementById("countF").textContent = "0";
+    document.getElementById("countJ").textContent = "0";
+    document.getElementById("percentP").textContent = "0%";
+
+}
+
+});
+
+}); 
+
 </script>
 {% endblock extra_js %}
