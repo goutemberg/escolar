@@ -677,11 +677,25 @@ def salvar_aluno(request):
                 ).date()
 
             # ==========================================================
+            # TURMA
+            # ==========================================================
+            turma = None
+
+            turma_id = data.get("turma_id")
+
+            if turma_id:
+                turma = Turma.objects.filter(
+                    id=turma_id,
+                    escola=request.escola,
+                ).first()
+
+            # ==========================================================
             # EDIÇÃO
             # ==========================================================
             if aluno_id:
                 aluno = Aluno.objects.select_for_update().get(
-                    id=aluno_id, escola=request.escola
+                    id=aluno_id,
+                    escola=request.escola,
                 )
 
                 aluno.nome = data.get("nome", "")
@@ -709,20 +723,29 @@ def salvar_aluno(request):
                 )
                 aluno.situacao_familiar = data.get("situacao_familiar") or None
 
-                if data.get("nivel_modalidade"):
-                    aluno.forma_acesso = data.get("nivel_modalidade")
+                # Forma de acesso
+                if data.get("forma_acesso"):
+                    aluno.forma_acesso = data.get("forma_acesso")
 
                 aluno.dispensa_ensino_religioso = to_bool(
                     data.get("dispensa_ensino_religioso")
                 )
+
                 aluno.bolsa_familia = to_bool(data.get("bolsa_familia"))
+
                 aluno.serie_ano = data.get("serie_ano", "")
                 aluno.turno_aluno = data.get("turno") or data.get("turno_aluno", "")
+
                 dia_vencimento = data.get("dia_vencimento")
                 aluno.dia_vencimento = int(dia_vencimento) if dia_vencimento else None
+
+                # Atualiza a turma principal
+                if turma:
+                    aluno.turma_principal = turma
+
                 aluno.save()
 
-            # ==========================================================
+                # ==========================================================
             # CADASTRO
             # ==========================================================
             else:
@@ -750,7 +773,8 @@ def salvar_aluno(request):
                     cor_raca=data.get("cor_raca") or None,
                     responsavel_financeiro=data.get("responsavel_financeiro") or None,
                     situacao_familiar=data.get("situacao_familiar") or None,
-                    forma_acesso=data.get("nivel_modalidade"),
+                    # Forma de acesso (Matrícula / Rematrícula / Transferência)
+                    forma_acesso=data.get("forma_acesso"),
                     dispensa_ensino_religioso=to_bool(
                         data.get("dispensa_ensino_religioso")
                     ),
@@ -758,6 +782,8 @@ def salvar_aluno(request):
                     bolsa_familia=to_bool(data.get("bolsa_familia")),
                     serie_ano=data.get("serie_ano", ""),
                     turno_aluno=data.get("turno") or data.get("turno_aluno", ""),
+                    # Já cria com a turma principal definida
+                    turma_principal=turma,
                     dia_vencimento=(
                         int(data.get("dia_vencimento"))
                         if data.get("dia_vencimento")
@@ -766,21 +792,20 @@ def salvar_aluno(request):
                 )
 
             # ==========================================================
-            # TURMA PRINCIPAL
+            # SINCRONIZA TURMA PRINCIPAL
             # ==========================================================
-            turma_id = data.get("turma_id")
-            if turma_id:
-                turma = Turma.objects.filter(id=turma_id, escola=request.escola).first()
+            if turma:
 
-                if turma:
-                    aluno.turmas.add(turma)
+                # Na edição pode ter mudado de turma
+                if aluno.turma_principal != turma:
+                    aluno.turma_principal = turma
+                    aluno.save(update_fields=["turma_principal"])
 
-                    if not aluno.turma_principal:
-                        aluno.turma_principal = turma
-                        aluno.save(update_fields=["turma_principal"])
+                # Mantém compatibilidade com o relacionamento M2M
+                aluno.turmas.set([turma])
 
             # ==========================================================
-            # RESPONSÁVEIS (AJUSTADO – NÃO APAGA DADOS EXISTENTES)
+            # RESPONSÁVEIS (NÃO APAGA DADOS EXISTENTES)
             # ==========================================================
             def salvar_responsavel(tipo):
                 nome = (data.get(f"{tipo}_nome") or "").strip()
@@ -869,12 +894,20 @@ def salvar_aluno(request):
             )
 
         return JsonResponse(
-            {"status": "sucesso", "aluno_id": aluno.id, "matricula": aluno.matricula}
+            {
+                "status": "sucesso",
+                "aluno_id": aluno.id,
+                "matricula": aluno.matricula,
+            }
         )
 
     except Exception as e:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Erro ao salvar aluno.", "detalhe": str(e)},
+            {
+                "status": "erro",
+                "mensagem": "Erro ao salvar aluno.",
+                "detalhe": str(e),
+            },
             status=400,
         )
 
