@@ -200,36 +200,107 @@ class Funcionario(models.Model):
 #  ALUNO
 # ================================================
 class Aluno(models.Model):
+
+    FORMA_ACESSO_CHOICES = [
+        ("matricula", "Matrícula"),
+        ("rematricula", "Rematrícula"),
+        ("transferencia", "Transferência"),
+    ]
+
+    SITUACAO_MATRICULA_CHOICES = [
+        ("matricula", "Matrícula"),
+        ("rematricula", "Rematrícula"),
+        ("transferencia", "Transferência"),
+    ]
+
+    NIVEL_MODALIDADE_CHOICES = [
+        ("Infantil", "Infantil"),
+        ("Fundamental I", "Fundamental I"),
+        ("Fundamental II", "Fundamental II"),
+    ]
+
     matricula = models.CharField(
-        max_length=20, unique=True, default=gerar_matricula_unica
+        max_length=20,
+        unique=True,
+        default=gerar_matricula_unica,
     )
-    nome = models.CharField(max_length=255, default="")
+
+    nome = models.CharField(
+        max_length=255,
+        default="",
+        db_index=True,
+    )
+
     data_nascimento = models.DateField(blank=True, null=True)
-    cpf = models.CharField(max_length=14, null=True, blank=True, default="")
-    rg = models.CharField(max_length=20, blank=True, null=True, default="")
+
+    cpf = models.CharField(
+        max_length=14,
+        blank=True,
+        null=True,
+        default="",
+        db_index=True,
+    )
+
+    rg = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default="",
+    )
+
     sexo = models.CharField(max_length=10, default="")
     nacionalidade = models.CharField(max_length=50, default="")
     naturalidade = models.CharField(max_length=50, default="")
-    certidao_numero = models.CharField(max_length=50, blank=True, null=True, default="")
-    certidao_livro = models.CharField(max_length=50, blank=True, null=True, default="")
+
+    certidao_numero = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        default="",
+    )
+
+    certidao_livro = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        default="",
+    )
+
     tipo_sanguineo = models.CharField(max_length=3, default="")
+
     rua = models.CharField(max_length=100, default="")
     numero = models.CharField(max_length=10, default="")
     cep = models.CharField(max_length=10, default="")
     bairro = models.CharField(max_length=50, default="")
     cidade = models.CharField(max_length=50, default="")
     estado = models.CharField(max_length=2, default="")
+
     email = models.EmailField(default="")
     telefone = models.CharField(max_length=20, default="")
+
     ativo = models.BooleanField(default=True)
-    escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True, blank=True)
-    data_ingresso = models.DateField(null=True, blank=True)
-    dia_vencimento = models.IntegerField(null=True, blank=True)
+
+    escola = models.ForeignKey(
+        Escola,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+
+    data_ingresso = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    dia_vencimento = models.IntegerField(
+        null=True,
+        blank=True,
+    )
 
     cor_raca = models.CharField(
         max_length=20,
-        null=True,
         blank=True,
+        null=True,
         choices=[
             ("branca", "Branca"),
             ("preta", "Preta"),
@@ -242,15 +313,19 @@ class Aluno(models.Model):
 
     responsavel_financeiro = models.CharField(
         max_length=10,
-        null=True,
         blank=True,
-        choices=[("pai", "Pai"), ("mae", "Mãe"), ("outro", "Outro")],
+        null=True,
+        choices=[
+            ("pai", "Pai"),
+            ("mae", "Mãe"),
+            ("outro", "Outro"),
+        ],
     )
 
     situacao_familiar = models.CharField(
         max_length=12,
-        null=True,
         blank=True,
+        null=True,
         choices=[
             ("casados", "Casados"),
             ("separados", "Separados"),
@@ -259,21 +334,41 @@ class Aluno(models.Model):
     )
 
     dispensa_ensino_religioso = models.BooleanField(default=False)
-    forma_acesso = models.CharField(max_length=50, null=True, blank=True)
+
+    forma_acesso = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        choices=FORMA_ACESSO_CHOICES,
+    )
+
     situacao_matricula = models.CharField(
         max_length=20,
-        null=True,
         blank=True,
-        choices=[
-            ("matricula", "Matrícula"),
-            ("rematricula", "Rematrícula"),
-            ("transferencia", "Transferência"),
-        ],
+        null=True,
+        choices=SITUACAO_MATRICULA_CHOICES,
+    )
+
+    # NOVO CAMPO
+    nivel_modalidade = models.CharField(
+        max_length=30,
+        blank=True,
+        null=True,
+        choices=NIVEL_MODALIDADE_CHOICES,
     )
 
     bolsa_familia = models.BooleanField(default=False)
-    serie_ano = models.CharField(max_length=50, blank=True)
-    turno_aluno = models.CharField(max_length=20, blank=True)
+
+    serie_ano = models.CharField(
+        max_length=50,
+        blank=True,
+    )
+
+    turno_aluno = models.CharField(
+        max_length=20,
+        blank=True,
+    )
+
     possui_necessidade_especial = models.BooleanField(default=False)
 
     desconto_mensal = models.DecimalField(
@@ -291,55 +386,29 @@ class Aluno(models.Model):
         related_name="alunos_principais",
     )
 
-    # =========================================================
-    # 🔥 VALIDAÇÃO E CONSISTÊNCIA
-    # =========================================================
-
-    def save(self, *args, **kwargs):
-
-        # 🔥 REGRA 1: aluno precisa ter turma
-        if not self.turma_principal:
-
-            # tenta recuperar da relação M2M
-            turma = self.turmas.first()
-
-            if turma:
-                self.turma_principal = turma
-            else:
-                raise ValidationError("Aluno precisa ter uma turma principal.")
-
-        super().save(*args, **kwargs)
-
-        # 🔥 REGRA 2: garantir que turma_principal esteja no M2M
-        if (
-            self.turma_principal
-            and not self.turmas.filter(id=self.turma_principal.id).exists()
-        ):
-            self.turmas.add(self.turma_principal)
-
-        # 🔥 REGRA 3: garantir apenas UMA turma ativa
-        turmas_ids = list(self.turmas.values_list("id", flat=True))
-
-        if len(turmas_ids) > 1:
-            self.turmas.clear()
-            self.turmas.add(self.turma_principal)
-
-    def __str__(self):
-        return f"{self.nome} ({self.matricula})"
-
     @property
     def turma(self):
-
+        """
+        Compatibilidade com código legado.
+        """
         if self.turma_principal:
             return self.turma_principal
 
-        if hasattr(self, "turmas") and self.turmas.exists():
+        if self.pk:
             return self.turmas.first()
 
         return None
 
     def __str__(self):
         return f"{self.nome} - {self.matricula}"
+
+    class Meta:
+        ordering = ["nome"]
+
+        indexes = [
+            models.Index(fields=["escola", "nome"]),
+            models.Index(fields=["escola", "ativo"]),
+        ]
 
 
 # ================================================
