@@ -1,0 +1,127 @@
+.rbac-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.rbac-header {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+}
+
+.rbac-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.rbac-header p {
+    margin: 6px 0 0;
+    color: #6c757d;
+}
+
+.rbac-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.rbac-card-info {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+}
+
+.rbac-card-info .icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+}
+
+.rbac-card-info .content {
+    display: flex;
+    flex-direction: column;
+}
+
+.rbac-card-info .number {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.rbac-card-info .label {
+    margin-top: 4px;
+    color: #6c757d;
+}
+
+.rbac-table-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .08);
+}
+
+.rbac-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+}
+
+.rbac-search {
+    position: relative;
+    width: 340px;
+}
+
+.rbac-search i {
+    position: absolute;
+    top: 50%;
+    left: 14px;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
+
+.rbac-search input {
+    width: 100%;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 10px 14px 10px 42px;
+}
+
+.rbac-search input:focus {
+    outline: none;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .15);
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    font-weight: 600;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.table .btn {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+}
