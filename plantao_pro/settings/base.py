@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "financeiro",
     "corsheaders",
     "auditoria.apps.AuditoriaConfig",
+    "rbac",
 ]
 
 MIDDLEWARE = [
