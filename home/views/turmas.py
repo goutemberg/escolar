@@ -11,7 +11,7 @@ from home.models import (
     Disciplina,
     Aluno,
     NomeTurma,
-    DiarioDeClasse,
+    Chamada,
     TipoAvaliacao,
     ModeloAvaliacao,
     Avaliacao,
@@ -623,7 +623,10 @@ def excluir_turma(request, turma_id):
 
     turma = get_object_or_404(Turma, id=turma_id, escola=request.escola)
 
-    if DiarioDeClasse.objects.filter(turma=turma).exists():
+    if Chamada.objects.filter(
+        turma=turma,
+        escola=request.escola,
+    ).exists():
         return JsonResponse(
             {"success": False, "error": "Turma possui registros acadêmicos."}
         )
