@@ -36,7 +36,6 @@ def buscar_chamadas_relatorio(request):
             "turma",
             "professor",
             "professor__user",
-            "diario",
         )
         .filter(escola=escola)
         .order_by("-criado_em")
@@ -267,14 +266,26 @@ def relatorio_chamada_professor_pdf(request):
 
     if dados["professor_id"]:
         professor = (
-            Docente.objects.filter(id=dados["professor_id"]).only("nome").first()
+            Docente.objects.filter(
+                id=dados["professor_id"],
+                escola=escola,
+            )
+            .only("nome")
+            .first()
         )
 
         if professor:
             filtros.append(f"Professor: {professor.nome}")
 
     if dados["turma_id"]:
-        turma = Turma.objects.filter(id=dados["turma_id"]).only("nome").first()
+        turma = (
+            Turma.objects.filter(
+                id=dados["turma_id"],
+                escola=escola,
+            )
+            .only("nome")
+            .first()
+        )
 
         if turma:
             filtros.append(f"Turma: {turma.nome}")

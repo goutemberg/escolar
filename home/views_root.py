@@ -40,10 +40,18 @@ from django.http import (
     HttpResponseBadRequest,
     HttpResponseForbidden,
 )
+
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Prefetch, Q
+from django.http import JsonResponse
+
+from home.models import Aluno, Responsavel, TurmaDisciplina, Turma
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from collections import defaultdict
 from home.utils import get_ano_ativo
@@ -188,39 +196,70 @@ def cadastrar_escola_banco(request):
 @login_required
 @role_required(["diretor", "coordenador"])
 def cadastro_aluno(request):
-    cadastro_aluno = Escola.objects.all()
-    turmas = Turma.objects.filter(escola=request.escola).order_by("nome")
-    niveis_modalidades = ["Infantil", "Fundamental I", "Fundamental II"]
+
+    escola = request.escola
+
+    cadastro_aluno = [escola]
+
+    turmas = Turma.objects.filter(escola=escola).order_by("nome")
+
+    niveis_modalidades = [
+        "Infantil",
+        "Fundamental I",
+        "Fundamental II",
+    ]
 
     context = {
         "cadastro_aluno": cadastro_aluno,
         "turmas": turmas,
         "niveis_modalidades": niveis_modalidades,
     }
-    return render(request, "pages/registrar_aluno.html", context)
+
+    return render(
+        request,
+        "pages/registrar_aluno.html",
+        context,
+    )
 
 
 @login_required
 @role_required(["diretor", "coordenador"])
 def cadastro_funcionarios(request):
-    cadastro_funcionario = Escola.objects.all()
-    context = {"cadastro_funcionario": cadastro_funcionario}
-    return render(request, "pages/registrar_funcionarios.html", context)
+
+    cadastro_funcionario = [request.escola]
+
+    context = {
+        "cadastro_funcionario": cadastro_funcionario,
+    }
+
+    return render(
+        request,
+        "pages/registrar_funcionarios.html",
+        context,
+    )
 
 
 @login_required
 @role_required(["diretor", "coordenador"])
 def cadastro_professor(request):
-    escolas = Escola.objects.all()
-    disciplinas = Disciplina.objects.filter(escola=request.escola)
+
+    escola = request.escola
+
+    disciplinas = Disciplina.objects.filter(escola=escola)
+
     context = {
-        "cadastro_professor": escolas,
+        "cadastro_professor": escola,
         "disciplinas": disciplinas,
     }
-    return render(request, "pages/registrar_professor.html", context)
+
+    return render(
+        request,
+        "pages/registrar_professor.html",
+        context,
+    )
 
 
-@csrf_exempt
+@login_required
 @require_POST
 def buscar_cnpj(request):
     body = json.loads(request.body)
@@ -269,7 +308,6 @@ def validar_cnpj(cnpj):
     return cnpj[-2:] == dig1 + dig2
 
 
-@csrf_exempt
 @login_required
 @role_required(["diretor", "coordenador"])
 @transaction.atomic
@@ -557,7 +595,6 @@ def api_professor_detalhe(request, professor_id):
     )
 
 
-@csrf_exempt
 @login_required
 @role_required(["diretor", "coordenador"])
 def editar_professor(request, prof_id):
@@ -583,8 +620,9 @@ def editar_professor(request, prof_id):
             return JsonResponse({"success": False, "error": str(e)})
 
 
-@csrf_exempt
 @login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def alternar_status_professor(request, prof_id):
     if request.method == "POST":
         try:
@@ -616,7 +654,6 @@ def alternar_status_professor(request, prof_id):
     return JsonResponse({"success": False, "error": "Método inválido"}, status=405)
 
 
-@csrf_exempt
 def to_bool(value):
     return str(value).lower() in ["true", "1", "sim"]
 
@@ -644,8 +681,9 @@ def to_bool(v):
     return str(v).strip().lower() in ("1", "true", "t", "sim", "yes", "y")
 
 
-@csrf_exempt
 @login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def salvar_aluno(request):
     if request.method != "POST":
         return JsonResponse({"mensagem": "Método não permitido"}, status=405)
@@ -914,24 +952,67 @@ def salvar_aluno(request):
 
 @login_required
 def aluno_pdf(request, aluno_id):
-    aluno = get_object_or_404(Aluno, pk=aluno_id)
-    escola = getattr(aluno, "escola", None) or getattr(request.user, "escola", None)
 
-    # Relacionamentos (ajuste se seus related_names forem diferentes)
+    escola = request.user.escola
+
+    aluno = get_object_or_404(
+        Aluno,
+        pk=aluno_id,
+        escola=escola,
+    )
+
+    # =====================================================
+    # 🔐 AUTORIZAÇÃO
+    # =====================================================
+
+    if request.user.role == "professor":
+
+        docente = Docente.objects.filter(
+            user=request.user,
+            escola=escola,
+        ).first()
+
+        if not docente:
+            return JsonResponse(
+                {"erro": "Professor não vinculado à escola."},
+                status=403,
+            )
+
+        possui_acesso = TurmaDisciplina.objects.filter(
+            turma__alunos=aluno,
+            turma__escola=escola,
+            professor=docente,
+            escola=escola,
+        ).exists()
+
+        if not possui_acesso:
+            return JsonResponse(
+                {"erro": "Você não possui acesso a este aluno."},
+                status=403,
+            )
+
+    # =====================================================
+    # RELACIONAMENTOS
+    # =====================================================
+
     responsaveis = (
         list(getattr(aluno, "responsavel_set", []).all())
         if hasattr(aluno, "responsavel_set")
         else []
     )
+
     saude = getattr(aluno, "saude", None) if hasattr(aluno, "saude") else None
+
     transporte = (
         getattr(aluno, "transporte", None) if hasattr(aluno, "transporte") else None
     )
+
     autorizacoes = (
         getattr(aluno, "autorizacoes", None) if hasattr(aluno, "autorizacoes") else None
     )
 
     buf = BytesIO()
+
     doc = SimpleDocTemplate(
         buf,
         pagesize=A4,
@@ -942,24 +1023,46 @@ def aluno_pdf(request, aluno_id):
     )
 
     styles = getSampleStyleSheet()
+
     title = ParagraphStyle(
-        "TitleCenter", parent=styles["Title"], alignment=1, fontSize=16, spaceAfter=6
+        "TitleCenter",
+        parent=styles["Title"],
+        alignment=1,
+        fontSize=16,
+        spaceAfter=6,
     )
-    h3 = ParagraphStyle("H3", parent=styles["Heading3"], spaceBefore=10, spaceAfter=6)
+
+    h3 = ParagraphStyle(
+        "H3",
+        parent=styles["Heading3"],
+        spaceBefore=10,
+        spaceAfter=6,
+    )
+
     normal = styles["BodyText"]
 
     story = []
 
-    # Cabeçalho da escola
+    # =====================================================
+    # CABEÇALHO DA ESCOLA
+    # =====================================================
+
     escola_nome = getattr(escola, "nome", "Escola")
     escola_endereco = getattr(escola, "endereco", "") or ""
+
     story.append(Paragraph(escola_nome, title))
+
     if escola_endereco:
         story.append(Paragraph(escola_endereco, normal))
+
     story.append(Spacer(1, 6))
 
-    # Seção: Dados do Aluno
+    # =====================================================
+    # DADOS DO ALUNO
+    # =====================================================
+
     story.append(Paragraph("Dados do Aluno", h3))
+
     dados_aluno = [
         ["Matrícula", aluno.matricula or ""],
         ["Nome", aluno.nome or ""],
@@ -975,7 +1078,12 @@ def aluno_pdf(request, aluno_id):
         ],
         ["Tipo sanguíneo", aluno.tipo_sanguineo or ""],
     ]
-    t1 = Table(dados_aluno, colWidths=[5 * cm, 10 * cm])
+
+    t1 = Table(
+        dados_aluno,
+        colWidths=[5 * cm, 10 * cm],
+    )
+
     t1.setStyle(
         TableStyle(
             [
@@ -993,17 +1101,33 @@ def aluno_pdf(request, aluno_id):
             ]
         )
     )
+
     story.append(t1)
 
-    # Seção: Endereço/Contato
+    # =====================================================
+    # ENDEREÇO / CONTATO
+    # =====================================================
+
     story.append(Paragraph("Endereço e Contato", h3))
-    endereco = f"{aluno.rua or ''}, {aluno.numero or ''} — {aluno.bairro or ''} — {aluno.cidade or ''}/{aluno.estado or ''} — CEP {aluno.cep or ''}"
+
+    endereco = (
+        f"{aluno.rua or ''}, {aluno.numero or ''} — "
+        f"{aluno.bairro or ''} — "
+        f"{aluno.cidade or ''}/{aluno.estado or ''} — "
+        f"CEP {aluno.cep or ''}"
+    )
+
     dados_contato = [
         ["Endereço", endereco],
         ["Email", aluno.email or ""],
         ["Telefone", aluno.telefone or ""],
     ]
-    t2 = Table(dados_contato, colWidths=[5 * cm, 10 * cm])
+
+    t2 = Table(
+        dados_contato,
+        colWidths=[5 * cm, 10 * cm],
+    )
+
     t2.setStyle(
         TableStyle(
             [
@@ -1020,12 +1144,19 @@ def aluno_pdf(request, aluno_id):
             ]
         )
     )
+
     story.append(t2)
 
-    # Seção: Responsáveis (se houver)
+    # =====================================================
+    # RESPONSÁVEIS
+    # =====================================================
+
     if responsaveis:
+
         story.append(Paragraph("Responsáveis", h3))
+
         rows = [["Nome", "CPF", "Parentesco", "Telefone", "Email"]]
+
         for r in responsaveis:
             rows.append(
                 [
@@ -1036,7 +1167,12 @@ def aluno_pdf(request, aluno_id):
                     getattr(r, "email", "") or "",
                 ]
             )
-        t_resp = Table(rows, colWidths=[5 * cm, 3 * cm, 3 * cm, 3 * cm, 6 * cm])
+
+        t_resp = Table(
+            rows,
+            colWidths=[5 * cm, 3 * cm, 3 * cm, 3 * cm, 6 * cm],
+        )
+
         t_resp.setStyle(
             TableStyle(
                 [
@@ -1047,30 +1183,88 @@ def aluno_pdf(request, aluno_id):
                 ]
             )
         )
+
         story.append(t_resp)
 
-    # Seção: Saúde
+    # =====================================================
+    # SAÚDE
+    # =====================================================
+
     if saude:
+
         story.append(Paragraph("Saúde", h3))
+
         dados_saude = [
             [
                 "Necessidade especial",
                 (
                     "Sim"
-                    if getattr(saude, "possui_necessidade_especial", False)
+                    if getattr(
+                        saude,
+                        "possui_necessidade_especial",
+                        False,
+                    )
                     else "Não"
                 ),
             ],
-            ["Descrição", getattr(saude, "descricao_necessidade", "") or ""],
+            [
+                "Descrição",
+                getattr(
+                    saude,
+                    "descricao_necessidade",
+                    "",
+                )
+                or "",
+            ],
             [
                 "Usa medicação",
-                "Sim" if getattr(saude, "usa_medicacao", False) else "Não",
+                (
+                    "Sim"
+                    if getattr(
+                        saude,
+                        "usa_medicacao",
+                        False,
+                    )
+                    else "Não"
+                ),
             ],
-            ["Quais", getattr(saude, "quais_medicacoes", "") or ""],
-            ["Alergia", "Sim" if getattr(saude, "possui_alergia", False) else "Não"],
-            ["Descrição alergia", getattr(saude, "descricao_alergia", "") or ""],
+            [
+                "Quais",
+                getattr(
+                    saude,
+                    "quais_medicacoes",
+                    "",
+                )
+                or "",
+            ],
+            [
+                "Alergia",
+                (
+                    "Sim"
+                    if getattr(
+                        saude,
+                        "possui_alergia",
+                        False,
+                    )
+                    else "Não"
+                ),
+            ],
+            [
+                "Descrição alergia",
+                getattr(
+                    saude,
+                    "descricao_alergia",
+                    "",
+                )
+                or "",
+            ],
         ]
-        t_saude = Table(dados_saude, colWidths=[6 * cm, 9 * cm])
+
+        t_saude = Table(
+            dados_saude,
+            colWidths=[6 * cm, 9 * cm],
+        )
+
         t_saude.setStyle(
             TableStyle(
                 [
@@ -1080,23 +1274,46 @@ def aluno_pdf(request, aluno_id):
                 ]
             )
         )
+
         story.append(t_saude)
 
-    # Seção: Transporte
+    # =====================================================
+    # TRANSPORTE
+    # =====================================================
+
     if transporte:
+
         story.append(Paragraph("Transporte Escolar", h3))
+
         dados_transp = [
             [
                 "Usa transporte",
                 (
                     "Sim"
-                    if getattr(transporte, "usa_transporte_escolar", False)
+                    if getattr(
+                        transporte,
+                        "usa_transporte_escolar",
+                        False,
+                    )
                     else "Não"
                 ),
             ],
-            ["Trajeto/Ponto", getattr(transporte, "trajeto", "") or ""],
+            [
+                "Trajeto/Ponto",
+                getattr(
+                    transporte,
+                    "trajeto",
+                    "",
+                )
+                or "",
+            ],
         ]
-        t_transp = Table(dados_transp, colWidths=[6 * cm, 9 * cm])
+
+        t_transp = Table(
+            dados_transp,
+            colWidths=[6 * cm, 9 * cm],
+        )
+
         t_transp.setStyle(
             TableStyle(
                 [
@@ -1106,17 +1323,27 @@ def aluno_pdf(request, aluno_id):
                 ]
             )
         )
+
         story.append(t_transp)
 
-    # Seção: Autorizações
+    # =====================================================
+    # AUTORIZAÇÕES
+    # =====================================================
+
     if autorizacoes:
+
         story.append(Paragraph("Autorizações", h3))
+
         dados_auto = [
             [
                 "Pode sair sozinho",
                 (
                     "Sim"
-                    if getattr(autorizacoes, "autorizacao_saida_sozinho", False)
+                    if getattr(
+                        autorizacoes,
+                        "autorizacao_saida_sozinho",
+                        False,
+                    )
                     else "Não"
                 ),
             ],
@@ -1124,16 +1351,30 @@ def aluno_pdf(request, aluno_id):
                 "Permite fotos/eventos",
                 (
                     "Sim"
-                    if getattr(autorizacoes, "autorizacao_fotos_eventos", False)
+                    if getattr(
+                        autorizacoes,
+                        "autorizacao_fotos_eventos",
+                        False,
+                    )
                     else "Não"
                 ),
             ],
             [
                 "Pessoas autorizadas a buscar",
-                getattr(autorizacoes, "pessoa_autorizada_buscar", "") or "",
+                getattr(
+                    autorizacoes,
+                    "pessoa_autorizada_buscar",
+                    "",
+                )
+                or "",
             ],
         ]
-        t_auto = Table(dados_auto, colWidths=[6 * cm, 9 * cm])
+
+        t_auto = Table(
+            dados_auto,
+            colWidths=[6 * cm, 9 * cm],
+        )
+
         t_auto.setStyle(
             TableStyle(
                 [
@@ -1143,14 +1384,25 @@ def aluno_pdf(request, aluno_id):
                 ]
             )
         )
+
         story.append(t_auto)
+
+    # =====================================================
+    # GERA PDF
+    # =====================================================
 
     doc.build(story)
 
     pdf = buf.getvalue()
     buf.close()
-    resp = HttpResponse(pdf, content_type="application/pdf")
+
+    resp = HttpResponse(
+        pdf,
+        content_type="application/pdf",
+    )
+
     resp["Content-Disposition"] = f'inline; filename="aluno_{aluno_id}.pdf"'
+
     return resp
 
 
@@ -1186,7 +1438,9 @@ def cadastrar_aluno(request):
     )
 
 
-@csrf_exempt
+@login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def editar_aluno(request, aluno_id):
     if request.method == "POST":
         try:
@@ -1332,22 +1586,39 @@ def editar_aluno_view(request, aluno_id):
     )
 
 
-@csrf_exempt
+@login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def alternar_status_aluno(request, aluno_id):
-    if request.method == "POST":
-        try:
-            aluno = Aluno.objects.get(id=aluno_id, escola=request.escola)
-            aluno.ativo = not aluno.ativo
-            aluno.save()
-            return JsonResponse({"success": True})
-        except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)})
 
-    return JsonResponse({"success": False, "error": "Método inválido"})
+    try:
+        aluno = Aluno.objects.get(
+            id=aluno_id,
+            escola=request.escola,
+        )
 
+        aluno.ativo = not aluno.ativo
+        aluno.save(update_fields=["ativo"])
 
-from django.core.serializers.json import DjangoJSONEncoder
-import json
+        return JsonResponse({"success": True})
+
+    except Aluno.DoesNotExist:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Aluno não encontrado.",
+            },
+            status=404,
+        )
+
+    except Exception as e:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": str(e),
+            },
+            status=500,
+        )
 
 
 def _extrair_turma_info(aluno):
@@ -1407,17 +1678,6 @@ def _extrair_turma_info(aluno):
     return None, "", "", ""
 
 
-from django.shortcuts import render
-from django.contrib.auth.decorators import login_required
-from django.db.models import Prefetch, Q
-from django.http import JsonResponse
-
-from home.models import Aluno, Responsavel, TurmaDisciplina, Turma
-
-
-# ============================================================
-# FUNÇÃO: obter turmas do professor logado
-# ============================================================
 def turmas_do_professor(user):
     return Turma.objects.filter(disciplinas__professor=user).distinct()
 
@@ -1430,12 +1690,43 @@ def listar_alunos(request):
 
     escola = request.escola
 
-    base_template = get_base_template(request)  # 👈 novo
-    alunos = (
-        Aluno.objects.filter(escola=escola)
-        .select_related("turma_principal")
-        .prefetch_related("responsaveis")
-    )
+    base_template = get_base_template(request)
+
+    if request.user.role == "professor":
+
+        docente = Docente.objects.filter(
+            user=request.user,
+            escola=escola,
+        ).first()
+
+        if not docente:
+            alunos = Aluno.objects.none()
+        else:
+            turmas_ids = TurmaDisciplina.objects.filter(
+                professor=docente,
+                escola=escola,
+                turma__escola=escola,
+            ).values_list(
+                "turma_id",
+                flat=True,
+            )
+
+            alunos = (
+                Aluno.objects.filter(
+                    escola=escola,
+                    turma_principal_id__in=turmas_ids,
+                )
+                .select_related("turma_principal")
+                .prefetch_related("responsaveis")
+            )
+
+    else:
+
+        alunos = (
+            Aluno.objects.filter(escola=escola)
+            .select_related("turma_principal")
+            .prefetch_related("responsaveis")
+        )
 
     lista = []
 
@@ -1459,7 +1750,7 @@ def listar_alunos(request):
                 "estado": a.estado,
                 "possui_necessidade_especial": a.possui_necessidade_especial,
                 "turma": {
-                    "nome": a.turma_principal.nome if a.turma_principal else "",
+                    "nome": (a.turma_principal.nome if a.turma_principal else ""),
                     "sigla": (
                         a.turma_principal.nome[:3].upper() if a.turma_principal else ""
                     ),
@@ -1483,9 +1774,13 @@ def listar_alunos(request):
         )
 
     turmas_usuario = []
+
     if request.user.role == "professor":
         turmas_usuario = list(
-            request.user.professor_turmas.values_list("nome", flat=True)
+            request.user.professor_turmas.values_list(
+                "nome",
+                flat=True,
+            )
         )
 
     return render(
@@ -1493,8 +1788,14 @@ def listar_alunos(request):
         "pages/listar_alunos.html",
         {
             "base_template": base_template,
-            "alunos_json": json.dumps(lista, ensure_ascii=False),
-            "turmas_usuario": json.dumps(turmas_usuario, ensure_ascii=False),
+            "alunos_json": json.dumps(
+                lista,
+                ensure_ascii=False,
+            ),
+            "turmas_usuario": json.dumps(
+                turmas_usuario,
+                ensure_ascii=False,
+            ),
         },
     )
 
@@ -1503,21 +1804,31 @@ def listar_alunos(request):
 # ATIVAR / INATIVAR ALUNO
 # ============================================================
 @login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def toggle_aluno_ativo(request, aluno_id):
-    if request.method != "POST":
-        return JsonResponse({"error": "Método não permitido"}, status=405)
 
     escola = request.escola
 
-    aluno = get_object_or_404(Aluno, id=aluno_id, escola=escola)
+    aluno = get_object_or_404(
+        Aluno,
+        id=aluno_id,
+        escola=escola,
+    )
 
     aluno.ativo = not aluno.ativo
     aluno.save(update_fields=["ativo"])
 
-    return JsonResponse({"success": True, "ativo": aluno.ativo})
+    return JsonResponse(
+        {
+            "success": True,
+            "ativo": aluno.ativo,
+        }
+    )
 
 
 @login_required
+@role_required(["diretor", "coordenador"])
 @require_POST
 def excluir_aluno(request, aluno_id):
     escola = request.escola
@@ -1561,21 +1872,28 @@ def excluir_aluno(request, aluno_id):
     return JsonResponse({"success": True})
 
 
-@csrf_exempt  # ou use um decorator de CSRF seguro se for AJAX autenticado
+@login_required
 @require_POST
 def buscar_pessoa(request):
     try:
         data = json.loads(request.body)
+
         nome = data.get("nome", "").strip()
         tipo = data.get("tipo", "").lower()
 
         if not nome or tipo not in ["aluno", "professor"]:
-            return JsonResponse({"error": "Parâmetros inválidos"}, status=400)
+            return JsonResponse(
+                {"error": "Parâmetros inválidos"},
+                status=400,
+            )
 
         if tipo == "professor":
+
             professores = Docente.objects.filter(
-                nome__icontains=nome, escola=request.escola
+                nome__icontains=nome,
+                escola=request.user.escola,
             ).order_by("nome")
+
             resultados = [
                 {
                     "nome": p.nome,
@@ -1583,25 +1901,29 @@ def buscar_pessoa(request):
                 }
                 for p in professores
             ]
+
         else:
+
             alunos = Aluno.objects.filter(
-                nome__icontains=nome, escola=request.escola
+                nome__icontains=nome,
+                escola=request.user.escola,
             ).order_by("nome")
+
             resultados = [{"nome": a.nome} for a in alunos]
 
         return JsonResponse({"resultados": resultados})
 
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"error": "JSON inválido"},
+            status=400,
+        )
+
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-# =====================================
-#  AUTOCOMPLETE PESSOA (RESTRITO POR PERFIL)
-# =====================================
-
-from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+        return JsonResponse(
+            {"error": str(e)},
+            status=500,
+        )
 
 
 @login_required
@@ -1657,6 +1979,7 @@ def autocomplete_pessoa(request):
 
 
 @login_required
+@role_required(["diretor", "coordenador"])
 @require_POST
 def criar_turma(request):
     escola = request.escola
@@ -1957,7 +2280,6 @@ def impressao_dados(request):
     return render(request, "pages/print.html", context)
 
 
-@csrf_exempt
 @login_required
 @role_required(["professor", "diretor", "coordenador"])
 def lancar_notas(request):
@@ -1993,7 +2315,7 @@ def lancar_notas(request):
 
         try:
             bimestre = int(bimestre)
-        except ValueError:
+        except (ValueError, TypeError):
             return JsonResponse(
                 {"erro": "Bimestre inválido."},
                 status=400,
@@ -2018,6 +2340,41 @@ def lancar_notas(request):
                 {"erro": "Turma ou disciplina inválida."},
                 status=400,
             )
+
+        # =====================================================
+        # 🔐 AUTORIZAÇÃO DO PROFESSOR
+        # =====================================================
+
+        if request.user.role == "professor":
+
+            docente = Docente.objects.filter(
+                user=request.user,
+                escola=escola,
+            ).first()
+
+            if not docente:
+                return JsonResponse(
+                    {"erro": "Professor não vinculado à escola."},
+                    status=403,
+                )
+
+            possui_vinculo = TurmaDisciplina.objects.filter(
+                turma=turma,
+                disciplina=disciplina,
+                professor=docente,
+                escola=escola,
+            ).exists()
+
+            if not possui_vinculo:
+                return JsonResponse(
+                    {
+                        "erro": (
+                            "Você não possui autorização para lançar "
+                            "notas nesta turma e disciplina."
+                        )
+                    },
+                    status=403,
+                )
 
         salvas = 0
         alunos_afetados = set()
@@ -2126,6 +2483,7 @@ def lancar_notas(request):
                         nota_existente.escola = escola
 
                         notas_para_atualizar.append(nota_existente)
+
                     else:
                         notas_para_criar.append(
                             Nota(
@@ -2242,7 +2600,7 @@ def lancar_notas(request):
                 }
             )
 
-        return JsonResponse({"mensagem": (f"Notas salvas com sucesso ({salvas}).")})
+        return JsonResponse({"mensagem": f"Notas salvas com sucesso ({salvas})."})
 
     except Exception as e:
         return JsonResponse(
@@ -2450,7 +2808,10 @@ def login_view(request):
         escola_id = request.POST.get("escola_id")
         ip = get_client_ip(request)
 
-        # 🔥 busca por CPF
+        # ==========================================================
+        # BUSCA USUÁRIO PELO CPF
+        # ==========================================================
+
         try:
             user_obj = User.objects.get(cpf=identificador)
             username = user_obj.username
@@ -2458,47 +2819,148 @@ def login_view(request):
             username = identificador
             user_obj = None
 
-        user = authenticate(request, username=username, password=senha)
+        # ==========================================================
+        # AUTENTICAÇÃO
+        # ==========================================================
+
+        user = authenticate(
+            request,
+            username=username,
+            password=senha,
+        )
 
         if user is None:
+
             LoginLog.objects.create(
-                user=user_obj, cpf=identificador, ip=ip, sucesso=False
+                user=user_obj,
+                cpf=identificador,
+                ip=ip,
+                sucesso=False,
             )
 
             form.add_error(None, "CPF ou senha inválidos")
-            return render(request, "pages/login.html", {"form": form})
 
-        # ✅ login OK
+            return render(
+                request,
+                "pages/login.html",
+                {"form": form},
+            )
+
+        # ==========================================================
+        # LOGIN
+        # ==========================================================
+
         login(request, user)
 
-        LoginLog.objects.create(user=user, cpf=identificador, ip=ip, sucesso=True)
+        LoginLog.objects.create(
+            user=user,
+            cpf=identificador,
+            ip=ip,
+            sucesso=True,
+        )
 
-        vinculos = UserEscola.objects.filter(user=user)
+        # ==========================================================
+        # VÍNCULOS DO USUÁRIO COM ESCOLAS
+        # ==========================================================
 
-        # 🔥 MULTI ESCOLA → MOSTRA TELA
-        if vinculos.count() > 1 and not escola_id:
+        vinculos = UserEscola.objects.filter(user=user).select_related("escola")
 
-            return render(request, "pages/escolher_escola.html", {"escolas": vinculos})
+        if vinculos.count() > 1:
 
-        # 🔥 DEFINE ESCOLA
-        if escola_id:
-            request.session["escola_id"] = int(escola_id)
+            if not escola_id:
+                return render(
+                    request,
+                    "pages/escolher_escola.html",
+                    {"escolas": vinculos},
+                )
 
-        elif vinculos.exists():
-            request.session["escola_id"] = vinculos.first().escola.id
+            try:
+                escola_id_int = int(escola_id)
+            except (TypeError, ValueError):
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": "Escola selecionada inválida.",
+                    },
+                    status=400,
+                )
+
+            vinculo = vinculos.filter(escola_id=escola_id_int).first()
+
+            if not vinculo:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": "Você não possui acesso a esta escola.",
+                    },
+                    status=403,
+                )
+
+            # Escola autorizada
+            request.session["escola_id"] = vinculo.escola_id
+
+        elif vinculos.count() == 1:
+
+            # Se o frontend enviou escola_id, ainda validamos.
+            if escola_id:
+
+                try:
+                    escola_id_int = int(escola_id)
+                except (TypeError, ValueError):
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "error": "Escola selecionada inválida.",
+                        },
+                        status=400,
+                    )
+
+                vinculo = vinculos.first()
+
+                if escola_id_int != vinculo.escola_id:
+                    return JsonResponse(
+                        {
+                            "success": False,
+                            "error": "Você não possui acesso a esta escola.",
+                        },
+                        status=403,
+                    )
+
+                request.session["escola_id"] = vinculo.escola_id
+
+            else:
+                # Apenas uma escola → entra diretamente nela
+                request.session["escola_id"] = vinculos.first().escola_id
+
+        # ==========================================================
+        # FALLBACK PARA USUÁRIO SEM UserEscola
+        # ==========================================================
 
         elif getattr(user, "escola", None):
+
             request.session["escola_id"] = user.escola.id
+
+        else:
+
+            # Usuário autenticado, mas sem escola definida
+            request.session.pop("escola_id", None)
 
         request.session.save()
 
-        # 🔥 senha temporária
+        # ==========================================================
+        # SENHA TEMPORÁRIA
+        # ==========================================================
+
         if user.senha_temporaria:
             return redirect("trocar_senha")
 
         return redirect("index")
 
-    return render(request, "pages/login.html", {"form": form})
+    return render(
+        request,
+        "pages/login.html",
+        {"form": form},
+    )
 
 
 def logout_view(request):
@@ -2506,79 +2968,95 @@ def logout_view(request):
     return redirect("/")
 
 
-@csrf_exempt
+@login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def cadastrar_funcionario_banco(request):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
 
-            nome = data.get("nome", "").strip()
-            cpf = data.get("cpf", "").strip()
-            rg = data.get("rg", "").strip()
-            sexo = data.get("sexo", "").strip()
-            data_nascimento = parse_date(data.get("data_nascimento"))
-            estado_civil = data.get("estado_civil", "").strip()
-            escolaridade = data.get("escolaridade", "").strip()
-            turno_trabalho = data.get("turno_trabalho", "").strip()
-            carga_horaria = data.get("carga_horaria", "").strip()
-            tipo_vinculo = data.get("tipo_vinculo", "").strip()
-            observacoes = data.get("observacoes", "").strip()
-            cep = data.get("cep", "").strip()
-            endereco = data.get("endereco", "").strip()
-            numero = data.get("numero", "").strip()
-            complemento = data.get("complemento", "").strip()
-            bairro = data.get("bairro", "").strip()
-            cidade = data.get("cidade", "").strip()
-            estado = data.get("estado", "").strip()
-            telefone = data.get("telefone", "").strip()
-            email = data.get("email", "").strip()
-            cargo = data.get("cargo", "").strip()
-            ativo = to_bool(data.get("ativo", "True"))
+    try:
+        data = json.loads(request.body)
 
-            funcionario = Funcionario.objects.create(
-                nome=nome,
+        nome = data.get("nome", "").strip()
+        cpf = data.get("cpf", "").strip()
+        rg = data.get("rg", "").strip()
+        sexo = data.get("sexo", "").strip()
+        data_nascimento = parse_date(data.get("data_nascimento"))
+        estado_civil = data.get("estado_civil", "").strip()
+        escolaridade = data.get("escolaridade", "").strip()
+        turno_trabalho = data.get("turno_trabalho", "").strip()
+        carga_horaria = data.get("carga_horaria", "").strip()
+        tipo_vinculo = data.get("tipo_vinculo", "").strip()
+        observacoes = data.get("observacoes", "").strip()
+        cep = data.get("cep", "").strip()
+        endereco = data.get("endereco", "").strip()
+        numero = data.get("numero", "").strip()
+        complemento = data.get("complemento", "").strip()
+        bairro = data.get("bairro", "").strip()
+        cidade = data.get("cidade", "").strip()
+        estado = data.get("estado", "").strip()
+        telefone = data.get("telefone", "").strip()
+        email = data.get("email", "").strip()
+        cargo = data.get("cargo", "").strip()
+        ativo = to_bool(data.get("ativo", "True"))
+
+        escola = request.user.escola
+
+        funcionario = Funcionario.objects.create(
+            nome=nome,
+            cpf=cpf,
+            rg=rg,
+            sexo=sexo,
+            data_nascimento=data_nascimento,
+            estado_civil=estado_civil,
+            escolaridade=escolaridade,
+            turno_trabalho=turno_trabalho,
+            carga_horaria=carga_horaria,
+            tipo_vinculo=tipo_vinculo,
+            observacoes=observacoes,
+            cep=cep,
+            endereco=endereco,
+            numero=numero,
+            complemento=complemento,
+            bairro=bairro,
+            cidade=cidade,
+            estado=estado,
+            telefone=telefone,
+            email=email,
+            cargo=cargo,
+            ativo=ativo,
+            escola=escola,
+        )
+
+        # Criação do usuário caso cargo seja "secretaria"
+        if cargo.lower() == "secretaria":
+            criar_usuario_com_cpf(
                 cpf=cpf,
-                rg=rg,
-                sexo=sexo,
-                data_nascimento=data_nascimento,
-                estado_civil=estado_civil,
-                escolaridade=escolaridade,
-                turno_trabalho=turno_trabalho,
-                carga_horaria=carga_horaria,
-                tipo_vinculo=tipo_vinculo,
-                observacoes=observacoes,
-                cep=cep,
-                endereco=endereco,
-                numero=numero,
-                complemento=complemento,
-                bairro=bairro,
-                cidade=cidade,
-                estado=estado,
-                telefone=telefone,
+                senha=data.get("senha", "senha@123"),
+                role="secretaria",
+                escola=escola,
                 email=email,
-                cargo=cargo,
-                ativo=ativo,
+                is_staff=True,
             )
 
-            # Criação do usuário caso cargo seja "secretaria"
-            if cargo.lower() == "secretaria":
-                criar_usuario_com_cpf(
-                    cpf=cpf,
-                    senha=data.get("senha", "senha@123"),
-                    role="secretaria",
-                    escola=None,
-                    email=email,
-                    is_staff=True,
-                )
+        return JsonResponse({"success": True})
 
-            return JsonResponse({"success": True})
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "JSON inválido.",
+            },
+            status=400,
+        )
 
-        except Exception as e:
-            return JsonResponse(
-                {"success": False, "error": f"Erro ao cadastrar funcionário: {str(e)}"}
-            )
-
-    return JsonResponse({"success": False, "error": "Método não permitido"}, status=405)
+    except Exception as e:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": f"Erro ao cadastrar funcionário: {str(e)}",
+            },
+            status=500,
+        )
 
 
 @login_required
@@ -2637,6 +3115,7 @@ def importar_alunos(request):
                         bairro=row.get("bairro", "").strip(),
                         cidade=row.get("cidade", "").strip(),
                         estado=row.get("estado", "").strip(),
+                        escola=request.escola,
                     )
 
                     if row.get("responsavel_nome"):
@@ -2822,47 +3301,203 @@ def listar_turmas_para_boletim(request):
 @role_required(["diretor", "coordenador", "professor"])
 def visualizar_boletim(request, aluno_id):
 
-    aluno = get_object_or_404(Aluno, pk=aluno_id)
-    escola = aluno.escola
-
-    # 🔥 BUSCA TODAS AS NOTAS DO ALUNO
-    notas = Nota.objects.filter(aluno=aluno, escola=escola).select_related(
-        "avaliacao__disciplina", "avaliacao__tipo", "avaliacao__turma"
-    )
+    escola = request.user.escola
 
     # =====================================================
-    # 🔥 DEFINIÇÃO CORRETA DA TURMA (CORRIGIDO AQUI)
+    # 🔐 BUSCA ALUNO DA ESCOLA
+    # =====================================================
+
+    aluno = get_object_or_404(
+        Aluno,
+        pk=aluno_id,
+        escola=escola,
+    )
+
+    professor = None
+
+    # =====================================================
+    # 🔐 VALIDAÇÃO DE ACESSO DO PROFESSOR
+    # =====================================================
+
+    if request.user.role == "professor":
+
+        professor = Docente.objects.filter(
+            user=request.user,
+            escola=escola,
+        ).first()
+
+        if not professor:
+            return HttpResponseForbidden("Professor não encontrado.")
+
+        permitido = (
+            TurmaDisciplina.objects.filter(
+                professor=professor,
+                escola=escola,
+                turma__escola=escola,
+            )
+            .filter(Q(turma=aluno.turma_principal) | Q(turma__alunos=aluno))
+            .exists()
+        )
+
+        if not permitido:
+            return HttpResponseForbidden(
+                "Você não tem permissão para visualizar " "o boletim deste aluno."
+            )
+
+    # =====================================================
+    # 🔥 DEFINIÇÃO DA TURMA
     # =====================================================
 
     turma_id = request.GET.get("turma")
 
     turma = None
 
-    # 1️⃣ tenta pegar da URL
     if turma_id:
-        turma = Turma.objects.filter(id=turma_id, escola=escola).first()
 
-    # 2️⃣ fallback: vínculo do aluno
+        turma = Turma.objects.filter(
+            id=turma_id,
+            escola=escola,
+        ).first()
+
+        if not turma:
+            return HttpResponseForbidden("Turma inválida.")
+
+        # -------------------------------------------------
+        # 🔐 PROFESSOR: TURMA PRECISA SER DELE
+        # -------------------------------------------------
+
+        if request.user.role == "professor":
+
+            permitido = TurmaDisciplina.objects.filter(
+                professor=professor,
+                turma=turma,
+                escola=escola,
+            ).exists()
+
+            if not permitido:
+                return HttpResponseForbidden(
+                    "Você não tem permissão para visualizar esta turma."
+                )
+
+            aluno_na_turma = (
+                aluno.turma_principal_id == turma.id
+                or aluno.turmas.filter(id=turma.id).exists()
+            )
+
+            if not aluno_na_turma:
+                return HttpResponseForbidden(
+                    "Este aluno não pertence à turma informada."
+                )
+
+    # -----------------------------------------------------
+    # FALLBACK: TURMA PRINCIPAL
+    # -----------------------------------------------------
+
     if not turma:
         turma = aluno.turma_principal or aluno.turmas.first()
 
-    # 3️⃣ fallback final: notas
-    if not turma and notas.exists():
-        turma = notas.first().avaliacao.turma
+    # -----------------------------------------------------
+    # FALLBACK: TURMA DAS NOTAS
+    # -----------------------------------------------------
 
-    # 4️⃣ proteção final
+    if not turma:
+
+        nota = (
+            Nota.objects.filter(
+                aluno=aluno,
+                escola=escola,
+            )
+            .select_related("avaliacao__turma")
+            .first()
+        )
+
+        if nota:
+            turma = nota.avaliacao.turma
+
+    # -----------------------------------------------------
+    # PROTEÇÃO FINAL
+    # -----------------------------------------------------
+
     if not turma:
         print("🚨 ERRO: ALUNO SEM TURMA:", aluno.id)
         return redirect("listar_turmas_para_boletim")
 
     # =====================================================
-    # 🔥 ESTRUTURA BASE (AGORA COM NOTAS)
+    # 🔐 PROFESSOR: GARANTE QUE A TURMA É DELE
+    # =====================================================
+
+    if request.user.role == "professor":
+
+        permitido = TurmaDisciplina.objects.filter(
+            professor=professor,
+            turma=turma,
+            escola=escola,
+        ).exists()
+
+        if not permitido:
+            return HttpResponseForbidden(
+                "Você não tem permissão para visualizar " "o boletim desta turma."
+            )
+
+    # =====================================================
+    # 🔥 BUSCA NOTAS
+    # =====================================================
+
+    notas_query = Nota.objects.filter(
+        aluno=aluno,
+        escola=escola,
+    ).select_related(
+        "avaliacao__disciplina",
+        "avaliacao__tipo",
+        "avaliacao__turma",
+    )
+
+    # =====================================================
+    # 🔐 PROFESSOR: RESTRINGE ÀS DISCIPLINAS DELE
+    # =====================================================
+
+    if request.user.role == "professor":
+
+        disciplinas_ids = TurmaDisciplina.objects.filter(
+            professor=professor,
+            turma=turma,
+            escola=escola,
+        ).values_list(
+            "disciplina_id",
+            flat=True,
+        )
+
+        notas_query = notas_query.filter(
+            avaliacao__disciplina_id__in=disciplinas_ids,
+            avaliacao__turma=turma,
+        )
+
+    else:
+
+        notas_query = notas_query.filter(
+            avaliacao__turma=turma,
+        )
+
+    notas = notas_query
+
+    # =====================================================
+    # 🔥 ESTRUTURA BASE
     # =====================================================
 
     dados = defaultdict(
         lambda: {
-            "bimestres": {1: None, 2: None, 3: None, 4: None},
-            "notas": {1: [], 2: [], 3: [], 4: []},
+            "bimestres": {
+                1: None,
+                2: None,
+                3: None,
+                4: None,
+            },
+            "notas": {
+                1: [],
+                2: [],
+                3: [],
+                4: [],
+            },
             "media_final": None,
         }
     )
@@ -2880,14 +3515,25 @@ def visualizar_boletim(request, aluno_id):
 
             dados[disciplina]["notas"][bimestre].append(
                 {
-                    "tipo": getattr(nota.avaliacao.tipo, "nome", "Avaliação"),
+                    "tipo": getattr(
+                        nota.avaliacao.tipo,
+                        "nome",
+                        "Avaliação",
+                    ),
                     "valor": float(nota.valor),
                 }
             )
 
     boletim = []
 
-    sistema = (getattr(turma, "sistema_avaliacao", None) or "NUM").upper()
+    sistema = (
+        getattr(
+            turma,
+            "sistema_avaliacao",
+            None,
+        )
+        or "NUM"
+    ).upper()
 
     # =====================================================
     # 🔥 PROCESSA MÉDIAS / CONCEITO
@@ -2902,28 +3548,39 @@ def visualizar_boletim(request, aluno_id):
             lista_notas = info["notas"][bimestre]
 
             if sistema == "CON":
-                # 🔥 INFANTIL (conceito)
+
                 if lista_notas:
                     medias_bimestre[bimestre] = lista_notas[-1]["valor"]
                 else:
                     medias_bimestre[bimestre] = None
+
             else:
-                # 🔥 NUMÉRICO
+
                 if lista_notas:
+
                     valores = [n["valor"] for n in lista_notas]
+
                     media = sum(valores) / len(valores)
+
                     medias_bimestre[bimestre] = arredondar_media_personalizada(media)
+
                 else:
                     medias_bimestre[bimestre] = None
 
-        # 🔥 MÉDIA FINAL (SÓ NUM)
+        # =================================================
+        # MÉDIA FINAL — SOMENTE SISTEMA NUMÉRICO
+        # =================================================
+
         media_final = None
 
         if sistema != "CON":
+
             valores_validos = [v for v in medias_bimestre.values() if v is not None]
 
             if valores_validos:
+
                 media_final = sum(valores_validos) / len(valores_validos)
+
                 media_final = arredondar_media_personalizada(media_final)
 
         boletim.append(
@@ -2945,7 +3602,7 @@ def visualizar_boletim(request, aluno_id):
         "pages/boletim.html",
         {
             "aluno": aluno,
-            "turma": turma,  # 🔥 AGORA GARANTIDO
+            "turma": turma,
             "escola": escola,
             "ano": datetime.now().year,
             "boletim": boletim,
@@ -2954,8 +3611,9 @@ def visualizar_boletim(request, aluno_id):
     )
 
 
-@csrf_exempt
 @login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 @transaction.atomic
 def cadastrar_disciplina(request):
     if request.method == "POST":
@@ -2999,7 +3657,10 @@ def cadastrar_disciplina(request):
     )
 
 
+@login_required
+@role_required(["diretor", "coordenador"])
 def pagina_cadastrar_disciplina(request):
+
     return render(request, "pages/cadastrar_disciplinas.html")
 
 
@@ -3046,66 +3707,121 @@ def visualizar_escola(request):
     )
 
 
-@csrf_exempt
 @login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def editar_escola(request):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            escola = request.escola
 
-            campos_permitidos = [
-                "nome",
-                "telefone",
-                "email",
-                "endereco",
-                "numero",
-                "complemento",
-                "bairro",
-                "cidade",
-                "estado",
-                "site",
-                "cep",
-            ]
+    try:
+        data = json.loads(request.body)
 
-            for campo in campos_permitidos:
-                if campo in data:
-                    setattr(escola, campo, data[campo])
+        escola = request.escola
 
-            escola.save()
-            return JsonResponse({"success": True})
-        except Exception as e:
-            return JsonResponse({"success": False, "error": str(e)}, status=500)
+        campos_permitidos = [
+            "nome",
+            "telefone",
+            "email",
+            "endereco",
+            "numero",
+            "complemento",
+            "bairro",
+            "cidade",
+            "estado",
+            "site",
+            "cep",
+        ]
 
-    return JsonResponse({"success": False, "error": "Método não permitido"}, status=405)
+        for campo in campos_permitidos:
+            if campo in data:
+                setattr(escola, campo, data[campo])
+
+        escola.save()
+
+        return JsonResponse({"success": True})
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "JSON inválido.",
+            },
+            status=400,
+        )
+
+    except Exception as e:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": str(e),
+            },
+            status=500,
+        )
 
 
-@csrf_exempt
+@login_required
 def listar_disciplinas(request):
-    disciplinas = Disciplina.objects.all().values("id", "nome")
+
+    disciplinas = (
+        Disciplina.objects.filter(escola=request.user.escola)
+        .values("id", "nome")
+        .order_by("nome")
+    )
+
     return JsonResponse({"disciplinas": list(disciplinas)})
 
 
-@csrf_exempt
+@login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def editar_disciplina(request):
-    data = json.loads(request.body)
+
     try:
-        disciplina = Disciplina.objects.get(id=data["id"])
+        data = json.loads(request.body)
+
+        disciplina = get_object_or_404(
+            Disciplina,
+            id=data["id"],
+            escola=request.user.escola,
+        )
+
         disciplina.nome = data["nome"]
         disciplina.save()
+
         return JsonResponse({"success": True})
-    except:
-        return JsonResponse({"success": False})
+
+    except (json.JSONDecodeError, KeyError):
+        return JsonResponse(
+            {"success": False, "error": "Dados inválidos."},
+            status=400,
+        )
 
 
-@csrf_exempt
+@login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def excluir_disciplina(request):
-    data = json.loads(request.body)
+
     try:
-        Disciplina.objects.get(id=data["id"]).delete()
+        data = json.loads(request.body)
+
+        disciplina = get_object_or_404(
+            Disciplina,
+            id=data["id"],
+            escola=request.user.escola,
+        )
+
+        disciplina.delete()
+
         return JsonResponse({"success": True})
-    except:
-        return JsonResponse({"success": False})
+
+    except (json.JSONDecodeError, KeyError):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Dados inválidos.",
+            },
+            status=400,
+        )
 
 
 @login_required
@@ -3141,40 +3857,182 @@ def diario_classe(request):
 
 @require_POST
 @login_required
+@role_required(["professor", "diretor", "coordenador"])
 def salvar_chamada(request):
-    data = json.loads(request.body)
-    turma_id = data["turma_id"]
-    disciplina_id = data["disciplina_id"]
-    presencas = data["presencas"]
 
-    professor = request.user.docente
+    try:
+        data = json.loads(request.body)
 
-    # Evita duplicação: uma chamada por dia, por professor/turma/disciplina
-    chamada_existente = Chamada.objects.filter(
-        data=date.today(),
-        turma_id=turma_id,
-        disciplina_id=disciplina_id,
-        professor=professor,
-    ).first()
+        turma_id = data["turma_id"]
+        disciplina_id = data["disciplina_id"]
+        presencas = data["presencas"]
 
-    if chamada_existente:
+        escola = request.escola
+
+        # =====================================================
+        # 🔐 VALIDA TURMA DA ESCOLA
+        # =====================================================
+
+        turma = get_object_or_404(
+            Turma,
+            id=turma_id,
+            escola=escola,
+        )
+
+        # =====================================================
+        # 🔐 VALIDA DISCIPLINA DA ESCOLA
+        # =====================================================
+
+        disciplina = get_object_or_404(
+            Disciplina,
+            id=disciplina_id,
+            escola=escola,
+        )
+
+        # =====================================================
+        # 🔐 VALIDA PROFESSOR
+        # =====================================================
+
+        professor = None
+
+        if request.user.role == "professor":
+
+            professor = Docente.objects.filter(
+                user=request.user,
+                escola=escola,
+            ).first()
+
+            if not professor:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "erro": "Professor não encontrado.",
+                    },
+                    status=403,
+                )
+
+            # Professor só pode lançar chamada
+            # em turma/disciplina em que está vinculado
+            permitido = TurmaDisciplina.objects.filter(
+                turma=turma,
+                disciplina=disciplina,
+                professor=professor,
+                escola=escola,
+            ).exists()
+
+            if not permitido:
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "erro": "Você não está vinculado a esta turma e disciplina.",
+                    },
+                    status=403,
+                )
+
+        else:
+            # Coordenador/diretor podem lançar chamada,
+            # mas o professor registrado deve pertencer à escola.
+            professor_id = data.get("professor_id")
+
+            if professor_id:
+                professor = get_object_or_404(
+                    Docente,
+                    id=professor_id,
+                    escola=escola,
+                )
+
+        # =====================================================
+        # 🔐 VALIDA ALUNOS DA ESCOLA
+        # =====================================================
+
+        alunos_ids = [p["aluno_id"] for p in presencas]
+
+        alunos_validos = set(
+            Aluno.objects.filter(
+                id__in=alunos_ids,
+                escola=escola,
+                turmas=turma,
+                ativo=True,
+            ).values_list(
+                "id",
+                flat=True,
+            )
+        )
+
+        if len(alunos_validos) != len(set(alunos_ids)):
+            return JsonResponse(
+                {
+                    "success": False,
+                    "erro": "Um ou mais alunos não pertencem a esta turma.",
+                },
+                status=400,
+            )
+
+        # =====================================================
+        # 🔒 EVITA DUPLICAÇÃO
+        # =====================================================
+
+        chamada_existente = Chamada.objects.filter(
+            escola=escola,
+            data=date.today(),
+            turma=turma,
+            disciplina=disciplina,
+            professor=professor,
+        ).first()
+
+        if chamada_existente:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "erro": "Chamada já registrada para hoje.",
+                },
+                status=400,
+            )
+
+        # =====================================================
+        # 🔥 CRIA CHAMADA
+        # =====================================================
+
+        chamada = Chamada.objects.create(
+            escola=escola,
+            turma=turma,
+            disciplina=disciplina,
+            professor=professor,
+            data=date.today(),
+        )
+
+        # =====================================================
+        # 🔥 CRIA PRESENÇAS
+        # =====================================================
+
+        for p in presencas:
+
+            Presenca.objects.create(
+                chamada=chamada,
+                aluno_id=p["aluno_id"],
+                presente=p["presente"],
+                observacao=p.get("observacao", ""),
+            )
+
+        return JsonResponse({"success": True})
+
+    except json.JSONDecodeError:
         return JsonResponse(
-            {"success": False, "erro": "Chamada já registrada para hoje."}, status=400
+            {
+                "success": False,
+                "erro": "JSON inválido.",
+            },
+            status=400,
         )
 
-    chamada = Chamada.objects.create(
-        turma_id=turma_id, disciplina_id=disciplina_id, professor=professor
-    )
-
-    for p in presencas:
-        Presenca.objects.create(
-            chamada=chamada,
-            aluno_id=p["aluno_id"],
-            presente=p["presente"],
-            observacao=p["observacao"],
+    except KeyError as e:
+        return JsonResponse(
+            {
+                "success": False,
+                "erro": f"Campo obrigatório ausente: {e.args[0]}",
+            },
+            status=400,
         )
-
-    return JsonResponse({"success": True})
 
 
 @login_required
@@ -3183,37 +4041,119 @@ def buscar_alunos(request, turma_id):
 
     escola = request.user.escola
 
+    # =====================================================
+    # 🔐 VALIDA TURMA DA ESCOLA
+    # =====================================================
+
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=escola,
+    )
+
+    # =====================================================
+    # 🔐 PROFESSOR SÓ PODE ACESSAR TURMA VINCULADA
+    # =====================================================
+
+    if request.user.role == "professor":
+
+        professor = Docente.objects.filter(
+            user=request.user,
+            escola=escola,
+        ).first()
+
+        if not professor:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "erro": "Professor não encontrado.",
+                },
+                status=403,
+            )
+
+        permitido = TurmaDisciplina.objects.filter(
+            turma=turma,
+            professor=professor,
+            escola=escola,
+        ).exists()
+
+        if not permitido:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "erro": "Você não está vinculado a esta turma.",
+                },
+                status=403,
+            )
+
+    # =====================================================
+    # 👥 BUSCA ALUNOS ATIVOS DA TURMA
+    # =====================================================
+
     alunos = (
-        Aluno.objects.filter(turmas__id=turma_id, escola=escola, ativo=True)
+        Aluno.objects.filter(
+            turmas=turma,
+            escola=escola,
+            ativo=True,
+        )
         .distinct()
         .order_by("nome")
     )
 
-    alunos_serializados = [{"id": aluno.id, "nome": aluno.nome} for aluno in alunos]
+    alunos_serializados = [
+        {
+            "id": aluno.id,
+            "nome": aluno.nome,
+        }
+        for aluno in alunos
+    ]
 
-    return JsonResponse({"alunos": alunos_serializados})
+    return JsonResponse(
+        {
+            "success": True,
+            "alunos": alunos_serializados,
+        }
+    )
 
 
 @login_required
+@role_required(["professor", "diretor", "coordenador"])
 @require_POST
-@csrf_exempt  # opcional se você já passa o CSRFToken no fetch
 def editar_registro(request, registro_id):
+
     try:
         data = json.loads(request.body)
+
         presente = data.get("presente")
         observacao = data.get("observacao", "")
 
-        registro = Presenca.objects.select_related("chamada").get(id=registro_id)
+        registro = Presenca.objects.select_related(
+            "chamada",
+            "chamada__professor",
+        ).get(
+            id=registro_id,
+            chamada__escola=request.user.escola,
+        )
 
-        # Verifica se o professor é dono da chamada
+        # =====================================================
+        # 🔐 PROFESSOR SÓ EDITA SUA PRÓPRIA CHAMADA
+        # =====================================================
+
         if (
             request.user.role == "professor"
             and registro.chamada.professor.user != request.user
         ):
             return JsonResponse(
-                {"sucesso": False, "erro": "Sem permissão para editar este registro"},
+                {
+                    "sucesso": False,
+                    "erro": "Sem permissão para editar este registro",
+                },
                 status=403,
             )
+
+        # =====================================================
+        # 🔥 ATUALIZA REGISTRO
+        # =====================================================
 
         registro.presente = presente
         registro.observacao = observacao
@@ -3223,13 +4163,34 @@ def editar_registro(request, registro_id):
 
     except Presenca.DoesNotExist:
         return JsonResponse(
-            {"sucesso": False, "erro": "Registro não encontrado"}, status=404
+            {
+                "sucesso": False,
+                "erro": "Registro não encontrado",
+            },
+            status=404,
+        )
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {
+                "sucesso": False,
+                "erro": "JSON inválido",
+            },
+            status=400,
         )
 
     except Exception as e:
-        return JsonResponse({"sucesso": False, "erro": str(e)}, status=500)
+        return JsonResponse(
+            {
+                "sucesso": False,
+                "erro": str(e),
+            },
+            status=500,
+        )
 
 
+@login_required
+@role_required(["professor", "diretor", "coordenador"])
 def visualizar_chamada(request):
     user = request.user
     turma_id = request.GET.get("turma")
@@ -3247,15 +4208,20 @@ def visualizar_chamada(request):
     if user.role == "professor":
         try:
             docente = user.docente
-            presencas = presencas.filter(chamada__professor=docente)
+
+            presencas = presencas.filter(
+                chamada__professor=docente,
+                chamada__escola=request.escola,
+            )
 
             turmas_vinculadas = TurmaDisciplina.objects.filter(
-                professor=docente
+                professor=docente,
+                escola=request.escola,
             ).select_related("turma", "disciplina")
+
             turmas = [td.turma for td in turmas_vinculadas]
-            disciplinas = list(
-                {td.disciplina for td in turmas_vinculadas}
-            )  # evita duplicatas
+
+            disciplinas = list({td.disciplina for td in turmas_vinculadas})
 
         except Docente.DoesNotExist:
             return render(
@@ -3263,15 +4229,22 @@ def visualizar_chamada(request):
                 "pages/visualizar_diario.html",
                 {"erro": "Usuário sem vínculo com docente."},
             )
+
     else:
-        presencas = presencas.all()
-        turmas = Turma.objects.all()
-        disciplinas = Disciplina.objects.all()
+        escola = request.escola
+
+        presencas = presencas.filter(chamada__escola=escola)
+
+        turmas = Turma.objects.filter(escola=escola)
+
+        disciplinas = Disciplina.objects.filter(escola=escola)
 
     if turma_id:
         presencas = presencas.filter(chamada__turma_id=turma_id)
+
     if disciplina_id:
         presencas = presencas.filter(chamada__disciplina_id=disciplina_id)
+
     if data_filtro:
         presencas = presencas.filter(chamada__data=data_filtro)
 
@@ -3281,62 +4254,97 @@ def visualizar_chamada(request):
         "disciplinas": disciplinas,
     }
 
-    return render(request, "pages/visualizar_diario.html", contexto)
-
-
-@csrf_exempt
-@require_POST
-@login_required
-def editar_registro(request, registro_id):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            presente = data.get("presente") == "True"
-            observacao = data.get("observacao")
-
-            presenca = Presenca.objects.get(id=registro_id)
-            presenca.presente = presente
-            presenca.observacao = observacao
-            presenca.save()
-
-            return JsonResponse({"status": "sucesso"})
-        except Exception as e:
-            return JsonResponse({"status": "erro", "mensagem": str(e)})
-
-    return JsonResponse({"status": "erro", "mensagem": "Método não permitido"})
+    return render(
+        request,
+        "pages/visualizar_diario.html",
+        contexto,
+    )
 
 
 @login_required
 def listar_turmas(request):
-    qs = Turma.objects.all()
 
-    # filtra por escola, se houver escola vinculada
-    if "escola" in [f.name for f in Turma._meta.fields] and getattr(
-        request.user, "escola", None
-    ):
-        qs = qs.filter(escola=request.escola)
+    escola = request.escola
+
+    # =====================================================
+    # 🔐 PROFESSOR → SOMENTE TURMAS VINCULADAS
+    # =====================================================
+
+    if request.user.role == "professor":
+
+        docente = Docente.objects.filter(
+            user=request.user,
+            escola=escola,
+        ).first()
+
+        if not docente:
+            qs = Turma.objects.none()
+        else:
+            turma_ids = (
+                TurmaDisciplina.objects.filter(
+                    professor=docente,
+                    escola=escola,
+                    turma__escola=escola,
+                )
+                .values_list(
+                    "turma_id",
+                    flat=True,
+                )
+                .distinct()
+            )
+
+            qs = Turma.objects.filter(
+                id__in=turma_ids,
+                escola=escola,
+            )
+
+    else:
+
+        # =================================================
+        # DIRETOR / COORDENADOR → TODAS DA PRÓPRIA ESCOLA
+        # =================================================
+
+        qs = Turma.objects.filter(
+            escola=escola,
+        )
 
     qs = qs.order_by("nome")
 
     turmas = []
+
     for t in qs:
         turmas.append(
             {
                 "id": t.id,
                 "nome": t.nome or "",
                 "turno": t.turno or "",
-                "ano": t.ano,  # inteiro
+                "ano": t.ano,
                 "sala": t.sala or "",
                 "descricao": t.descricao or "",
-                # ✅ NOVO: para o modal abrir corretamente
-                "sistema_avaliacao": getattr(t, "sistema_avaliacao", "NUM") or "NUM",
+                "sistema_avaliacao": (
+                    getattr(
+                        t,
+                        "sistema_avaliacao",
+                        "NUM",
+                    )
+                    or "NUM"
+                ),
             }
         )
 
     context = {
-        "turmas_json": json.dumps(turmas, cls=DjangoJSONEncoder, ensure_ascii=False)
+        "turmas_json": json.dumps(
+            turmas,
+            cls=DjangoJSONEncoder,
+            ensure_ascii=False,
+        )
     }
-    return render(request, "pages/listar_turmas.html", context)
+
+    return render(
+        request,
+        "pages/listar_turmas.html",
+        context,
+    )
 
 
 def _coerce_for_field(value, field: models.Field):
@@ -3357,7 +4365,8 @@ def _coerce_for_field(value, field: models.Field):
 
 
 @login_required
-@require_http_methods(["POST"])
+@role_required(["diretor", "coordenador"])
+@require_POST
 def editar_turma(request, pk):
     qs = Turma.objects
 
@@ -3429,7 +4438,8 @@ def editar_turma(request, pk):
 
 
 @login_required
-@require_http_methods(["POST"])
+@role_required(["diretor", "coordenador"])
+@require_POST
 def excluir_turma(request, pk):
     qs = Turma.objects
     if hasattr(Turma, "escola_id") or "escola" in [f.name for f in Turma._meta.fields]:
@@ -3474,15 +4484,55 @@ def _is_mae(resp):
 
 @login_required
 def aluno_requerimento_pdf(request, pk):
-    qs = Aluno.objects.select_related("escola").prefetch_related("turmas")
-    aluno = (
-        get_object_or_404(qs, pk=pk, escola=request.escola)
-        if hasattr(Aluno, "escola_id")
-        else get_object_or_404(qs, pk=pk)
-    )
-    hoje_extenso = format_date(date.today(), "d 'de' MMMM 'de' y", locale="pt_BR")
 
-    # ======= Helpers =======
+    escola = request.user.escola
+
+    aluno = get_object_or_404(
+        Aluno.objects.select_related("escola").prefetch_related("turmas"),
+        pk=pk,
+        escola=escola,
+    )
+
+    # =====================================================
+    # 🔐 AUTORIZAÇÃO
+    # =====================================================
+
+    if request.user.role == "professor":
+
+        docente = Docente.objects.filter(
+            user=request.user,
+            escola=escola,
+        ).first()
+
+        if not docente:
+            return JsonResponse(
+                {"erro": "Professor não vinculado à escola."},
+                status=403,
+            )
+
+        possui_acesso = TurmaDisciplina.objects.filter(
+            turma__alunos=aluno,
+            turma__escola=escola,
+            professor=docente,
+            escola=escola,
+        ).exists()
+
+        if not possui_acesso:
+            return JsonResponse(
+                {"erro": "Você não possui acesso a este aluno."},
+                status=403,
+            )
+
+    hoje_extenso = format_date(
+        date.today(),
+        "d 'de' MMMM 'de' y",
+        locale="pt_BR",
+    )
+
+    # =====================================================
+    # HELPERS
+    # =====================================================
+
     def _case(s):
         return (s or "").strip().casefold()
 
@@ -3492,73 +4542,75 @@ def aluno_requerimento_pdf(request, pk):
     def is_mae(r):
         return _case(r.tipo) in ("mae", "mãe") or _case(r.parentesco) in ("mae", "mãe")
 
-    # ======= Carrega responsáveis =======
+    # =====================================================
+    # RESPONSÁVEIS
+    # =====================================================
+
     todos = list(Responsavel.objects.filter(aluno=aluno).order_by("id"))
 
-    pai = next((r for r in todos if is_pai(r)), None)
-    mae = next((r for r in todos if is_mae(r)), None)
+    pai = next(
+        (r for r in todos if is_pai(r)),
+        None,
+    )
 
-    # ======= Responsável (não pai/mãe) =======
-    resp = next((r for r in todos if r not in (pai, mae)), None)
+    mae = next(
+        (r for r in todos if is_mae(r)),
+        None,
+    )
 
-    # ======= Relacionamentos =======
+    resp = next(
+        (r for r in todos if r not in (pai, mae)),
+        None,
+    )
+
+    # =====================================================
+    # RELACIONAMENTOS
+    # =====================================================
+
     saude = Saude.objects.filter(aluno=aluno).first()
+
     transporte = TransporteEscolar.objects.filter(aluno=aluno).first()
+
     autoriz = Autorizacoes.objects.filter(aluno=aluno).first()
 
-    # ======= Contexto =======
+    # =====================================================
+    # CONTEXTO
+    # =====================================================
+
     ctx = {
         "aluno": aluno,
-        # pai
         "dados_pai": pai,
-        # mae
         "dados_mae": mae,
-        # responsável
         "dados_resp": resp,
-        # extras
         "saude": saude,
         "transporte": transporte,
         "autoriz": autoriz,
         "hoje_extenso": hoje_extenso,
     }
 
-    return render(request, "pages/aluno_ficha_impressao.html", ctx)
-
-
-def create_admin_temp(request):
-    # segurança mínima para não ficar público
-    if not settings.DEBUG:
-        return HttpResponse("Somente permitido em modo DEBUG", status=403)
-
-    User = get_user_model()
-
-    if User.objects.filter(username="admin").exists():
-        return HttpResponse("Admin já existe.")
-
-    User.objects.create(
-        username="goutemberg",
-        cpf="05356145438",
-        nome="goutemberg",
-        email="goutemberg@icloud.com",
-        password=make_password("Gps34587895@&*"),
-        is_staff=True,
-        is_superuser=True,
-        is_active=True,
+    return render(
+        request,
+        "pages/aluno_ficha_impressao.html",
+        ctx,
     )
 
-    return HttpResponse("Superusuário criado com sucesso!")
 
-
+@login_required
+@role_required(["diretor", "coordenador"])
 def reimprimir_documentos_aluno(request):
 
     return render(request, "pages/reimprimir_documentos.html")
 
 
+@login_required
+@role_required(["diretor", "coordenador"])
 def comprovante_matricula_pdf(request, pk):
     aluno = get_object_or_404(Aluno, pk=pk, escola=request.escola)
     return render(request, "pages/comprovante_matricula.html", {"aluno": aluno})
 
 
+@login_required
+@role_required(["diretor", "coordenador"])
 def ficha_cadastral_pdf(request, pk):
     aluno = get_object_or_404(Aluno, pk=pk, escola=request.escola)
 
@@ -3603,40 +4655,114 @@ def ficha_cadastral_pdf(request, pk):
     return render(request, "pages/aluno_ficha_impressao.html", context)
 
 
+@login_required
+@role_required(["diretor", "coordenador"])
 def pagina_nome_turma(request):
     return render(request, "pages/nome_turma.html")
 
 
+@login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def cadastrar_nome_turma(request):
-    data = json.loads(request.body)
-    nome = data.get("nome")
 
-    if NomeTurma.objects.filter(nome=nome, escola=request.escola).exists():
-        return JsonResponse({"success": False, "error": "Nome já cadastrado."})
+    try:
+        data = json.loads(request.body)
+        nome = (data.get("nome") or "").strip()
 
-    NomeTurma.objects.create(nome=nome, escola=request.escola)
-    return JsonResponse({"success": True})
+        if not nome:
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Nome é obrigatório.",
+                },
+                status=400,
+            )
+
+        if NomeTurma.objects.filter(
+            nome=nome,
+            escola=request.escola,
+        ).exists():
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Nome já cadastrado.",
+                },
+                status=400,
+            )
+
+        NomeTurma.objects.create(
+            nome=nome,
+            escola=request.escola,
+        )
+
+        return JsonResponse({"success": True})
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "JSON inválido.",
+            },
+            status=400,
+        )
 
 
+@login_required
 def listar_nomes_turma(request):
-    nomes = NomeTurma.objects.filter(escola=request.escola).values("id", "nome")
+
+    nomes = (
+        NomeTurma.objects.filter(escola=request.user.escola)
+        .values("id", "nome")
+        .order_by("nome")
+    )
+
     return JsonResponse({"nomes": list(nomes)})
 
 
+@login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def editar_nome_turma(request):
-    data = json.loads(request.body)
 
     try:
+        data = json.loads(request.body)
+
         id = int(data.get("id"))
-    except:
-        return JsonResponse({"success": False, "error": "ID inválido."})
 
-    nome = data.get("nome")
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "ID inválido.",
+            },
+            status=400,
+        )
 
-    obj = NomeTurma.objects.filter(id=id, escola=request.escola).first()
+    nome = (data.get("nome") or "").strip()
+
+    if not nome:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Nome é obrigatório.",
+            },
+            status=400,
+        )
+
+    obj = NomeTurma.objects.filter(
+        id=id,
+        escola=request.user.escola,
+    ).first()
 
     if not obj:
-        return JsonResponse({"success": False, "error": "Registro não encontrado."})
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Registro não encontrado.",
+            },
+            status=404,
+        )
 
     obj.nome = nome
     obj.save()
@@ -3644,15 +4770,46 @@ def editar_nome_turma(request):
     return JsonResponse({"success": True})
 
 
+@login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def excluir_nome_turma(request):
-    data = json.loads(request.body)
-    id = data.get("id")
 
-    NomeTurma.objects.filter(id=id, escola=request.escola).delete()
+    try:
+        data = json.loads(request.body)
+        id = int(data.get("id"))
+
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "ID inválido.",
+            },
+            status=400,
+        )
+
+    obj = NomeTurma.objects.filter(
+        id=id,
+        escola=request.user.escola,
+    ).first()
+
+    if not obj:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Registro não encontrado.",
+            },
+            status=404,
+        )
+
+    obj.delete()
+
     return JsonResponse({"success": True})
 
 
 @login_required
+@role_required(["diretor", "coordenador"])
+@require_POST
 def atualizar_vencimento(request, aluno_id):
     if request.method == "POST":
         try:

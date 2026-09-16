@@ -79,6 +79,7 @@ def presenca_aluno_mensal(request):
     # BASE DE PRESENÇAS
     # =====================================
     presencas = Presenca.objects.filter(
+        chamada__escola=escola,
         chamada__data__range=(data_inicio, data_fim),
         aluno__escola=escola,
     )
@@ -218,9 +219,10 @@ def presenca_aluno_mensal(request):
 @login_required
 def export_presenca_aluno_mensal_excel(request):
     """
-    Exporta para Excel o relatório de presença por aluno
-    - Mensal (quando mês é informado)
-    - Anual (quando mês NÃO é informado)
+    Exporta para Excel o relatório de presença por aluno.
+
+    - Mensal: quando o mês é informado.
+    - Anual: quando o mês não é informado.
     """
 
     user = request.user
@@ -230,10 +232,27 @@ def export_presenca_aluno_mensal_excel(request):
     # CONTROLE DE ACESSO
     # ==========================================
 
-    professor = Docente.objects.filter(user=user).first()
+    if user.role not in ("professor", "diretor", "coordenador"):
+        return render(
+            request,
+            "errors/403.html",
+            status=403,
+        )
 
-    if not professor and user.role not in ("diretor", "coordenador"):
-        return render(request, "errors/403.html", status=403)
+    professor = None
+
+    if user.role == "professor":
+        professor = Docente.objects.filter(
+            user=user,
+            escola=escola,
+        ).first()
+
+        if not professor:
+            return render(
+                request,
+                "errors/403.html",
+                status=403,
+            )
 
     hoje = date.today()
 
@@ -249,19 +268,43 @@ def export_presenca_aluno_mensal_excel(request):
     # PERÍODO
     # ==========================================
 
-    if mes:
+    if mes and mes != "None":
         mes = int(mes)
-        _, ultimo_dia = monthrange(ano, mes)
 
-        data_inicio = date(ano, mes, 1)
-        data_fim = date(ano, mes, ultimo_dia)
+        _, ultimo_dia = monthrange(
+            ano,
+            mes,
+        )
+
+        data_inicio = date(
+            ano,
+            mes,
+            1,
+        )
+
+        data_fim = date(
+            ano,
+            mes,
+            ultimo_dia,
+        )
 
         tipo_relatorio = "mensal"
         periodo_label = f"{mes:02d}/{ano}"
 
     else:
-        data_inicio = date(ano, 1, 1)
-        data_fim = date(ano, 12, 31)
+        mes = None
+
+        data_inicio = date(
+            ano,
+            1,
+            1,
+        )
+
+        data_fim = date(
+            ano,
+            12,
+            31,
+        )
 
         tipo_relatorio = "anual"
         periodo_label = f"Ano {ano}"
@@ -271,19 +314,30 @@ def export_presenca_aluno_mensal_excel(request):
     # ==========================================
 
     presencas = Presenca.objects.filter(
-        chamada__data__range=(data_inicio, data_fim),
+        chamada__escola=escola,
+        chamada__data__range=(
+            data_inicio,
+            data_fim,
+        ),
         aluno__escola=escola,
     )
 
+    # Professor só pode visualizar as chamadas
+    # vinculadas a ele.
     if user.role == "professor":
         presencas = presencas.filter(
             chamada__professor=professor,
         )
 
+    # Filtro por turma
     if turma_id and turma_id != "None":
         presencas = presencas.filter(
             chamada__turma_id=turma_id,
         )
+
+    # ==========================================
+    # RESUMO POR ALUNO
+    # ==========================================
 
     resumo = (
         presencas.values(
@@ -322,10 +376,10 @@ def export_presenca_aluno_mensal_excel(request):
 
     total_faltas = sum(r["total_ausentes"] for r in resumo)
 
-    media_frequencia = (total_presentes * 100 / total_aulas) if total_aulas else 0
+    media_frequencia = total_presentes * 100 / total_aulas if total_aulas else 0
 
     # ==========================================
-    # CRIA EXCEL
+    # CRIAÇÃO DO EXCEL
     # ==========================================
 
     wb = openpyxl.Workbook()
@@ -351,7 +405,7 @@ def export_presenca_aluno_mensal_excel(request):
     )
 
     subtitulo_font = Font(
-        size=12,
+        size=13,
         bold=True,
     )
 
@@ -412,89 +466,13 @@ def export_presenca_aluno_mensal_excel(request):
 
     ws.merge_cells("A1:G1")
 
-    cell = ws["A1"]
-    cell.value = escola.nome.upper()
-    cell.fill = fill_azul
-    cell.font = titulo_font
-    cell.alignment = center
-
-    ws.merge_cells("A2:G2")
-
-    ws["A2"] = "RELATÓRIO GERAL DE FREQUÊNCIA"
-    ws["A2"].font = Font(
-        bold=True,
-        size=14,
-    )
-
-    ws["A4"] = "Período"
-    ws["B4"] = periodo_label
-
-    ws["A5"] = "Emitido em"
-    ws["B5"] = date.today().strftime("%d/%m/%Y")
-
-    ws["A7"] = "Total de alunos"
-    ws["B7"] = total_alunos
-
-    ws["A8"] = "Total de aulas"
-    ws["B8"] = total_aulas
-
-    ws["A9"] = "Presenças"
-    ws["B9"] = total_presentes
-
-    ws["A10"] = "Faltas"
-    ws["B10"] = total_faltas
-
-    ws["A11"] = "Frequência média"
-    ws["B11"] = round(media_frequencia, 1)
-
-    for row in range(4, 12):
-        ws[f"A{row}"].font = bold
-
-    linha_tabela = 13
-
-    wb = openpyxl.Workbook()
-    ws = wb.active
-
-    ws.title = "Presença Mensal" if tipo_relatorio == "mensal" else "Presença Anual"
-
-    # ==========================================
-    # ESTILOS
-    # ==========================================
-
-    azul = "2563EB"
-    verde = "22C55E"
-    vermelho = "EF4444"
-    amarelo = "F59E0B"
-    cinza = "F3F4F6"
-    branco = "FFFFFF"
-
-    titulo_font = Font(size=18, bold=True, color=branco)
-    subtitulo_font = Font(size=13, bold=True)
-    header_font = Font(bold=True, color=branco)
-    bold = Font(bold=True)
-
-    center = Alignment(horizontal="center", vertical="center")
-
-    thin = Side(border_style="thin", color="DDDDDD")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
-
-    fill_azul = PatternFill("solid", fgColor=azul)
-    fill_cinza = PatternFill("solid", fgColor=cinza)
-    fill_verde = PatternFill("solid", fgColor=verde)
-    fill_amarelo = PatternFill("solid", fgColor=amarelo)
-    fill_vermelho = PatternFill("solid", fgColor=vermelho)
-
-    # ==========================================
-    # CABEÇALHO
-    # ==========================================
-
-    ws.merge_cells("A1:G1")
     ws["A1"] = escola.nome.upper()
     ws["A1"].font = titulo_font
     ws["A1"].fill = fill_azul
     ws["A1"].alignment = center
 
     ws.merge_cells("A2:G2")
+
     ws["A2"] = "RELATÓRIO GERAL DE FREQUÊNCIA"
     ws["A2"].font = subtitulo_font
 
@@ -502,7 +480,7 @@ def export_presenca_aluno_mensal_excel(request):
     ws["B4"] = periodo_label
 
     ws["A5"] = "Emitido em"
-    ws["B5"] = date.today().strftime("%d/%m/%Y")
+    ws["B5"] = hoje.strftime("%d/%m/%Y")
 
     ws["A7"] = "Total de alunos"
     ws["B7"] = total_alunos
@@ -517,7 +495,10 @@ def export_presenca_aluno_mensal_excel(request):
     ws["B10"] = total_faltas
 
     ws["A11"] = "Frequência média"
-    ws["B11"] = round(media_frequencia, 1)
+    ws["B11"] = round(
+        media_frequencia,
+        1,
+    )
 
     for row in range(4, 12):
         ws[f"A{row}"].font = bold
@@ -538,8 +519,10 @@ def export_presenca_aluno_mensal_excel(request):
         "Situação",
     ]
 
-    for col, titulo in enumerate(headers, start=1):
-
+    for col, titulo in enumerate(
+        headers,
+        start=1,
+    ):
         cell = ws.cell(
             row=linha_inicio,
             column=col,
@@ -553,9 +536,16 @@ def export_presenca_aluno_mensal_excel(request):
 
     linha = linha_inicio + 1
 
+    # ==========================================
+    # DADOS DOS ALUNOS
+    # ==========================================
+
     for r in resumo:
 
-        percentual = round(r["percentual_presenca"], 1)
+        percentual = round(
+            r["percentual_presenca"],
+            1,
+        )
 
         if percentual >= 75:
             situacao = "Frequência Regular"
@@ -579,8 +569,10 @@ def export_presenca_aluno_mensal_excel(request):
             situacao,
         ]
 
-        for col, valor in enumerate(dados, start=1):
-
+        for col, valor in enumerate(
+            dados,
+            start=1,
+        ):
             cell = ws.cell(
                 row=linha,
                 column=col,
@@ -592,21 +584,33 @@ def export_presenca_aluno_mensal_excel(request):
             if col >= 3:
                 cell.alignment = center
 
-        ws.cell(row=linha, column=7).fill = cor
+        # Cor da situação
+        ws.cell(
+            row=linha,
+            column=7,
+        ).fill = cor
 
+        # Zebra nas linhas
         if linha % 2 == 0:
             for col in range(1, 8):
                 if col != 7:
-                    ws.cell(row=linha, column=col).fill = fill_cinza
+                    ws.cell(
+                        row=linha,
+                        column=col,
+                    ).fill = fill_cinza
 
         linha += 1
 
     # ==========================================
-    # FILTROS
+    # FILTROS E CONGELAMENTO
     # ==========================================
 
     ws.freeze_panes = "A14"
-    ws.auto_filter.ref = f"A13:G{linha-1}"
+
+    # Só aplica filtro se existir pelo menos
+    # uma linha de dados.
+    if linha > linha_inicio + 1:
+        ws.auto_filter.ref = f"A{linha_inicio}:G{linha - 1}"
 
     # ==========================================
     # LARGURA DAS COLUNAS
@@ -625,12 +629,14 @@ def export_presenca_aluno_mensal_excel(request):
     # ==========================================
 
     if tipo_relatorio == "mensal":
-        filename = f"presenca_alunos_{mes:02d}_{ano}.xlsx"
+        filename = f"presenca_alunos_" f"{mes:02d}_{ano}.xlsx"
     else:
-        filename = f"presenca_alunos_anual_{ano}.xlsx"
+        filename = f"presenca_alunos_anual_" f"{ano}.xlsx"
 
     response = HttpResponse(
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        content_type=(
+            "application/vnd." "openxmlformats-officedocument." "spreadsheetml.sheet"
+        )
     )
 
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
@@ -644,10 +650,20 @@ def export_presenca_aluno_mensal_excel(request):
 def pdf_presenca_aluno_mensal(request):
     user = request.user
     escola = user.escola
-    professor = Docente.objects.filter(user=user).first()
 
-    if not professor and user.role not in ("diretor", "coordenador"):
+    if user.role not in ("professor", "diretor", "coordenador"):
         return render(request, "errors/403.html", status=403)
+
+    professor = None
+
+    if user.role == "professor":
+        professor = Docente.objects.filter(
+            user=user,
+            escola=escola,
+        ).first()
+
+        if not professor:
+            return render(request, "errors/403.html", status=403)
 
     hoje = date.today()
 
@@ -687,6 +703,7 @@ def pdf_presenca_aluno_mensal(request):
     # ==========================================
 
     presencas = Presenca.objects.filter(
+        chamada__escola=escola,
         chamada__data__range=(data_inicio, data_fim),
         aluno__escola=escola,
     )
@@ -1136,10 +1153,19 @@ def pdf_presenca_aluno_individual(request, aluno_id):
     user = request.user
     escola = user.escola
 
-    professor = Docente.objects.filter(user=user).first()
-
-    if not professor and user.role not in ("diretor", "coordenador"):
+    if user.role not in ("professor", "diretor", "coordenador"):
         return render(request, "errors/403.html", status=403)
+
+    professor = None
+
+    if user.role == "professor":
+        professor = Docente.objects.filter(
+            user=user,
+            escola=escola,
+        ).first()
+
+        if not professor:
+            return render(request, "errors/403.html", status=403)
 
     hoje = date.today()
 
@@ -1178,6 +1204,7 @@ def pdf_presenca_aluno_individual(request, aluno_id):
 
     presencas = Presenca.objects.filter(
         aluno=aluno,
+        chamada__escola=escola,
         chamada__data__range=(data_inicio, data_fim),
     )
 

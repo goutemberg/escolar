@@ -189,7 +189,6 @@ urlpatterns = [
     # --------------------------------
     # Admin temporário
     # --------------------------------
-    path("criar-admin-temp/", views_root.create_admin_temp, name="criar-admin-temp"),
     path("chamada/", include(("home.routes.chamada", "chamada"), namespace="chamada")),
     path("turmas/", include(("home.routes.turmas", "turmas"), namespace="turmas")),
     path(

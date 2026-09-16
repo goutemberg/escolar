@@ -21,9 +21,9 @@ from home.models import (
     TipoAvaliacao,
 )
 
+# =========================
+# =========================
 
-# =========================
-# =========================
 
 def listar_tipos_avaliacao(request):
     pass
@@ -33,7 +33,6 @@ def listar_tipos_avaliacao(request):
 @require_http_methods(["GET", "POST", "PUT", "DELETE"])
 def tipos_avaliacao(request):
     escola = request.escola
-
 
     # =========================
     # GET: listar
@@ -69,12 +68,7 @@ def tipos_avaliacao(request):
         if peso is None:
             return JsonResponse({"erro": "Peso inválido."}, status=400)
 
-        TipoAvaliacao.objects.create(
-            nome=nome,
-            peso=peso,
-            escola=escola,
-            ativo=True
-        )
+        TipoAvaliacao.objects.create(nome=nome, peso=peso, escola=escola, ativo=True)
         return JsonResponse({"mensagem": "Tipo de avaliação criado com sucesso!"})
 
     # =========================
@@ -122,9 +116,12 @@ def tipos_avaliacao(request):
         return JsonResponse({"mensagem": "Tipo de avaliação excluído com sucesso!"})
 
     return JsonResponse({"erro": "Método não suportado."}, status=405)
+
+
 # =========================
 # AVALIAÇÕES
 # =========================
+
 
 @login_required
 def avaliacoes(request):
@@ -157,7 +154,9 @@ def avaliacoes(request):
                 return JsonResponse({"erro": "Selecione a disciplina."}, status=400)
 
             if not tipo_id:
-                return JsonResponse({"erro": "Selecione o tipo de avaliação."}, status=400)
+                return JsonResponse(
+                    {"erro": "Selecione o tipo de avaliação."}, status=400
+                )
 
             if not descricao:
                 return JsonResponse({"erro": "Informe a descrição."}, status=400)
@@ -166,32 +165,27 @@ def avaliacoes(request):
                 return JsonResponse({"erro": "Bimestre inválido (1 a 4)."}, status=400)
 
             if quantidade < 1:
-                return JsonResponse({"erro": "Quantidade deve ser pelo menos 1."}, status=400)
+                return JsonResponse(
+                    {"erro": "Quantidade deve ser pelo menos 1."}, status=400
+                )
 
             # ================================
             # VALIDA TURMA / DISCIPLINA / TIPO
             # ================================
 
-            turma = Turma.objects.filter(
-                id=turma_id,
-                escola=escola
-            ).first()
+            turma = Turma.objects.filter(id=turma_id, escola=escola).first()
 
             if not turma:
                 return JsonResponse({"erro": "Turma inválida."}, status=404)
 
             disciplina = Disciplina.objects.filter(
-                id=disciplina_id,
-                escola=escola
+                id=disciplina_id, escola=escola
             ).first()
 
             if not disciplina:
                 return JsonResponse({"erro": "Disciplina inválida."}, status=404)
 
-            tipo = TipoAvaliacao.objects.filter(
-                id=tipo_id,
-                escola=escola
-            ).first()
+            tipo = TipoAvaliacao.objects.filter(id=tipo_id, escola=escola).first()
 
             if not tipo:
                 return JsonResponse({"erro": "Tipo inválido."}, status=404)
@@ -209,7 +203,7 @@ def avaliacoes(request):
                     turma=turma,
                     disciplina=disciplina,
                     bimestre=bimestre,
-                    tipo=tipo
+                    tipo=tipo,
                 ).order_by("descricao")
 
                 ultimo_numero = 0
@@ -224,10 +218,7 @@ def avaliacoes(request):
 
                         if partes and partes[-1].isdigit():
 
-                            ultimo_numero = max(
-                                ultimo_numero,
-                                int(partes[-1])
-                            )
+                            ultimo_numero = max(ultimo_numero, int(partes[-1]))
 
                 # ====================================
                 # CRIA NOVAS AVALIAÇÕES
@@ -252,7 +243,7 @@ def avaliacoes(request):
                         turma=turma,
                         disciplina=disciplina,
                         bimestre=bimestre,
-                        descricao__iexact=desc_final
+                        descricao__iexact=desc_final,
                     ).exists()
 
                     if existe:
@@ -265,19 +256,20 @@ def avaliacoes(request):
                         descricao=desc_final,
                         bimestre=bimestre,
                         data=data_avaliacao,
-                        escola=escola
+                        escola=escola,
                     )
 
                     criadas.append(avaliacao.id)
 
             if not criadas:
-                return JsonResponse({
-                    "erro": "Nenhuma avaliação foi criada (todas já existiam)."
-                }, status=400)
+                return JsonResponse(
+                    {"erro": "Nenhuma avaliação foi criada (todas já existiam)."},
+                    status=400,
+                )
 
-            return JsonResponse({
-                "mensagem": f"{len(criadas)} avaliação(ões) criada(s) com sucesso!"
-            })
+            return JsonResponse(
+                {"mensagem": f"{len(criadas)} avaliação(ões) criada(s) com sucesso!"}
+            )
 
         except Exception as e:
             return JsonResponse({"erro": str(e)}, status=400)
@@ -286,46 +278,37 @@ def avaliacoes(request):
     # GET — CARREGAR TELA
     # =========================================
 
-    turmas = Turma.objects.filter(
-        escola=escola
-    ).order_by("nome")
+    turmas = Turma.objects.filter(escola=escola).order_by("nome")
 
     turma_id = request.GET.get("turma_id")
 
     if turma_id:
-        disciplinas = Disciplina.objects.filter(
-            turmadisciplina__turma_id=turma_id,
-            escola=escola
-        ).distinct().order_by("nome")
+        disciplinas = (
+            Disciplina.objects.filter(turmadisciplina__turma_id=turma_id, escola=escola)
+            .distinct()
+            .order_by("nome")
+        )
     else:
-        disciplinas = Disciplina.objects.filter(
-            escola=escola
-        ).order_by("nome")
+        disciplinas = Disciplina.objects.filter(escola=escola).order_by("nome")
 
-    tipos = TipoAvaliacao.objects.filter(
-        escola=escola,
-        ativo=True
-    ).order_by("nome")
+    tipos = TipoAvaliacao.objects.filter(escola=escola, ativo=True).order_by("nome")
 
-    avaliacoes_lista = Avaliacao.objects.filter(
-        escola=escola
-    ).select_related(
-        "turma",
-        "disciplina",
-        "tipo"
-    ).order_by(
-        "turma__nome",
-        "bimestre",
-        "data",
-        "descricao"
+    avaliacoes_lista = (
+        Avaliacao.objects.filter(escola=escola)
+        .select_related("turma", "disciplina", "tipo")
+        .order_by("turma__nome", "bimestre", "data", "descricao")
     )
 
-    return render(request, "avaliacoes/avaliacoes.html", {
-        "turmas": turmas,
-        "disciplinas": disciplinas,
-        "tipos": tipos,
-        "avaliacoes": avaliacoes_lista
-    })
+    return render(
+        request,
+        "avaliacoes/avaliacoes.html",
+        {
+            "turmas": turmas,
+            "disciplinas": disciplinas,
+            "tipos": tipos,
+            "avaliacoes": avaliacoes_lista,
+        },
+    )
 
 
 @login_required
@@ -334,15 +317,17 @@ def excluir_avaliacao(request, avaliacao_id):
 
     escola = request.escola
 
-
     try:
         avaliacao = Avaliacao.objects.get(id=avaliacao_id, escola=escola)
 
         # 🚫 Se já houver notas, não pode excluir
         if avaliacao.notas.exists():
-            return JsonResponse({
-                "erro": "Não é possível excluir. Esta avaliação já possui notas lançadas."
-            }, status=400)
+            return JsonResponse(
+                {
+                    "erro": "Não é possível excluir. Esta avaliação já possui notas lançadas."
+                },
+                status=400,
+            )
 
         avaliacao.delete()
 
@@ -350,7 +335,6 @@ def excluir_avaliacao(request, avaliacao_id):
 
     except Avaliacao.DoesNotExist:
         return JsonResponse({"erro": "Avaliação não encontrada."}, status=404)
-    
 
 
 @login_required
@@ -361,17 +345,12 @@ def editar_avaliacao(request, avaliacao_id):
 
     try:
 
-        avaliacao = Avaliacao.objects.get(
-            id=avaliacao_id,
-            escola=escola
-        )
+        avaliacao = Avaliacao.objects.get(id=avaliacao_id, escola=escola)
 
         try:
             data = json.loads(request.body or "{}")
         except json.JSONDecodeError:
-            return JsonResponse({
-                "erro": "JSON inválido."
-            }, status=400)
+            return JsonResponse({"erro": "JSON inválido."}, status=400)
 
         descricao = (data.get("descricao") or "").strip()
         disciplina_id = data.get("disciplina_id")
@@ -384,52 +363,67 @@ def editar_avaliacao(request, avaliacao_id):
         # ======================================
 
         if not descricao:
-            return JsonResponse({
-                "erro": "Descrição é obrigatória."
-            }, status=400)
+            return JsonResponse({"erro": "Descrição é obrigatória."}, status=400)
 
         if not disciplina_id:
-            return JsonResponse({
-                "erro": "Disciplina inválida."
-            }, status=400)
+            return JsonResponse({"erro": "Disciplina inválida."}, status=400)
 
         if not tipo_id:
-            return JsonResponse({
-                "erro": "Tipo inválido."
-            }, status=400)
+            return JsonResponse({"erro": "Tipo inválido."}, status=400)
 
         if not bimestre:
-            return JsonResponse({
-                "erro": "Bimestre inválido."
-            }, status=400)
+            return JsonResponse({"erro": "Bimestre inválido."}, status=400)
+
+        # ======================================
+        # VALIDA DISCIPLINA DA ESCOLA
+        # ======================================
+
+        disciplina = Disciplina.objects.filter(id=disciplina_id, escola=escola).first()
+
+        if not disciplina:
+            return JsonResponse({"erro": "Disciplina inválida."}, status=404)
+
+        # ======================================
+        # VALIDA TIPO DE AVALIAÇÃO DA ESCOLA
+        # ======================================
+
+        tipo = TipoAvaliacao.objects.filter(id=tipo_id, escola=escola).first()
+
+        if not tipo:
+            return JsonResponse({"erro": "Tipo de avaliação inválido."}, status=404)
 
         # ======================================
         # EVITA DUPLICIDADE
         # IGNORANDO A PRÓPRIA AVALIAÇÃO
         # ======================================
 
-        existe = Avaliacao.objects.filter(
-            escola=escola,
-            turma=avaliacao.turma,
-            disciplina_id=disciplina_id,
-            bimestre=bimestre,
-            descricao__iexact=descricao
-        ).exclude(
-            id=avaliacao.id
-        ).exists()
+        existe = (
+            Avaliacao.objects.filter(
+                escola=escola,
+                turma=avaliacao.turma,
+                disciplina=disciplina,
+                bimestre=bimestre,
+                descricao__iexact=descricao,
+            )
+            .exclude(id=avaliacao.id)
+            .exists()
+        )
 
         if existe:
-            return JsonResponse({
-                "erro": "Já existe uma avaliação com essa descrição para esta turma/disciplina/bimestre."
-            }, status=400)
+            return JsonResponse(
+                {
+                    "erro": "Já existe uma avaliação com essa descrição para esta turma/disciplina/bimestre."
+                },
+                status=400,
+            )
 
         # ======================================
         # ATUALIZA CAMPOS
         # ======================================
 
         avaliacao.descricao = descricao
-        avaliacao.disciplina_id = disciplina_id
-        avaliacao.tipo_id = tipo_id
+        avaliacao.disciplina = disciplina
+        avaliacao.tipo = tipo
         avaliacao.bimestre = int(bimestre)
 
         # ======================================
@@ -444,32 +438,24 @@ def editar_avaliacao(request, avaliacao_id):
 
         avaliacao.save()
 
-        return JsonResponse({
-            "mensagem": "Avaliação atualizada com sucesso!"
-        })
+        return JsonResponse({"mensagem": "Avaliação atualizada com sucesso!"})
 
     except Avaliacao.DoesNotExist:
 
-        return JsonResponse({
-            "erro": "Avaliação não encontrada."
-        }, status=404)
+        return JsonResponse({"erro": "Avaliação não encontrada."}, status=404)
 
     except IntegrityError:
 
-        return JsonResponse({
-            "erro": "Já existe uma avaliação com essa descrição para esta turma/disciplina/bimestre."
-        }, status=400)
+        return JsonResponse(
+            {
+                "erro": "Já existe uma avaliação com essa descrição para esta turma/disciplina/bimestre."
+            },
+            status=400,
+        )
 
     except Exception as e:
 
-        return JsonResponse({
-            "erro": str(e)
-        }, status=500)
-# =========================
-# LANÇAMENTO DE NOTAS
-# =========================
-
-CONCEITOS_VALIDOS = {"E", "O", "B"}  # Evolução, Ótimo, Bom
+        return JsonResponse({"erro": str(e)}, status=500)
 
 
 def _to_decimal(valor):
@@ -516,7 +502,9 @@ def lancar_notas(request):
         notas_recebidas = data.get("notas", {})
 
         if not turma_id or not disciplina_id:
-            return JsonResponse({"erro": "turma_id e disciplina_id são obrigatórios."}, status=400)
+            return JsonResponse(
+                {"erro": "turma_id e disciplina_id são obrigatórios."}, status=400
+            )
 
         try:
             turma = Turma.objects.get(id=turma_id, escola=escola)
@@ -531,9 +519,7 @@ def lancar_notas(request):
         sistema = getattr(turma, "sistema_avaliacao", "NUM")
 
         avaliacoes = Avaliacao.objects.filter(
-            turma=turma,
-            disciplina=disciplina,
-            escola=escola
+            turma=turma, disciplina=disciplina, escola=escola
         )
 
         avaliacoes_validas = set(avaliacoes.values_list("id", flat=True))
@@ -546,7 +532,7 @@ def lancar_notas(request):
                         id=int(aluno_id_str),
                         turma_principal=turma,
                         escola=escola,
-                        ativo=True
+                        ativo=True,
                     ).first()
 
                     if not aluno:
@@ -573,14 +559,14 @@ def lancar_notas(request):
                                 aluno=aluno,
                                 avaliacao=avaliacao,
                                 escola=escola,
-                                defaults={"valor": dec, "conceito": None}
+                                defaults={"valor": dec, "conceito": None},
                             )
                         else:
                             Nota.objects.update_or_create(
                                 aluno=aluno,
                                 avaliacao=avaliacao,
                                 escola=escola,
-                                defaults={"valor": None, "conceito": valor}
+                                defaults={"valor": None, "conceito": valor},
                             )
 
         except Exception as e:
@@ -613,11 +599,15 @@ def lancar_notas(request):
         if turma:
             turma_sistema_avaliacao = getattr(turma, "sistema_avaliacao", "NUM")
 
-            disciplinas = Disciplina.objects.filter(
-                turmadisciplina__turma=turma,
-                turmadisciplina__escola=escola,
-                escola=escola
-            ).distinct().order_by("nome")
+            disciplinas = (
+                Disciplina.objects.filter(
+                    turmadisciplina__turma=turma,
+                    turmadisciplina__escola=escola,
+                    escola=escola,
+                )
+                .distinct()
+                .order_by("nome")
+            )
 
     if turma and disciplina_id:
         disciplina = Disciplina.objects.filter(id=disciplina_id, escola=escola).first()
@@ -625,21 +615,17 @@ def lancar_notas(request):
     if turma and disciplina:
 
         alunos = Aluno.objects.filter(
-            turma_principal=turma,
-            escola=escola,
-            ativo=True
+            turma_principal=turma, escola=escola, ativo=True
         ).order_by("nome")
 
-        avaliacoes = Avaliacao.objects.filter(
-            escola=escola,
-            turma=turma,
-            disciplina=disciplina
-        ).select_related("tipo").order_by("bimestre", "descricao")
+        avaliacoes = (
+            Avaliacao.objects.filter(escola=escola, turma=turma, disciplina=disciplina)
+            .select_related("tipo")
+            .order_by("bimestre", "descricao")
+        )
 
         notas = Nota.objects.filter(
-            avaliacao__in=avaliacoes,
-            aluno__in=alunos,
-            escola=escola
+            avaliacao__in=avaliacoes, aluno__in=alunos, escola=escola
         ).select_related("aluno", "avaliacao", "avaliacao__tipo")
 
         for nota in notas:
@@ -652,7 +638,9 @@ def lancar_notas(request):
             if turma_sistema_avaliacao == "CON":
                 notas_dict[aid][avid] = nota.conceito
             else:
-                notas_dict[aid][avid] = str(nota.valor) if nota.valor is not None else None
+                notas_dict[aid][avid] = (
+                    str(nota.valor) if nota.valor is not None else None
+                )
 
         if turma_sistema_avaliacao == "NUM":
             for aluno in alunos:
@@ -671,7 +659,11 @@ def lancar_notas(request):
                         soma += dec * peso
                         peso_total += peso
 
-                media_calculada = (soma / peso_total).quantize(Decimal("0.01")) if peso_total > 0 else None
+                media_calculada = (
+                    (soma / peso_total).quantize(Decimal("0.01"))
+                    if peso_total > 0
+                    else None
+                )
 
                 medias[aluno.id] = arredondar_media_personalizada(media_calculada)
 
@@ -694,6 +686,7 @@ def lancar_notas(request):
 # BOLETIM
 # =========================
 
+
 @login_required
 def boletim_aluno(request, aluno_id):
 
@@ -704,9 +697,7 @@ def boletim_aluno(request, aluno_id):
     turma = aluno.turma_principal
 
     disciplinas = Disciplina.objects.filter(
-        turmadisciplina__turma=turma,
-        turmadisciplina__escola=escola,
-        escola=escola
+        turmadisciplina__turma=turma, turmadisciplina__escola=escola, escola=escola
     ).distinct()
 
     boletim = []
@@ -714,15 +705,11 @@ def boletim_aluno(request, aluno_id):
     for disciplina in disciplinas:
 
         avaliacoes = Avaliacao.objects.filter(
-            escola=escola,
-            disciplina=disciplina,
-            turma=turma
+            escola=escola, disciplina=disciplina, turma=turma
         ).select_related("tipo")
 
         notas = Nota.objects.filter(
-            escola=escola,
-            aluno=aluno,
-            avaliacao__in=avaliacoes
+            escola=escola, aluno=aluno, avaliacao__in=avaliacoes
         ).select_related("avaliacao", "avaliacao__tipo")
 
         bimestres = {1: [], 2: [], 3: [], 4: []}
@@ -763,23 +750,27 @@ def boletim_aluno(request, aluno_id):
 
         notas_validas = [m for m in medias_bimestre.values() if m is not None]
 
-        media_final = round(sum(notas_validas) / len(notas_validas), 2) if notas_validas else None
+        media_final = (
+            round(sum(notas_validas) / len(notas_validas), 2) if notas_validas else None
+        )
         media_final = arredondar_media_personalizada(media_final)
 
         situacao = "Aprovado" if media_final and media_final >= 7 else "Reprovado"
 
-        boletim.append({
-            "disciplina": disciplina.nome,
-            "bimestres": medias_bimestre,
-            "media_final": media_final,
-            "situacao": situacao
-        })
+        boletim.append(
+            {
+                "disciplina": disciplina.nome,
+                "bimestres": medias_bimestre,
+                "media_final": media_final,
+                "situacao": situacao,
+            }
+        )
 
     context = {
         "escola": escola,
         "aluno": aluno,
         "boletim": boletim,
-        "ano": datetime.now().year
+        "ano": datetime.now().year,
     }
 
     return render(request, "avaliacoes/boletim_aluno.html", context)

@@ -81,33 +81,50 @@ def buscar_disciplinas_por_turma(request):
         return JsonResponse([], safe=False)
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=escola)
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=escola,
+        )
     except Turma.DoesNotExist:
         return JsonResponse([], safe=False)
 
     if usuario.role == "professor":
-        professor = Docente.objects.filter(user=usuario, escola=escola).first()
+        professor = Docente.objects.filter(
+            user=usuario,
+            escola=escola,
+        ).first()
+
         if not professor:
             return JsonResponse([], safe=False)
 
         disciplinas = (
             Disciplina.objects.filter(
+                escola=escola,
                 turmadisciplina__turma=turma,
                 turmadisciplina__professor=professor,
             )
             .distinct()
             .order_by("nome")
         )
+
     else:
         disciplinas = (
             Disciplina.objects.filter(
-                turmadisciplina__turma=turma
+                escola=escola,
+                turmadisciplina__turma=turma,
             )
             .distinct()
             .order_by("nome")
         )
 
-    data = [{"id": d.id, "nome": d.nome} for d in disciplinas]
+    data = [
+        {
+            "id": d.id,
+            "nome": d.nome,
+        }
+        for d in disciplinas
+    ]
+
     return JsonResponse(data, safe=False)
 
 
@@ -161,8 +178,15 @@ def salvar_registro_pedagogico(request):
         )
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=escola)
-        disciplina = Disciplina.objects.get(id=disciplina_id)
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=escola,
+        )
+
+        disciplina = Disciplina.objects.get(
+            id=disciplina_id,
+            escola=escola,
+        )
     except (Turma.DoesNotExist, Disciplina.DoesNotExist):
         return JsonResponse(
             {"status": "erro", "mensagem": "Turma ou disciplina inválida"},
@@ -186,7 +210,9 @@ def salvar_registro_pedagogico(request):
     if usuario.role == "professor":
         professor = Docente.objects.filter(user=usuario, escola=escola).first()
         if not professor:
-            return JsonResponse({"status": "erro", "mensagem": "Professor inválido"}, status=403)
+            return JsonResponse(
+                {"status": "erro", "mensagem": "Professor inválido"}, status=403
+            )
 
         permitido = TurmaDisciplina.objects.filter(
             professor=professor,
@@ -197,7 +223,10 @@ def salvar_registro_pedagogico(request):
 
         if not permitido:
             return JsonResponse(
-                {"status": "erro", "mensagem": "Registro não permitido para este professor"},
+                {
+                    "status": "erro",
+                    "mensagem": "Registro não permitido para este professor",
+                },
                 status=403,
             )
 
@@ -254,12 +283,15 @@ def buscar_registro_pedagogico(request):
     if not all([turma_id, disciplina_id, ano_letivo]):
         return JsonResponse(
             {"erro": "Parâmetros obrigatórios: turma, disciplina, ano_letivo"},
-            status=400
+            status=400,
         )
 
     try:
         turma = Turma.objects.get(id=turma_id, escola=escola)
-        disciplina = Disciplina.objects.get(id=disciplina_id)
+        disciplina = Disciplina.objects.get(
+            id=disciplina_id,
+            escola=escola,
+        )
     except (Turma.DoesNotExist, Disciplina.DoesNotExist):
         return JsonResponse({"erro": "Turma ou disciplina inválida"}, status=404)
 
@@ -270,7 +302,9 @@ def buscar_registro_pedagogico(request):
     ).exists()
 
     if not disciplina_na_turma:
-        return JsonResponse({"erro": "Disciplina não vinculada a esta turma"}, status=403)
+        return JsonResponse(
+            {"erro": "Disciplina não vinculada a esta turma"}, status=403
+        )
 
     if usuario.role == "professor":
         professor = Docente.objects.filter(user=usuario, escola=escola).first()
@@ -285,18 +319,16 @@ def buscar_registro_pedagogico(request):
         ).exists()
 
         if not permitido:
-            return JsonResponse({"erro": "Registro não permitido para este professor"}, status=403)
+            return JsonResponse(
+                {"erro": "Registro não permitido para este professor"}, status=403
+            )
 
-    registros = (
-        RegistroPedagogico.objects
-        .filter(
-            turma=turma,
-            disciplina=disciplina,
-            ano_letivo=int(ano_letivo),
-            escola=escola,
-        )
-        .values("bimestre", "observacoes")
-    )
+    registros = RegistroPedagogico.objects.filter(
+        turma=turma,
+        disciplina=disciplina,
+        ano_letivo=int(ano_letivo),
+        escola=escola,
+    ).values("bimestre", "observacoes")
 
     resposta = {1: "", 2: "", 3: "", 4: ""}
     for r in registros:
@@ -307,9 +339,11 @@ def buscar_registro_pedagogico(request):
 
 @login_required
 def gerar_pdf_registro_pedagogico(request):
-
     usuario = request.user
     escola = usuario.escola
+
+    if usuario.role not in ["professor", "coordenador", "diretor"]:
+        return HttpResponse("Acesso negado", status=403)
 
     turma_id = request.GET.get("turma")
     disciplina_id = request.GET.get("disciplina")
@@ -320,29 +354,24 @@ def gerar_pdf_registro_pedagogico(request):
 
     turma = Turma.objects.get(
         id=turma_id,
-        escola=escola
+        escola=escola,
     )
 
     disciplina = Disciplina.objects.get(
-        id=disciplina_id
+        id=disciplina_id,
+        escola=escola,
     )
 
-    registros = (
-        RegistroPedagogico.objects
-        .filter(
-            turma=turma,
-            disciplina=disciplina,
-            ano_letivo=int(ano_letivo),
-            escola=escola,
-        )
-        .order_by("bimestre")
-    )
+    registros = RegistroPedagogico.objects.filter(
+        turma=turma,
+        disciplina=disciplina,
+        ano_letivo=int(ano_letivo),
+        escola=escola,
+    ).order_by("bimestre")
 
-    response = HttpResponse(content_type='application/pdf')
+    response = HttpResponse(content_type="application/pdf")
 
-    response['Content-Disposition'] = (
-        f'inline; filename="registro_{turma.nome}.pdf"'
-    )
+    response["Content-Disposition"] = f'inline; filename="registro_{turma.nome}.pdf"'
 
     doc = SimpleDocTemplate(
         response,
@@ -350,7 +379,7 @@ def gerar_pdf_registro_pedagogico(request):
         rightMargin=1.5 * cm,
         leftMargin=1.5 * cm,
         topMargin=1.5 * cm,
-        bottomMargin=1.5 * cm
+        bottomMargin=1.5 * cm,
     )
 
     styles = getSampleStyleSheet()
@@ -411,53 +440,28 @@ def gerar_pdf_registro_pedagogico(request):
     # 🏫 CABEÇALHO
     # =========================================
 
-    story.append(
-        Paragraph(
-            f"<b>{escola.nome.upper()}</b>",
-            titulo_escola
-        )
-    )
+    story.append(Paragraph(f"<b>{escola.nome.upper()}</b>", titulo_escola))
 
     story.append(
         Paragraph(
             "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
-            styles["Normal"]
+            styles["Normal"],
         )
     )
 
     story.append(Spacer(1, 6))
 
-    story.append(
-        Paragraph(
-            "<b>REGISTRO PEDAGÓGICO</b>",
-            titulo_relatorio
-        )
-    )
+    story.append(Paragraph("<b>REGISTRO PEDAGÓGICO</b>", titulo_relatorio))
 
     # =========================================
     # 📋 DADOS
     # =========================================
 
-    story.append(
-        Paragraph(
-            f"<b>Turma:</b> {turma.nome}",
-            label
-        )
-    )
+    story.append(Paragraph(f"<b>Turma:</b> {turma.nome}", label))
 
-    story.append(
-        Paragraph(
-            f"<b>Disciplina:</b> {disciplina.nome}",
-            label
-        )
-    )
+    story.append(Paragraph(f"<b>Disciplina:</b> {disciplina.nome}", label))
 
-    story.append(
-        Paragraph(
-            f"<b>Ano Letivo:</b> {ano_letivo}",
-            label
-        )
-    )
+    story.append(Paragraph(f"<b>Ano Letivo:</b> {ano_letivo}", label))
 
     story.append(Spacer(1, 12))
 
@@ -467,22 +471,14 @@ def gerar_pdf_registro_pedagogico(request):
 
     if not registros.exists():
 
-        story.append(
-            Paragraph(
-                "Nenhum registro encontrado.",
-                texto_style
-            )
-        )
+        story.append(Paragraph("Nenhum registro encontrado.", texto_style))
 
     else:
 
         for r in registros:
 
             story.append(
-                Paragraph(
-                    f"<b>{r.get_bimestre_display()}</b>",
-                    bimestre_style
-                )
+                Paragraph(f"<b>{r.get_bimestre_display()}</b>", bimestre_style)
             )
 
             # =========================================
@@ -492,8 +488,7 @@ def gerar_pdf_registro_pedagogico(request):
             texto = r.observacoes or "Sem observações."
 
             texto_formatado = (
-                texto
-                .replace("\r\n", "\n")
+                texto.replace("\r\n", "\n")
                 .replace("\n\n", "<br/><br/>")
                 .replace("\n", "<br/>")
             )
@@ -503,25 +498,22 @@ def gerar_pdf_registro_pedagogico(request):
             # =========================================
 
             tabela_texto = Table(
-                [[Paragraph(texto_formatado, texto_style)]],
-                colWidths=[17 * cm]
+                [[Paragraph(texto_formatado, texto_style)]], colWidths=[17 * cm]
             )
 
-            tabela_texto.setStyle(TableStyle([
-
-                ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
-
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.lightgrey),
-
-                ("LEFTPADDING", (0, 0), (-1, -1), 10),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-
-                ("TOPPADDING", (0, 0), (-1, -1), 10),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-
-            ]))
+            tabela_texto.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+                        ("BOX", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                        ("TOPPADDING", (0, 0), (-1, -1), 10),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ]
+                )
+            )
 
             story.append(tabela_texto)
 
@@ -536,7 +528,7 @@ def gerar_pdf_registro_pedagogico(request):
     story.append(
         Paragraph(
             "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
-            styles["Normal"]
+            styles["Normal"],
         )
     )
 
@@ -544,20 +536,20 @@ def gerar_pdf_registro_pedagogico(request):
 
     assinatura_tabela = Table(
         [
-            [
-                "__________________________________________"
-            ],
-            [
-                "Assinatura do Professor / Coordenação"
-            ]
+            ["__________________________________________"],
+            ["Assinatura do Professor / Coordenação"],
         ],
-        colWidths=[10 * cm]
+        colWidths=[10 * cm],
     )
 
-    assinatura_tabela.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-    ]))
+    assinatura_tabela.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
 
     story.append(assinatura_tabela)
 
