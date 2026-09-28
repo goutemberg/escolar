@@ -248,8 +248,6 @@ def salvar_registro_pedagogico(request):
 
             texto = texto.strip()
 
-            if len(texto) > MAX_TEXTO:
-                texto = texto[:MAX_TEXTO]
 
             RegistroPedagogico.objects.update_or_create(
                 turma=turma,
