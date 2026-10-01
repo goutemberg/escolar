@@ -1602,6 +1602,7 @@ def buscar_pessoa(request):
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
+from home.utils import get_ano_ativo
 
 
 @login_required
@@ -1626,7 +1627,13 @@ def autocomplete_pessoa(request):
         qs = qs.filter(Q(nome__icontains=termo) | Q(cpf__icontains=termo_norm))[:10]
 
         resp = [
-            {"id": p.id, "nome": p.nome, "cpf": p.cpf, "tipo": "professor"} for p in qs
+            {
+                "id": p.id,
+                "nome": p.nome,
+                "cpf": p.cpf,
+                "tipo": "professor",
+            }
+            for p in qs
         ]
 
         return JsonResponse(resp, safe=False)
@@ -1634,169 +1641,181 @@ def autocomplete_pessoa(request):
     # ------------------------------------------------------
     # AUTOCOMPLETE PARA ALUNO
     # ------------------------------------------------------
-    qs = Aluno.objects.filter(escola=escola)
+    if tipo == "aluno":
+        ano_ativo = get_ano_ativo()
 
-    qs = qs.filter(
-        Q(nome__icontains=termo)
-        | Q(cpf__icontains=termo_norm)
-        | Q(matricula__icontains=termo)
-    )[:10]
+        if not ano_ativo:
+            return JsonResponse([], safe=False)
 
-    resp = [
-        {
-            "id": a.id,
-            "nome": a.nome,
-            "matricula": a.matricula,
-            "cpf": a.cpf,
-            "tipo": "aluno",
-        }
-        for a in qs
-    ]
-
-    return JsonResponse(resp, safe=False)
-
-
-@login_required
-@require_POST
-def criar_turma(request):
-    escola = request.escola
-
-    # ✅ JSON seguro
-    try:
-        data = json.loads(request.body or "{}")
-    except json.JSONDecodeError:
-        return JsonResponse(
-            {"success": False, "mensagem": "JSON inválido."}, status=400
+        qs = Aluno.objects.filter(
+            escola=escola,
+            matriculas__ano_letivo=ano_ativo,
+            matriculas__status="ATIVA",
         )
 
-    nome = (data.get("nome") or "").strip()
-    turno = (data.get("turno") or "").strip()
-    ano = data.get("ano")
-    sala = (data.get("sala") or "").strip()
-    descricao = (data.get("descricao") or "").strip()
+        qs = qs.filter(
+            Q(nome__icontains=termo)
+            | Q(cpf__icontains=termo_norm)
+            | Q(matricula__icontains=termo)
+        ).distinct()[:10]
 
-    professor_id = data.get("professor_id")
-    disciplina_id = data.get("disciplina_id")
-    alunos_ids = data.get("alunos_ids", [])
-
-    # ✅ NOVO: sistema de avaliação (NUM/CON)
-    sistema = (data.get("sistema_avaliacao") or "NUM").strip().upper()
-    if sistema not in ("NUM", "CON"):
-        sistema = "NUM"
-
-    # 🔒 validação mínima (mantém seu comportamento)
-    if not all([nome, turno, ano, sala]):
-        return JsonResponse(
-            {"success": False, "mensagem": "Nome, turno, ano e sala são obrigatórios."},
-            status=400,
-        )
-
-    # 🔒 ano int
-    try:
-        ano = int(ano)
-        if ano < 2000 or ano > 2100:
-            raise ValueError()
-    except Exception:
-        return JsonResponse({"success": False, "mensagem": "Ano inválido."}, status=400)
-
-    if alunos_ids is None:
-        alunos_ids = []
-    if not isinstance(alunos_ids, list):
-        return JsonResponse(
-            {"success": False, "mensagem": "alunos_ids deve ser uma lista."}, status=400
-        )
-
-    professor = None
-    if professor_id:
-        professor = Docente.objects.filter(
-            id=professor_id, escola=escola, ativo=True
-        ).first()
-        if not professor:
-            return JsonResponse(
-                {"success": False, "mensagem": "Professor inválido."}, status=400
-            )
-
-    disciplina = None
-    if disciplina_id:
-        disciplina = Disciplina.objects.filter(id=disciplina_id, escola=escola).first()
-        if not disciplina:
-            return JsonResponse(
-                {"success": False, "mensagem": "Disciplina inválida."}, status=400
-            )
-
-    if (professor_id and not disciplina_id) or (disciplina_id and not professor_id):
-        return JsonResponse(
+        resp = [
             {
-                "success": False,
-                "mensagem": "Para vincular, informe professor_id e disciplina_id.",
-            },
-            status=400,
-        )
+                "id": a.id,
+                "nome": a.nome,
+                "matricula": a.matricula,
+                "cpf": a.cpf,
+                "tipo": "aluno",
+            }
+            for a in qs
+        ]
 
-    try:
-        with transaction.atomic():
+        return JsonResponse(resp, safe=False)
 
-            turma = Turma.objects.create(
-                nome=nome,
-                turno=turno,
-                ano=ano,
-                sala=sala,
-                descricao=descricao,
-                escola=escola,
-                sistema_avaliacao=sistema,
-            )
+    return JsonResponse([], safe=False)
 
-            if professor and disciplina:
-                ja_existe = TurmaDisciplina.objects.filter(
-                    turma=turma, professor=professor, disciplina=disciplina
-                ).exists()
 
-                if not ja_existe:
-                    TurmaDisciplina.objects.create(
-                        turma=turma,
-                        professor=professor,
-                        disciplina=disciplina,
-                        escola=escola,
-                    )
+# @login_required
+# @require_POST
+# def criar_turma(request):
+#     escola = request.escola
 
-            # 3️⃣ adiciona alunos (se vierem) - blindado por escola e ativo
-            if alunos_ids:
-                alunos = Aluno.objects.filter(
-                    id__in=alunos_ids, escola=escola, ativo=True
-                )
+#     # ✅ JSON seguro
+#     try:
+#         data = json.loads(request.body or "{}")
+#     except json.JSONDecodeError:
+#         return JsonResponse(
+#             {"success": False, "mensagem": "JSON inválido."}, status=400
+#         )
 
-                alunos_map = {a.id: a for a in alunos}
+#     nome = (data.get("nome") or "").strip()
+#     turno = (data.get("turno") or "").strip()
+#     ano = data.get("ano")
+#     sala = (data.get("sala") or "").strip()
+#     descricao = (data.get("descricao") or "").strip()
 
-                invalidos = [aid for aid in alunos_ids if int(aid) not in alunos_map]
-                if invalidos:
-                    return JsonResponse(
-                        {
-                            "success": False,
-                            "mensagem": f"Alunos inválidos ou fora da escola: {invalidos}",
-                        },
-                        status=400,
-                    )
+#     professor_id = data.get("professor_id")
+#     disciplina_id = data.get("disciplina_id")
+#     alunos_ids = data.get("alunos_ids", [])
 
-                for aluno in alunos:
-                    aluno.turmas.add(turma)
+#     # ✅ NOVO: sistema de avaliação (NUM/CON)
+#     sistema = (data.get("sistema_avaliacao") or "NUM").strip().upper()
+#     if sistema not in ("NUM", "CON"):
+#         sistema = "NUM"
 
-                    if not aluno.turma_principal:
-                        aluno.turma_principal = turma
-                        aluno.save(update_fields=["turma_principal"])
+#     # 🔒 validação mínima (mantém seu comportamento)
+#     if not all([nome, turno, ano, sala]):
+#         return JsonResponse(
+#             {"success": False, "mensagem": "Nome, turno, ano e sala são obrigatórios."},
+#             status=400,
+#         )
 
-            return JsonResponse(
-                {
-                    "success": True,
-                    "mensagem": "Turma criada com sucesso!",
-                    "turma_id": turma.id,
-                    "sistema_avaliacao": sistema,
-                }
-            )
+#     # 🔒 ano int
+#     try:
+#         ano = int(ano)
+#         if ano < 2000 or ano > 2100:
+#             raise ValueError()
+#     except Exception:
+#         return JsonResponse({"success": False, "mensagem": "Ano inválido."}, status=400)
 
-    except Exception as e:
-        return JsonResponse(
-            {"success": False, "mensagem": f"Erro ao criar turma: {str(e)}"}, status=400
-        )
+#     if alunos_ids is None:
+#         alunos_ids = []
+#     if not isinstance(alunos_ids, list):
+#         return JsonResponse(
+#             {"success": False, "mensagem": "alunos_ids deve ser uma lista."}, status=400
+#         )
+
+#     professor = None
+#     if professor_id:
+#         professor = Docente.objects.filter(
+#             id=professor_id, escola=escola, ativo=True
+#         ).first()
+#         if not professor:
+#             return JsonResponse(
+#                 {"success": False, "mensagem": "Professor inválido."}, status=400
+#             )
+
+#     disciplina = None
+#     if disciplina_id:
+#         disciplina = Disciplina.objects.filter(id=disciplina_id, escola=escola).first()
+#         if not disciplina:
+#             return JsonResponse(
+#                 {"success": False, "mensagem": "Disciplina inválida."}, status=400
+#             )
+
+#     if (professor_id and not disciplina_id) or (disciplina_id and not professor_id):
+#         return JsonResponse(
+#             {
+#                 "success": False,
+#                 "mensagem": "Para vincular, informe professor_id e disciplina_id.",
+#             },
+#             status=400,
+#         )
+
+#     try:
+#         with transaction.atomic():
+
+#             turma = Turma.objects.create(
+#                 nome=nome,
+#                 turno=turno,
+#                 ano=ano,
+#                 sala=sala,
+#                 descricao=descricao,
+#                 escola=escola,
+#                 sistema_avaliacao=sistema,
+#             )
+
+#             if professor and disciplina:
+#                 ja_existe = TurmaDisciplina.objects.filter(
+#                     turma=turma, professor=professor, disciplina=disciplina
+#                 ).exists()
+
+#                 if not ja_existe:
+#                     TurmaDisciplina.objects.create(
+#                         turma=turma,
+#                         professor=professor,
+#                         disciplina=disciplina,
+#                         escola=escola,
+#                     )
+
+#             # 3️⃣ adiciona alunos (se vierem) - blindado por escola e ativo
+#             if alunos_ids:
+#                 alunos = Aluno.objects.filter(
+#                     id__in=alunos_ids, escola=escola, ativo=True
+#                 )
+
+#                 alunos_map = {a.id: a for a in alunos}
+
+#                 invalidos = [aid for aid in alunos_ids if int(aid) not in alunos_map]
+#                 if invalidos:
+#                     return JsonResponse(
+#                         {
+#                             "success": False,
+#                             "mensagem": f"Alunos inválidos ou fora da escola: {invalidos}",
+#                         },
+#                         status=400,
+#                     )
+
+#                 for aluno in alunos:
+#                     aluno.turmas.add(turma)
+
+#                     if not aluno.turma_principal:
+#                         aluno.turma_principal = turma
+#                         aluno.save(update_fields=["turma_principal"])
+
+#             return JsonResponse(
+#                 {
+#                     "success": True,
+#                     "mensagem": "Turma criada com sucesso!",
+#                     "turma_id": turma.id,
+#                     "sistema_avaliacao": sistema,
+#                 }
+#             )
+
+#     except Exception as e:
+#         return JsonResponse(
+#             {"success": False, "mensagem": f"Erro ao criar turma: {str(e)}"}, status=400
+#         )
 
 
 @login_required

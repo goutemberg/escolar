@@ -1,0 +1,356 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}Editar Matrícula{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+
+    <!-- CABEÇALHO -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="bi bi-pencil-square"></i>
+                Editar Matrícula
+            </h2>
+
+            <p class="text-muted mb-0">
+                Atualize os dados da matrícula do aluno
+            </p>
+        </div>
+
+        <a href="{% url 'matricula:listar' %}"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i>
+            Voltar
+        </a>
+
+    </div>
+
+
+    <!-- INFORMAÇÕES DO ALUNO -->
+    <div class="card shadow-sm border-0 mb-4">
+
+        <div class="card-header bg-white py-3">
+
+            <h5 class="mb-0 fw-semibold">
+                <i class="bi bi-person"></i>
+                Dados do Aluno
+            </h5>
+
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-4">
+
+                <!-- ALUNO -->
+                <div class="col-md-6">
+
+                    <label class="form-label text-muted small">
+                        Aluno
+                    </label>
+
+                    <div class="form-control bg-light">
+                        {{ matricula.aluno.nome }}
+                    </div>
+
+                </div>
+
+
+                <!-- MATRÍCULA PERMANENTE -->
+                <div class="col-md-3">
+
+                    <label class="form-label text-muted small">
+                        Nº da Matrícula
+                    </label>
+
+                    <div class="form-control bg-light">
+                        {{ matricula.aluno.matricula }}
+                    </div>
+
+                </div>
+
+
+                <!-- ANO LETIVO -->
+                <div class="col-md-3">
+
+                    <label class="form-label text-muted small">
+                        Ano Letivo
+                    </label>
+
+                    <div class="form-control bg-light">
+                        {{ matricula.ano_letivo.ano }}
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- FORMULÁRIO -->
+    <div class="card shadow-sm border-0">
+
+        <div class="card-header bg-white py-3">
+
+            <h5 class="mb-0 fw-semibold">
+                <i class="bi bi-card-checklist"></i>
+                Dados da Matrícula
+            </h5>
+
+        </div>
+
+
+        <div class="card-body">
+
+            <form id="formEditarMatricula">
+
+                {% csrf_token %}
+
+                <!-- TURMA -->
+                <div class="mb-4">
+
+                    <label for="turma" class="form-label fw-semibold">
+                        Turma
+                    </label>
+
+                    <select
+                        id="turma"
+                        name="turma_id"
+                        class="form-select"
+                    >
+
+                        <option value="">
+                            Sem turma definida
+                        </option>
+
+                        {% for turma in turmas %}
+
+                            <option
+                                value="{{ turma.id }}"
+                                {% if matricula.turma_id == turma.id %}
+                                    selected
+                                {% endif %}
+                            >
+                                {{ turma.nome }}
+                                {% if turma.sala %}
+                                    - Sala {{ turma.sala }}
+                                {% endif %}
+                                {% if turma.turno %}
+                                    ({{ turma.turno }})
+                                {% endif %}
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                    <div class="form-text">
+                        A turma deve pertencer ao ano letivo da matrícula.
+                    </div>
+
+                </div>
+
+
+                <!-- STATUS -->
+                <div class="mb-4">
+
+                    <label for="status" class="form-label fw-semibold">
+                        Status
+                    </label>
+
+                    <select
+                        id="status"
+                        name="status"
+                        class="form-select"
+                    >
+
+                        <option
+                            value="ATIVA"
+                            {% if matricula.status == "ATIVA" %}
+                                selected
+                            {% endif %}
+                        >
+                            Ativa
+                        </option>
+
+                        <option
+                            value="CONCLUIDA"
+                            {% if matricula.status == "CONCLUIDA" %}
+                                selected
+                            {% endif %}
+                        >
+                            Concluída
+                        </option>
+
+                        <option
+                            value="TRANSFERIDA"
+                            {% if matricula.status == "TRANSFERIDA" %}
+                                selected
+                            {% endif %}
+                        >
+                            Transferida
+                        </option>
+
+                        <option
+                            value="CANCELADA"
+                            {% if matricula.status == "CANCELADA" %}
+                                selected
+                            {% endif %}
+                        >
+                            Cancelada
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- OBSERVAÇÃO -->
+                <div class="mb-4">
+
+                    <label for="observacao"
+                           class="form-label fw-semibold">
+
+                        Observação
+
+                    </label>
+
+                    <textarea
+                        id="observacao"
+                        name="observacao"
+                        class="form-control"
+                        rows="5"
+                        placeholder="Digite uma observação, se necessário..."
+                    >{{ matricula.observacao }}</textarea>
+
+                </div>
+
+
+                <!-- BOTÕES -->
+                <div class="d-flex justify-content-end gap-2">
+
+                    <a
+                        href="{% url 'matricula:visualizar' matricula.id %}"
+                        class="btn btn-outline-secondary"
+                    >
+                        Cancelar
+                    </a>
+
+                    <button
+                        type="submit"
+                        id="btnSalvar"
+                        class="btn btn-primary"
+                    >
+                        <i class="bi bi-check-lg"></i>
+                        Salvar alterações
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+document
+    .getElementById("formEditarMatricula")
+    .addEventListener("submit", function (event) {
+
+        event.preventDefault();
+
+        const btnSalvar = document.getElementById("btnSalvar");
+
+        const turmaId = document.getElementById("turma").value;
+        const status = document.getElementById("status").value;
+        const observacao = document
+            .getElementById("observacao")
+            .value
+            .trim();
+
+        btnSalvar.disabled = true;
+
+        btnSalvar.innerHTML = `
+            <span
+                class="spinner-border spinner-border-sm me-1"
+                role="status"
+                aria-hidden="true">
+            </span>
+            Salvando...
+        `;
+
+        fetch(
+            "{% url 'matricula:salvar_edicao' matricula.id %}",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+
+                body: JSON.stringify({
+                    turma_id: turmaId || null,
+                    status: status,
+                    observacao: observacao
+                })
+            }
+        )
+        .then(async response => {
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.erro ||
+                    data.error ||
+                    "Não foi possível salvar as alterações."
+                );
+            }
+
+            return data;
+        })
+        .then(data => {
+
+            alert(
+                data.mensagem ||
+                "Matrícula atualizada com sucesso!"
+            );
+
+            window.location.href =
+                "{% url 'matricula:visualizar' matricula.id %}";
+
+        })
+        .catch(error => {
+
+            console.error(error);
+
+            alert(
+                error.message ||
+                "Ocorreu um erro ao salvar a matrícula."
+            );
+
+            btnSalvar.disabled = false;
+
+            btnSalvar.innerHTML = `
+                <i class="bi bi-check-lg"></i>
+                Salvar alterações
+            `;
+        });
+
+    });
+
+</script>
+
+{% endblock %}

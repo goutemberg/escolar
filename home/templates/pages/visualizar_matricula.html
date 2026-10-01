@@ -1,0 +1,140 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}
+  Visualizar Matrícula
+{% endblock %}
+
+{% block content %}
+  <div class="container-fluid py-4">
+    <!-- CABEÇALHO -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="fw-bold mb-1">
+          <i class="bi bi-person-vcard"></i>
+          Visualizar Matrícula
+        </h2>
+
+        <p class="text-muted mb-0">Detalhes da matrícula do aluno</p>
+      </div>
+
+      <div class="d-flex gap-2">
+        <!-- VOLTAR -->
+        <a href="{% url 'matricula:listar' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left"></i>
+          Voltar
+        </a>
+
+        <!-- EMITIR DECLARAÇÃO -->
+        <a href="{% url 'matricula:declaracao' matricula.id %}" class="btn btn-success" target="_blank">
+          <i class="bi bi-file-earmark-text"></i>
+          Emitir Declaração
+        </a>
+
+        <!-- EDITAR -->
+        <a href="{% url 'matricula:editar' matricula.id %}" class="btn btn-primary">
+          <i class="bi bi-pencil"></i>
+          Editar matrícula
+        </a>
+      </div>
+    </div>
+
+    <!-- CARD PRINCIPAL -->
+    <div class="card shadow-sm border-0">
+      <div class="card-header bg-white py-3">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h5 class="mb-0 fw-semibold">Dados da Matrícula</h5>
+          </div>
+
+          <!-- STATUS -->
+          <div>
+            {% if matricula.status == 'ATIVA' %}
+              <span class="badge bg-success">Ativa</span>
+            {% elif matricula.status == 'CONCLUIDA' %}
+              <span class="badge bg-primary">Concluída</span>
+            {% elif matricula.status == 'TRANSFERIDA' %}
+              <span class="badge bg-warning text-dark">Transferida</span>
+            {% elif matricula.status == 'CANCELADA' %}
+              <span class="badge bg-danger">Cancelada</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ matricula.get_status_display }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="row g-4">
+          <!-- ALUNO -->
+          <div class="col-md-6">
+            <div class="text-muted small mb-1">Aluno</div>
+
+            <div class="fw-semibold fs-5">{{ matricula.aluno.nome }}</div>
+          </div>
+
+          <!-- MATRÍCULA PERMANENTE -->
+          <div class="col-md-6">
+            <div class="text-muted small mb-1">Nº da Matrícula</div>
+
+            <div class="fw-semibold">{{ matricula.aluno.matricula }}</div>
+          </div>
+
+          <!-- ANO LETIVO -->
+          <div class="col-md-4">
+            <div class="text-muted small mb-1">Ano Letivo</div>
+
+            <div class="fw-semibold">{{ matricula.ano_letivo.ano }}</div>
+          </div>
+
+          <!-- TURMA -->
+          <div class="col-md-4">
+            <div class="text-muted small mb-1">Turma</div>
+
+            <div class="fw-semibold">
+              {% if matricula.turma %}
+                {{ matricula.turma.nome }}
+              {% else %}
+                <span class="text-muted">Sem turma definida</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- DATA -->
+          <div class="col-md-4">
+            <div class="text-muted small mb-1">Data da Matrícula</div>
+
+            <div class="fw-semibold">{{ matricula.data_matricula|date:'d/m/Y' }}</div>
+          </div>
+
+          <!-- OBSERVAÇÃO -->
+          <div class="col-12">
+            <div class="text-muted small mb-1">Observação</div>
+
+            <div class="border rounded p-3 bg-light">
+              {% if matricula.observacao %}
+                {{ matricula.observacao|linebreaksbr }}
+              {% else %}
+                <span class="text-muted">Nenhuma observação registrada.</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RODAPÉ -->
+      <div class="card-footer bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+          <small class="text-muted">
+            Matrícula criada em
+            {{ matricula.criado_em|date:'d/m/Y H:i' }}
+          </small>
+
+          <small class="text-muted">
+            Última atualização:
+            {{ matricula.atualizado_em|date:'d/m/Y H:i' }}
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

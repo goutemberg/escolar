@@ -145,8 +145,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const disciplinaId = turma.disciplina_id;
         const alunosIds = turma.alunos.map(a => a.id);
 
-        if (!nome || !turno || !ano || !sala || !professorId || !disciplinaId || alunosIds.length === 0) {
-            alert("Preencha todos os campos e adicione professor e alunos.");
+        if (!nome || !turno || !ano || !sala) {
+            alert("Preencha os dados básicos da turma.");
             return;
         }
 

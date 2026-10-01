@@ -1,0 +1,487 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
+
+  <style>
+    /* ============================================================
+               PÁGINA
+               ============================================================ */
+    
+    .matriculas-page {
+      width: 100%;
+    }
+    
+    /* ============================================================
+               CABEÇALHO
+               ============================================================ */
+    
+    .matriculas-header {
+      margin-bottom: 18px;
+    }
+    
+    .matriculas-header h1 {
+      margin: 0;
+      font-size: 32px;
+      font-weight: 700;
+      color: #343a40;
+    }
+    
+    .linha-titulo {
+      width: 100%;
+      height: 3px;
+      background: #1e73be;
+      margin-top: 18px;
+      border-radius: 2px;
+    }
+    
+    /* ============================================================
+               ANO LETIVO
+               ============================================================ */
+    
+    .ano-letivo-box {
+      margin-bottom: 22px;
+    }
+    
+    .ano-letivo-info {
+      font-size: 22px;
+      font-weight: 600;
+      color: #212529;
+    }
+    
+    .ano-letivo-info span {
+      font-weight: 700;
+    }
+    
+    /* ============================================================
+               CARD
+               ============================================================ */
+    
+    .matricula-card {
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      padding: 28px;
+    }
+    
+    .matricula-card h2 {
+      margin: 0 0 26px 0;
+      font-size: 24px;
+      font-weight: 600;
+      color: #212529;
+    }
+    
+    /* ============================================================
+               CAMPOS
+               ============================================================ */
+    
+    .campo-matricula {
+      margin-bottom: 20px;
+    }
+    
+    .campo-matricula label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #343a40;
+    }
+    
+    .campo-matricula select {
+      width: 100%;
+      height: 48px;
+      border: 1px solid #ced4da;
+      border-radius: 5px;
+      padding: 0 14px;
+      background: #fff;
+      font-size: 16px;
+      color: #495057;
+      outline: none;
+    }
+    
+    .campo-matricula select:focus {
+      border-color: #1e73be;
+      box-shadow: 0 0 0 2px rgba(30, 115, 190, 0.12);
+    }
+    
+    /* ============================================================
+               BOTÕES
+               ============================================================ */
+    
+    .acoes-formulario {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 28px;
+    }
+    
+    .btn-confirmar {
+      height: 44px;
+      border: none;
+      border-radius: 6px;
+      padding: 0 20px;
+      background: #1e73be;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    
+    .btn-confirmar:hover:not(:disabled) {
+      background: #155fa0;
+    }
+    
+    .btn-confirmar:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    
+    .btn-cancelar {
+      height: 44px;
+      border: 1px solid #6c757d;
+      border-radius: 6px;
+      padding: 0 18px;
+      background: #fff;
+      color: #343a40;
+      font-size: 15px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+    }
+    
+    .btn-cancelar:hover {
+      background: #f1f3f5;
+      color: #212529;
+      text-decoration: none;
+    }
+    
+    /* ============================================================
+               ALERTA
+               ============================================================ */
+    
+    .mensagem-matricula {
+      display: none;
+      margin-top: 20px;
+      padding: 12px 15px;
+      border-radius: 5px;
+      font-size: 15px;
+    }
+    
+    .mensagem-matricula.sucesso {
+      display: block;
+      background: #d1e7dd;
+      border: 1px solid #badbcc;
+      color: #0f5132;
+    }
+    
+    .mensagem-matricula.erro {
+      display: block;
+      background: #f8d7da;
+      border: 1px solid #f5c2c7;
+      color: #842029;
+    }
+    
+    /* ============================================================
+               RESPONSIVO
+               ============================================================ */
+    
+    @media (max-width: 768px) {
+      .matriculas-header h1 {
+        font-size: 27px;
+      }
+    
+      .matricula-card {
+        padding: 20px;
+      }
+    
+      .acoes-formulario {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    
+      .btn-confirmar,
+      .btn-cancelar {
+        width: 100%;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="matriculas-page">
+    <!--  =========================================================
+         TÍTULO
+         =========================================================  -->
+
+    <div class="matriculas-header">
+      <h1>Nova Matrícula</h1>
+
+      <div class="linha-titulo"></div>
+    </div>
+
+    {% if ano_ativo %}
+      <!--  =====================================================
+           ANO LETIVO
+           =====================================================  -->
+
+      <div class="ano-letivo-box">
+        <div class="ano-letivo-info">
+          Ano Letivo:
+          <span>{{ ano_ativo.ano }}</span>
+        </div>
+      </div>
+
+      <!--  =====================================================
+           FORMULÁRIO
+           =====================================================  -->
+
+      <div class="matricula-card">
+        <h2>Dados da Matrícula</h2>
+
+        <!--  =================================================
+             ALUNO
+             =================================================  -->
+
+        <div class="campo-matricula">
+          <label for="aluno">Aluno</label>
+
+          <select id="aluno" name="aluno">
+            <option value="">Selecione o aluno</option>
+
+            {% for aluno in alunos %}
+              <option value="{{ aluno.id }}">{{ aluno.nome }} — Matrícula {{ aluno.matricula }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!--  =================================================
+             TURMA
+             =================================================  -->
+
+        <div class="campo-matricula">
+          <label for="turma">
+            Turma
+            <span style="font-weight: 400; color: #6c757d;">(opcional)</span>
+          </label>
+
+          <select id="turma" name="turma">
+            <option value="">Sem turma definida</option>
+
+            {% for turma in turmas %}
+              <option value="{{ turma.id }}">{{ turma.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!--  =================================================
+             MENSAGEM
+             =================================================  -->
+
+        <div id="mensagemMatricula" class="mensagem-matricula"></div>
+
+        <!--  =================================================
+             AÇÕES
+             =================================================  -->
+
+        <div class="acoes-formulario">
+          <button type="button" id="btnConfirmarMatricula" class="btn-confirmar" disabled>
+            <i class="bi bi-check-lg"></i>
+            Confirmar Matrícula
+          </button>
+
+          <a href="{% url 'matricula:listar' %}" class="btn-cancelar">Cancelar</a>
+        </div>
+      </div>
+    {% else %}
+      <!--  =====================================================
+           SEM ANO ATIVO
+           =====================================================  -->
+
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i>
+
+        Não existe um ano letivo ativo no momento.
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const alunoSelect = document.getElementById('aluno')
+      const turmaSelect = document.getElementById('turma')
+      const btnConfirmar = document.getElementById('btnConfirmarMatricula')
+      const mensagem = document.getElementById('mensagemMatricula')
+    
+      if (!alunoSelect || !turmaSelect || !btnConfirmar) {
+        return
+      }
+    
+      /* ============================================================
+               CSRF
+               ============================================================ */
+    
+      function getCookie(name) {
+        let cookieValue = null
+    
+        if (document.cookie && document.cookie !== '') {
+          const cookies = document.cookie.split(';')
+    
+          for (let cookie of cookies) {
+            cookie = cookie.trim()
+    
+            if (cookie.startsWith(name + '=')) {
+              cookieValue = decodeURIComponent(cookie.substring(name.length + 1))
+    
+              break
+            }
+          }
+        }
+    
+        return cookieValue
+      }
+    
+      /* ============================================================
+               MENSAGEM
+               ============================================================ */
+    
+      function mostrarMensagem(texto, tipo) {
+        mensagem.textContent = texto
+    
+        mensagem.className = 'mensagem-matricula ' + tipo
+      }
+    
+      function limparMensagem() {
+        mensagem.textContent = ''
+    
+        mensagem.className = 'mensagem-matricula'
+      }
+    
+      /* ============================================================
+               HABILITAR / DESABILITAR BOTÃO
+               ============================================================ */
+    
+      function atualizarBotao() {
+        const alunoSelecionado = alunoSelect.value !== ''
+    
+        /*
+         * A turma é opcional.
+         * Portanto, somente o aluno é obrigatório.
+         */
+    
+        btnConfirmar.disabled = !alunoSelecionado
+      }
+    
+      alunoSelect.addEventListener('change', function () {
+        limparMensagem()
+    
+        atualizarBotao()
+      })
+    
+      turmaSelect.addEventListener('change', function () {
+        limparMensagem()
+    
+        atualizarBotao()
+      })
+    
+      /* ============================================================
+               SALVAR MATRÍCULA
+               ============================================================ */
+    
+      btnConfirmar.addEventListener('click', async function () {
+        const alunoId = alunoSelect.value
+    
+        /*
+         * Se nenhuma turma for selecionada,
+         * enviamos null para o backend.
+         */
+    
+        const turmaId = turmaSelect.value || null
+    
+        if (!alunoId) {
+          mostrarMensagem('Selecione o aluno.', 'erro')
+    
+          atualizarBotao()
+    
+          return
+        }
+    
+        limparMensagem()
+    
+        btnConfirmar.disabled = true
+    
+        btnConfirmar.innerHTML = '<i class="bi bi-hourglass-split"></i> Salvando...'
+    
+        try {
+          const response = await fetch("{% url 'matricula:salvar' %}", {
+            method: 'POST',
+    
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken')
+            },
+    
+            body: JSON.stringify({
+              aluno_id: alunoId,
+              turma_id: turmaId
+            })
+          })
+    
+          let data = {}
+    
+          try {
+            data = await response.json()
+          } catch (error) {
+            data = {
+              success: false,
+              mensagem: 'Resposta inválida do servidor.'
+            }
+          }
+    
+          if (!response.ok || !data.success) {
+            mostrarMensagem(data.mensagem || 'Não foi possível realizar a matrícula.', 'erro')
+    
+            btnConfirmar.disabled = false
+    
+            btnConfirmar.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar Matrícula'
+    
+            return
+          }
+    
+          /* =================================================
+                   SUCESSO
+                 ================================================= */
+    
+          mostrarMensagem(data.mensagem || 'Matrícula realizada com sucesso.', 'sucesso')
+    
+          /*
+           * Aguarda brevemente para o usuário
+           * visualizar a confirmação.
+           */
+    
+          setTimeout(function () {
+            window.location.href = "{% url 'matricula:listar' %}"
+          }, 800)
+        } catch (error) {
+          console.error('Erro ao salvar matrícula:', error)
+    
+          mostrarMensagem('Erro inesperado ao realizar a matrícula.', 'erro')
+    
+          btnConfirmar.disabled = false
+    
+          btnConfirmar.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar Matrícula'
+        }
+      })
+    
+      atualizarBotao()
+    })
+  </script>
+{% endblock %}
