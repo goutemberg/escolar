@@ -136,13 +136,22 @@ def salvar_registro_pedagogico(request):
     escola = usuario.escola
 
     if usuario.role not in ["professor", "coordenador", "diretor"]:
-        return JsonResponse({"status": "erro", "mensagem": "Acesso negado"}, status=403)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Acesso negado",
+            },
+            status=403,
+        )
 
     try:
         payload = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse(
-            {"status": "erro", "mensagem": "JSON inválido"},
+            {
+                "status": "erro",
+                "mensagem": "JSON inválido",
+            },
             status=400,
         )
 
@@ -153,7 +162,10 @@ def salvar_registro_pedagogico(request):
 
     if not all([turma_id, disciplina_id, ano_letivo, registros]):
         return JsonResponse(
-            {"status": "erro", "mensagem": "Dados obrigatórios ausentes"},
+            {
+                "status": "erro",
+                "mensagem": "Dados obrigatórios ausentes",
+            },
             status=400,
         )
 
@@ -161,19 +173,28 @@ def salvar_registro_pedagogico(request):
         ano_letivo = int(ano_letivo)
     except (TypeError, ValueError):
         return JsonResponse(
-            {"status": "erro", "mensagem": "Ano letivo inválido"},
+            {
+                "status": "erro",
+                "mensagem": "Ano letivo inválido",
+            },
             status=400,
         )
 
     if ano_letivo < 2000 or ano_letivo > 2100:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Ano letivo fora do intervalo permitido"},
+            {
+                "status": "erro",
+                "mensagem": "Ano letivo fora do intervalo permitido",
+            },
             status=400,
         )
 
     if not isinstance(registros, dict):
         return JsonResponse(
-            {"status": "erro", "mensagem": "Formato de registros inválido"},
+            {
+                "status": "erro",
+                "mensagem": "Formato de registros inválido",
+            },
             status=400,
         )
 
@@ -189,7 +210,10 @@ def salvar_registro_pedagogico(request):
         )
     except (Turma.DoesNotExist, Disciplina.DoesNotExist):
         return JsonResponse(
-            {"status": "erro", "mensagem": "Turma ou disciplina inválida"},
+            {
+                "status": "erro",
+                "mensagem": "Turma ou disciplina inválida",
+            },
             status=404,
         )
 
@@ -202,13 +226,22 @@ def salvar_registro_pedagogico(request):
 
     if not disciplina_na_turma:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Disciplina não vinculada a esta turma"},
+            {
+                "status": "erro",
+                "mensagem": "Disciplina não vinculada a esta turma",
+            },
             status=403,
         )
 
-    # Professor só pode salvar nas turmas/disciplinas em que está vinculado
+    # Professor só pode salvar nas turmas/disciplinas
+    # em que está vinculado
     if usuario.role == "professor":
-        professor = Docente.objects.filter(user=usuario, escola=escola).first()
+
+        professor = Docente.objects.filter(
+            user=usuario,
+            escola=escola,
+        ).first()
+
         if not professor:
             return JsonResponse(
                 {"status": "erro", "mensagem": "Professor inválido"}, status=403
@@ -230,8 +263,11 @@ def salvar_registro_pedagogico(request):
                 status=403,
             )
 
+    # Salva os registros dos bimestres
     with transaction.atomic():
+
         for bimestre, texto in registros.items():
+
             try:
                 bimestre = int(bimestre)
             except (TypeError, ValueError):
@@ -246,8 +282,9 @@ def salvar_registro_pedagogico(request):
             if not isinstance(texto, str):
                 texto = str(texto)
 
+            # Remove apenas espaços no início e no final.
+            # NÃO limita a quantidade de caracteres.
             texto = texto.strip()
-
 
             RegistroPedagogico.objects.update_or_create(
                 turma=turma,
@@ -261,7 +298,10 @@ def salvar_registro_pedagogico(request):
             )
 
     return JsonResponse(
-        {"status": "ok", "mensagem": "Registro pedagógico salvo com sucesso"}
+        {
+            "status": "ok",
+            "mensagem": "Registro pedagógico salvo com sucesso",
+        }
     )
 
 

@@ -1333,3 +1333,70 @@ class Boletim(models.Model):
 
     def __str__(self):
         return f"{self.aluno.nome} - {self.turma.nome}"
+
+
+class Matricula(models.Model):
+
+    STATUS_CHOICES = [
+        ("ATIVA", "Ativa"),
+        ("CONCLUIDA", "Concluída"),
+        ("TRANSFERIDA", "Transferida"),
+        ("CANCELADA", "Cancelada"),
+    ]
+
+    aluno = models.ForeignKey(
+        "Aluno",
+        on_delete=models.PROTECT,
+        related_name="matriculas",
+    )
+
+    ano_letivo = models.ForeignKey(
+        "AnoLetivo",
+        on_delete=models.PROTECT,
+        related_name="matriculas",
+    )
+
+    turma = models.ForeignKey(
+        "Turma",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="matriculas",
+    )
+
+    data_matricula = models.DateField(
+        default=timezone.now,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="ATIVA",
+    )
+
+    observacao = models.TextField(
+        blank=True,
+        default="",
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["aluno", "ano_letivo"],
+                name="unique_matricula_aluno_ano",
+            ),
+        ]
+        ordering = ["-ano_letivo__ano", "aluno__nome"]
+
+    def __str__(self):
+        turma_nome = self.turma.nome if self.turma else "Sem turma"
+
+        return f"{self.aluno.nome} - " f"{self.ano_letivo.ano} - " f"{turma_nome}"
