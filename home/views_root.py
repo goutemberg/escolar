@@ -2415,6 +2415,7 @@ def lancar_notas(request):
             for aluno in Aluno.objects.filter(
                 id__in=ids_alunos,
                 escola=escola,
+                ativo=True,
             ).only("id")
         }
 
