@@ -81,31 +81,50 @@ def buscar_disciplinas_por_turma(request):
         return JsonResponse([], safe=False)
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=escola)
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=escola,
+        )
     except Turma.DoesNotExist:
         return JsonResponse([], safe=False)
 
     if usuario.role == "professor":
-        professor = Docente.objects.filter(user=usuario, escola=escola).first()
+        professor = Docente.objects.filter(
+            user=usuario,
+            escola=escola,
+        ).first()
+
         if not professor:
             return JsonResponse([], safe=False)
 
         disciplinas = (
             Disciplina.objects.filter(
+                escola=escola,
                 turmadisciplina__turma=turma,
                 turmadisciplina__professor=professor,
             )
             .distinct()
             .order_by("nome")
         )
+
     else:
         disciplinas = (
-            Disciplina.objects.filter(turmadisciplina__turma=turma)
+            Disciplina.objects.filter(
+                escola=escola,
+                turmadisciplina__turma=turma,
+            )
             .distinct()
             .order_by("nome")
         )
 
-    data = [{"id": d.id, "nome": d.nome} for d in disciplinas]
+    data = [
+        {
+            "id": d.id,
+            "nome": d.nome,
+        }
+        for d in disciplinas
+    ]
+
     return JsonResponse(data, safe=False)
 
 
@@ -187,8 +206,8 @@ def salvar_registro_pedagogico(request):
 
         disciplina = Disciplina.objects.get(
             id=disciplina_id,
+            escola=escola,
         )
-
     except (Turma.DoesNotExist, Disciplina.DoesNotExist):
         return JsonResponse(
             {
@@ -225,11 +244,7 @@ def salvar_registro_pedagogico(request):
 
         if not professor:
             return JsonResponse(
-                {
-                    "status": "erro",
-                    "mensagem": "Professor inválido",
-                },
-                status=403,
+                {"status": "erro", "mensagem": "Professor inválido"}, status=403
             )
 
         permitido = TurmaDisciplina.objects.filter(
@@ -311,7 +326,10 @@ def buscar_registro_pedagogico(request):
 
     try:
         turma = Turma.objects.get(id=turma_id, escola=escola)
-        disciplina = Disciplina.objects.get(id=disciplina_id)
+        disciplina = Disciplina.objects.get(
+            id=disciplina_id,
+            escola=escola,
+        )
     except (Turma.DoesNotExist, Disciplina.DoesNotExist):
         return JsonResponse({"erro": "Turma ou disciplina inválida"}, status=404)
 
@@ -359,9 +377,11 @@ def buscar_registro_pedagogico(request):
 
 @login_required
 def gerar_pdf_registro_pedagogico(request):
-
     usuario = request.user
     escola = usuario.escola
+
+    if usuario.role not in ["professor", "coordenador", "diretor"]:
+        return HttpResponse("Acesso negado", status=403)
 
     turma_id = request.GET.get("turma")
     disciplina_id = request.GET.get("disciplina")
@@ -370,9 +390,15 @@ def gerar_pdf_registro_pedagogico(request):
     if not all([turma_id, disciplina_id, ano_letivo]):
         return HttpResponse("Parâmetros inválidos", status=400)
 
-    turma = Turma.objects.get(id=turma_id, escola=escola)
+    turma = Turma.objects.get(
+        id=turma_id,
+        escola=escola,
+    )
 
-    disciplina = Disciplina.objects.get(id=disciplina_id)
+    disciplina = Disciplina.objects.get(
+        id=disciplina_id,
+        escola=escola,
+    )
 
     registros = RegistroPedagogico.objects.filter(
         turma=turma,

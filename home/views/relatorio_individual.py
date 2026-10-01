@@ -39,10 +39,13 @@ def relatorio_individual_view(request):
     escola = usuario.escola
 
     # ============================
-    # TURMAS (igual já está)
+    # TURMAS
     # ============================
     if usuario.role == "professor":
-        professor = Docente.objects.filter(user=usuario, escola=escola).first()
+        professor = Docente.objects.filter(
+            user=usuario,
+            escola=escola,
+        ).first()
 
         if professor:
             turmas = (
@@ -55,33 +58,41 @@ def relatorio_individual_view(request):
             )
         else:
             turmas = Turma.objects.none()
+
     else:
-        turmas = Turma.objects.filter(escola=escola).order_by("nome")
+        turmas = Turma.objects.filter(
+            escola=escola,
+        ).order_by("nome")
 
     # ============================
-    # 🔥 NOVO: ALUNOS CORRETOS
+    # ALUNOS DA TURMA SELECIONADA
     # ============================
     turma_id = request.GET.get("turma")
 
     alunos = []
 
     if turma_id:
-        alunos = (
-            Aluno.objects
-            .filter(
-                turma_alunos__turma_id=turma_id,  
-                escola=escola
+        turma = Turma.objects.filter(
+            id=turma_id,
+            escola=escola,
+        ).first()
+
+        if turma:
+            alunos = (
+                Aluno.objects.filter(
+                    turma_alunos__turma=turma,
+                    escola=escola,
+                )
+                .distinct()
+                .order_by("nome")
             )
-            .distinct()
-            .order_by("nome")
-        )
 
     return render(
         request,
         "pages/relatorio_individual.html",
         {
             "turmas": turmas,
-            "alunos": alunos,  # 
+            "alunos": alunos,
             "turma_selecionada": turma_id,
             "ano_atual": date.today().year,
         },
@@ -149,7 +160,9 @@ def salvar_relatorio_individual(request):
     if usuario.role == "professor":
         professor = Docente.objects.filter(user=usuario, escola=escola).first()
         if not professor:
-            return JsonResponse({"status": "erro", "mensagem": "Professor inválido"}, status=403)
+            return JsonResponse(
+                {"status": "erro", "mensagem": "Professor inválido"}, status=403
+            )
 
         permitido = TurmaDisciplina.objects.filter(
             professor=professor,
@@ -159,8 +172,11 @@ def salvar_relatorio_individual(request):
 
         if not permitido:
             return JsonResponse(
-                {"status": "erro", "mensagem": "Turma não permitida para este professor"},
-                status=403
+                {
+                    "status": "erro",
+                    "mensagem": "Turma não permitida para este professor",
+                },
+                status=403,
             )
 
     with transaction.atomic():
@@ -215,8 +231,7 @@ def buscar_relatorio_individual(request):
 
     if not all([aluno_id, turma_id, ano_letivo]):
         return JsonResponse(
-            {"erro": "Parâmetros obrigatórios: aluno, turma, ano_letivo"},
-            status=400
+            {"erro": "Parâmetros obrigatórios: aluno, turma, ano_letivo"}, status=400
         )
 
     try:
@@ -237,18 +252,16 @@ def buscar_relatorio_individual(request):
         ).exists()
 
         if not permitido:
-            return JsonResponse({"erro": "Turma não permitida para este professor"}, status=403)
+            return JsonResponse(
+                {"erro": "Turma não permitida para este professor"}, status=403
+            )
 
-    registros = (
-        RelatorioIndividual.objects
-        .filter(
-            aluno=aluno,
-            turma=turma,
-            ano_letivo=int(ano_letivo),
-            escola=escola,
-        )
-        .values("bimestre", "observacoes")
-    )
+    registros = RelatorioIndividual.objects.filter(
+        aluno=aluno,
+        turma=turma,
+        ano_letivo=int(ano_letivo),
+        escola=escola,
+    ).values("bimestre", "observacoes")
 
     resposta = {1: "", 2: "", 3: "", 4: ""}
     for r in registros:
@@ -259,11 +272,14 @@ def buscar_relatorio_individual(request):
 
 from reportlab.lib import colors
 
+
 @login_required
 def gerar_pdf_relatorio_individual(request):
 
     usuario = request.user
     escola = usuario.escola
+    if usuario.role not in ["professor", "coordenador", "diretor"]:
+        return HttpResponse("Acesso negado", status=403)
 
     aluno_id = request.GET.get("aluno")
     turma_id = request.GET.get("turma")
@@ -272,32 +288,20 @@ def gerar_pdf_relatorio_individual(request):
     if not all([aluno_id, turma_id, ano_letivo]):
         return HttpResponse("Parâmetros inválidos", status=400)
 
-    aluno = Aluno.objects.get(
-        id=aluno_id,
-        escola=escola
-    )
+    aluno = Aluno.objects.get(id=aluno_id, escola=escola)
 
-    turma = Turma.objects.get(
-        id=turma_id,
-        escola=escola
-    )
+    turma = Turma.objects.get(id=turma_id, escola=escola)
 
-    registros = (
-        RelatorioIndividual.objects
-        .filter(
-            aluno=aluno,
-            turma=turma,
-            ano_letivo=int(ano_letivo),
-            escola=escola,
-        )
-        .order_by("bimestre")
-    )
+    registros = RelatorioIndividual.objects.filter(
+        aluno=aluno,
+        turma=turma,
+        ano_letivo=int(ano_letivo),
+        escola=escola,
+    ).order_by("bimestre")
 
-    response = HttpResponse(content_type='application/pdf')
+    response = HttpResponse(content_type="application/pdf")
 
-    response['Content-Disposition'] = (
-        f'inline; filename="relatorio_{aluno.nome}.pdf"'
-    )
+    response["Content-Disposition"] = f'inline; filename="relatorio_{aluno.nome}.pdf"'
 
     doc = SimpleDocTemplate(
         response,
@@ -305,7 +309,7 @@ def gerar_pdf_relatorio_individual(request):
         rightMargin=1.5 * cm,
         leftMargin=1.5 * cm,
         topMargin=1.5 * cm,
-        bottomMargin=1.5 * cm
+        bottomMargin=1.5 * cm,
     )
 
     styles = getSampleStyleSheet()
@@ -366,53 +370,28 @@ def gerar_pdf_relatorio_individual(request):
     # 🏫 CABEÇALHO
     # =========================================
 
-    story.append(
-        Paragraph(
-            f"<b>{escola.nome.upper()}</b>",
-            titulo_escola
-        )
-    )
+    story.append(Paragraph(f"<b>{escola.nome.upper()}</b>", titulo_escola))
 
     story.append(
         Paragraph(
             "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
-            styles["Normal"]
+            styles["Normal"],
         )
     )
 
     story.append(Spacer(1, 6))
 
-    story.append(
-        Paragraph(
-            "<b>RELATÓRIO INDIVIDUAL</b>",
-            titulo_relatorio
-        )
-    )
+    story.append(Paragraph("<b>RELATÓRIO INDIVIDUAL</b>", titulo_relatorio))
 
     # =========================================
     # 📋 DADOS
     # =========================================
 
-    story.append(
-        Paragraph(
-            f"<b>Aluno:</b> {aluno.nome}",
-            label
-        )
-    )
+    story.append(Paragraph(f"<b>Aluno:</b> {aluno.nome}", label))
 
-    story.append(
-        Paragraph(
-            f"<b>Turma:</b> {turma.nome}",
-            label
-        )
-    )
+    story.append(Paragraph(f"<b>Turma:</b> {turma.nome}", label))
 
-    story.append(
-        Paragraph(
-            f"<b>Ano Letivo:</b> {ano_letivo}",
-            label
-        )
-    )
+    story.append(Paragraph(f"<b>Ano Letivo:</b> {ano_letivo}", label))
 
     story.append(Spacer(1, 12))
 
@@ -422,22 +401,14 @@ def gerar_pdf_relatorio_individual(request):
 
     if not registros.exists():
 
-        story.append(
-            Paragraph(
-                "Nenhum registro encontrado.",
-                texto_style
-            )
-        )
+        story.append(Paragraph("Nenhum registro encontrado.", texto_style))
 
     else:
 
         for r in registros:
 
             story.append(
-                Paragraph(
-                    f"<b>{r.get_bimestre_display()}</b>",
-                    bimestre_style
-                )
+                Paragraph(f"<b>{r.get_bimestre_display()}</b>", bimestre_style)
             )
 
             # =========================================
@@ -447,8 +418,7 @@ def gerar_pdf_relatorio_individual(request):
             texto = r.observacoes or "Sem observações."
 
             texto_formatado = (
-                texto
-                .replace("\r\n", "\n")
+                texto.replace("\r\n", "\n")
                 .replace("\n\n", "<br/><br/>")
                 .replace("\n", "<br/>")
             )
@@ -458,25 +428,22 @@ def gerar_pdf_relatorio_individual(request):
             # =========================================
 
             tabela_texto = Table(
-                [[Paragraph(texto_formatado, texto_style)]],
-                colWidths=[17 * cm]
+                [[Paragraph(texto_formatado, texto_style)]], colWidths=[17 * cm]
             )
 
-            tabela_texto.setStyle(TableStyle([
-
-                ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
-
-                ("BOX", (0, 0), (-1, -1), 0.5, colors.lightgrey),
-
-                ("LEFTPADDING", (0, 0), (-1, -1), 10),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-
-                ("TOPPADDING", (0, 0), (-1, -1), 10),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-
-            ]))
+            tabela_texto.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
+                        ("BOX", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                        ("TOPPADDING", (0, 0), (-1, -1), 10),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ]
+                )
+            )
 
             story.append(tabela_texto)
 
@@ -491,7 +458,7 @@ def gerar_pdf_relatorio_individual(request):
     story.append(
         Paragraph(
             "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
-            styles["Normal"]
+            styles["Normal"],
         )
     )
 
@@ -499,20 +466,20 @@ def gerar_pdf_relatorio_individual(request):
 
     assinatura_tabela = Table(
         [
-            [
-                "__________________________________________"
-            ],
-            [
-                "Assinatura do Professor / Coordenação"
-            ]
+            ["__________________________________________"],
+            ["Assinatura do Professor / Coordenação"],
         ],
-        colWidths=[10 * cm]
+        colWidths=[10 * cm],
     )
 
-    assinatura_tabela.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-    ]))
+    assinatura_tabela.setStyle(
+        TableStyle(
+            [
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
 
     story.append(assinatura_tabela)
 
