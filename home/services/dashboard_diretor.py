@@ -1,6 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 
-from django.db.models import Avg
+from django.db.models import Avg, Count, Q
 
 from home.models import (
     Avaliacao,
@@ -15,6 +15,11 @@ from home.utils import get_ano_ativo, get_turmas_ativas
 LIMITE_FREQUENCIA_ATENCAO = Decimal("75.00")
 LIMITE_MEDIA_ATENCAO = Decimal("6.00")
 LIMITE_PONTOS_ATENCAO = 5
+
+
+# ============================================================
+# UTILITÁRIOS
+# ============================================================
 
 
 def _percentual(valor, total):
@@ -45,23 +50,22 @@ def _decimal_uma_casa(valor):
 
 
 def _obter_frequencia_escola(escola, ano_letivo):
-    presencas = Presenca.objects.filter(
+    resultado = Presenca.objects.filter(
         chamada__escola=escola,
         chamada__turma__ano_letivo=ano_letivo,
         aluno__matriculas__ano_letivo=ano_letivo,
         aluno__matriculas__status="ATIVA",
+    ).aggregate(
+        total=Count("id"),
+        presentes=Count(
+            "id",
+            filter=Q(status="P"),
+        ),
     )
 
-    total = presencas.count()
-
-    if not total:
-        return None
-
-    presentes = presencas.filter(status="P").count()
-
     return _percentual(
-        presentes,
-        total,
+        resultado["presentes"],
+        resultado["total"],
     )
 
 
@@ -73,29 +77,30 @@ def _obter_media_escola(escola, ano_letivo):
         aluno__matriculas__ano_letivo=ano_letivo,
         aluno__matriculas__status="ATIVA",
         valor__isnull=False,
-    ).aggregate(media=Avg("valor"))
+    ).aggregate(
+        media=Avg("valor"),
+    )
 
     return _decimal_uma_casa(resultado["media"])
 
 
 def _obter_frequencia_por_turma(turma, ano_letivo):
-    presencas = Presenca.objects.filter(
+    resultado = Presenca.objects.filter(
         chamada__turma=turma,
         chamada__turma__ano_letivo=ano_letivo,
         aluno__matriculas__ano_letivo=ano_letivo,
         aluno__matriculas__status="ATIVA",
+    ).aggregate(
+        total=Count("id"),
+        presentes=Count(
+            "id",
+            filter=Q(status="P"),
+        ),
     )
 
-    total = presencas.count()
-
-    if not total:
-        return None
-
-    presentes = presencas.filter(status="P").count()
-
     return _percentual(
-        presentes,
-        total,
+        resultado["presentes"],
+        resultado["total"],
     )
 
 
@@ -107,9 +112,179 @@ def _obter_media_por_turma(turma, ano_letivo):
         aluno__matriculas__ano_letivo=ano_letivo,
         aluno__matriculas__status="ATIVA",
         valor__isnull=False,
-    ).aggregate(media=Avg("valor"))
+    ).aggregate(
+        media=Avg("valor"),
+    )
 
     return _decimal_uma_casa(resultado["media"])
+
+
+# ============================================================
+# DADOS CONSOLIDADOS DAS TURMAS
+# ============================================================
+
+
+def _obter_dados_turmas(escola, ano_letivo):
+    """
+    Carrega todos os indicadores necessários das turmas em
+    consultas agrupadas.
+
+    O objetivo é evitar N+1 queries no dashboard principal.
+    """
+
+    turmas = list(
+        get_turmas_ativas(escola)
+        .filter(status="ATIVA")
+        .select_related("ano_letivo")
+        .order_by(
+            "ano",
+            "nome",
+            "turno",
+        )
+    )
+
+    if not turmas:
+        return {
+            "turmas": [],
+            "por_id": {},
+            "total_alunos": 0,
+            "alunos_sem_turma": 0,
+        }
+
+    turma_ids = [turma.id for turma in turmas]
+
+    # --------------------------------------------------------
+    # MATRÍCULAS POR TURMA
+    # --------------------------------------------------------
+
+    matriculas_por_turma = {
+        item["turma_id"]: item["total"]
+        for item in (
+            Matricula.objects.filter(
+                aluno__escola=escola,
+                ano_letivo=ano_letivo,
+                status="ATIVA",
+            )
+            .values("turma_id")
+            .annotate(total=Count("id"))
+        )
+    }
+
+    total_alunos = sum(matriculas_por_turma.values())
+
+    alunos_sem_turma = matriculas_por_turma.get(
+        None,
+        0,
+    )
+
+    # --------------------------------------------------------
+    # FREQUÊNCIA POR TURMA
+    # --------------------------------------------------------
+
+    frequencia_por_turma = {}
+
+    presencas_por_turma = (
+        Presenca.objects.filter(
+            chamada__escola=escola,
+            chamada__turma__ano_letivo=ano_letivo,
+            chamada__turma__status="ATIVA",
+            aluno__matriculas__ano_letivo=ano_letivo,
+            aluno__matriculas__status="ATIVA",
+        )
+        .values("chamada__turma_id")
+        .annotate(
+            total=Count("id"),
+            presentes=Count(
+                "id",
+                filter=Q(status="P"),
+            ),
+        )
+    )
+
+    for item in presencas_por_turma:
+        frequencia_por_turma[item["chamada__turma_id"]] = _percentual(
+            item["presentes"],
+            item["total"],
+        )
+
+    # --------------------------------------------------------
+    # MÉDIA POR TURMA
+    # --------------------------------------------------------
+
+    media_por_turma = {}
+
+    medias = (
+        Nota.objects.filter(
+            escola=escola,
+            avaliacao__escola=escola,
+            avaliacao__turma__ano_letivo=ano_letivo,
+            avaliacao__turma__status="ATIVA",
+            aluno__matriculas__ano_letivo=ano_letivo,
+            aluno__matriculas__status="ATIVA",
+            valor__isnull=False,
+        )
+        .values("avaliacao__turma_id")
+        .annotate(
+            media=Avg("valor"),
+        )
+    )
+
+    for item in medias:
+        media_por_turma[item["avaliacao__turma_id"]] = _decimal_uma_casa(item["media"])
+
+    # --------------------------------------------------------
+    # CHAMADAS POR TURMA
+    # --------------------------------------------------------
+
+    chamadas_por_turma = {
+        item["turma_id"]: item["total"]
+        for item in (
+            Chamada.objects.filter(
+                escola=escola,
+                turma__ano_letivo=ano_letivo,
+                turma__status="ATIVA",
+            )
+            .values("turma_id")
+            .annotate(total=Count("id"))
+        )
+    }
+
+    # --------------------------------------------------------
+    # MONTAGEM FINAL
+    # --------------------------------------------------------
+
+    dados = []
+    por_id = {}
+
+    for turma in turmas:
+        item = {
+            "id": turma.id,
+            "nome": turma.nome,
+            "ano": turma.ano,
+            "turno": turma.turno,
+            "sala": turma.sala,
+            "total_alunos": matriculas_por_turma.get(
+                turma.id,
+                0,
+            ),
+            "frequencia": frequencia_por_turma.get(turma.id),
+            "media": media_por_turma.get(turma.id),
+            "total_chamadas": chamadas_por_turma.get(
+                turma.id,
+                0,
+            ),
+            "turma": turma,
+        }
+
+        dados.append(item)
+        por_id[turma.id] = item
+
+    return {
+        "turmas": dados,
+        "por_id": por_id,
+        "total_alunos": total_alunos,
+        "alunos_sem_turma": alunos_sem_turma,
+    }
 
 
 # ============================================================
@@ -117,23 +292,22 @@ def _obter_media_por_turma(turma, ano_letivo):
 # ============================================================
 
 
-def _obter_turmas_atencao(escola, ano_letivo):
-    turmas = (
-        get_turmas_ativas(escola).filter(status="ATIVA").select_related("ano_letivo")
-    )
+def _obter_turmas_atencao(
+    escola,
+    ano_letivo,
+    dados_turmas=None,
+):
+    if dados_turmas is None:
+        dados_turmas = _obter_dados_turmas(
+            escola,
+            ano_letivo,
+        )
 
     resultado = []
 
-    for turma in turmas:
-        frequencia = _obter_frequencia_por_turma(
-            turma,
-            ano_letivo,
-        )
-
-        media = _obter_media_por_turma(
-            turma,
-            ano_letivo,
-        )
+    for item in dados_turmas["turmas"]:
+        frequencia = item["frequencia"]
+        media = item["media"]
 
         motivos = []
 
@@ -146,9 +320,9 @@ def _obter_turmas_atencao(escola, ano_letivo):
         if motivos:
             resultado.append(
                 {
-                    "id": turma.id,
-                    "nome": turma.nome,
-                    "turno": turma.turno,
+                    "id": item["id"],
+                    "nome": item["nome"],
+                    "turno": item["turno"],
                     "frequencia": frequencia,
                     "media": media,
                     "motivos": motivos,
@@ -163,47 +337,30 @@ def _obter_turmas_atencao(escola, ano_letivo):
 # ============================================================
 
 
-def _obter_turmas_dashboard(escola, ano_letivo):
-    turmas = (
-        get_turmas_ativas(escola)
-        .filter(status="ATIVA")
-        .select_related("ano_letivo")
-        .order_by(
-            "ano",
-            "nome",
-            "turno",
+def _obter_turmas_dashboard(
+    escola,
+    ano_letivo,
+    dados_turmas=None,
+):
+    if dados_turmas is None:
+        dados_turmas = _obter_dados_turmas(
+            escola,
+            ano_letivo,
         )
-    )
 
     resultado = []
 
-    for turma in turmas:
-        total_alunos = Matricula.objects.filter(
-            turma=turma,
-            ano_letivo=ano_letivo,
-            status="ATIVA",
-        ).count()
-
-        frequencia = _obter_frequencia_por_turma(
-            turma,
-            ano_letivo,
-        )
-
-        media = _obter_media_por_turma(
-            turma,
-            ano_letivo,
-        )
-
+    for item in dados_turmas["turmas"]:
         resultado.append(
             {
-                "id": turma.id,
-                "nome": turma.nome,
-                "ano": turma.ano,
-                "turno": turma.turno,
-                "sala": turma.sala,
-                "total_alunos": total_alunos,
-                "frequencia": frequencia,
-                "media": media,
+                "id": item["id"],
+                "nome": item["nome"],
+                "ano": item["ano"],
+                "turno": item["turno"],
+                "sala": item["sala"],
+                "total_alunos": item["total_alunos"],
+                "frequencia": item["frequencia"],
+                "media": item["media"],
             }
         )
 
@@ -215,15 +372,25 @@ def _obter_turmas_dashboard(escola, ano_letivo):
 # ============================================================
 
 
-def _obter_saude_operacional(escola, ano_letivo):
+def _obter_saude_operacional(
+    escola,
+    ano_letivo,
+    dados_turmas=None,
+):
     """
-    Calcula indicadores operacionais da escola para o dashboard
-    do diretor.
+    Calcula os indicadores operacionais da escola.
 
-    Cada indicador é baseado em dados existentes no sistema.
+    Esta versão utiliza os dados consolidados das turmas para
+    evitar consultas dentro de loops.
     """
 
-    turmas = list(get_turmas_ativas(escola).filter(status="ATIVA"))
+    if dados_turmas is None:
+        dados_turmas = _obter_dados_turmas(
+            escola,
+            ano_letivo,
+        )
+
+    turmas = dados_turmas["turmas"]
 
     total_turmas = len(turmas)
 
@@ -231,32 +398,30 @@ def _obter_saude_operacional(escola, ano_letivo):
     # MATRÍCULAS
     # ========================================================
 
-    matriculas_ativas = Matricula.objects.filter(
-        aluno__escola=escola,
-        ano_letivo=ano_letivo,
-        status="ATIVA",
-    )
-
-    total_alunos = matriculas_ativas.count()
-
-    alunos_sem_turma = matriculas_ativas.filter(turma__isnull=True).count()
+    total_alunos = dados_turmas["total_alunos"]
+    alunos_sem_turma = dados_turmas["alunos_sem_turma"]
 
     if alunos_sem_turma > 0:
         matriculas_status = "atencao"
+
         matriculas_descricao = (
             f"{alunos_sem_turma} "
             f"{'aluno está' if alunos_sem_turma == 1 else 'alunos estão'} "
             f"sem turma definida."
         )
+
     elif total_alunos > 0:
         matriculas_status = "operacional"
+
         matriculas_descricao = (
             f"{total_alunos} "
             f"{'aluno matriculado' if total_alunos == 1 else 'alunos matriculados'} "
             f"no ano letivo atual."
         )
+
     else:
         matriculas_status = "sem_dados"
+
         matriculas_descricao = (
             "Ainda não existem alunos com matrícula ativa " "no ano letivo atual."
         )
@@ -273,36 +438,31 @@ def _obter_saude_operacional(escola, ano_letivo):
     # TURMAS
     # ========================================================
 
-    turmas_sem_alunos = []
-
-    for turma in turmas:
-        possui_aluno = Matricula.objects.filter(
-            turma=turma,
-            ano_letivo=ano_letivo,
-            status="ATIVA",
-        ).exists()
-
-        if not possui_aluno:
-            turmas_sem_alunos.append(turma)
+    turmas_sem_alunos = [item for item in turmas if item["total_alunos"] == 0]
 
     total_turmas_sem_alunos = len(turmas_sem_alunos)
 
     if total_turmas_sem_alunos > 0:
         turmas_status = "atencao"
+
         turmas_descricao = (
             f"{total_turmas_sem_alunos} "
             f"{'turma está' if total_turmas_sem_alunos == 1 else 'turmas estão'} "
             f"sem alunos matriculados."
         )
+
     elif total_turmas > 0:
         turmas_status = "operacional"
+
         turmas_descricao = (
             f"{total_turmas} "
             f"{'turma ativa' if total_turmas == 1 else 'turmas ativas'} "
             f"com alunos vinculados."
         )
+
     else:
         turmas_status = "sem_dados"
+
         turmas_descricao = "Não existem turmas ativas no ano letivo atual."
 
     turmas_indicador = {
@@ -317,34 +477,42 @@ def _obter_saude_operacional(escola, ano_letivo):
     # PROFESSORES
     # ========================================================
 
-    disciplinas_sem_professor = TurmaDisciplina.objects.filter(
+    professores_resumo = TurmaDisciplina.objects.filter(
         escola=escola,
         turma__ano_letivo=ano_letivo,
         turma__status="ATIVA",
-        professor__isnull=True,
-    ).count()
+    ).aggregate(
+        total=Count("id"),
+        sem_professor=Count(
+            "id",
+            filter=Q(professor__isnull=True),
+        ),
+    )
 
-    total_vinculos = TurmaDisciplina.objects.filter(
-        escola=escola,
-        turma__ano_letivo=ano_letivo,
-        turma__status="ATIVA",
-    ).count()
+    disciplinas_sem_professor = professores_resumo["sem_professor"] or 0
+
+    total_vinculos = professores_resumo["total"] or 0
 
     if disciplinas_sem_professor > 0:
         professores_status = "atencao"
+
         professores_descricao = (
             f"{disciplinas_sem_professor} "
             f"{'disciplina está' if disciplinas_sem_professor == 1 else 'disciplinas estão'} "
             f"sem professor vinculado."
         )
+
     elif total_vinculos > 0:
         professores_status = "operacional"
+
         professores_descricao = (
             f"{total_vinculos} "
             f"{'vínculo pedagógico registrado' if total_vinculos == 1 else 'vínculos pedagógicos registrados'}."
         )
+
     else:
         professores_status = "sem_dados"
+
         professores_descricao = "Ainda não existem disciplinas vinculadas às turmas."
 
     professores = {
@@ -366,18 +534,23 @@ def _obter_saude_operacional(escola, ano_letivo):
 
     if frequencia is None:
         frequencia_status = "sem_dados"
+
         frequencia_descricao = (
             "Ainda não existem registros de frequência " "suficientes para análise."
         )
+
     elif frequencia < LIMITE_FREQUENCIA_ATENCAO:
         frequencia_status = "atencao"
+
         frequencia_descricao = (
             f"Frequência geral de {frequencia}%, "
             f"abaixo do indicador de atenção de "
             f"{LIMITE_FREQUENCIA_ATENCAO}%."
         )
+
     else:
         frequencia_status = "boa"
+
         frequencia_descricao = f"Frequência geral de {frequencia}%."
 
     frequencia_indicador = {
@@ -392,32 +565,25 @@ def _obter_saude_operacional(escola, ano_letivo):
     # REGISTROS PEDAGÓGICOS
     # ========================================================
 
-    turmas_sem_chamada = []
-
-    for turma in turmas:
-        possui_chamada = Chamada.objects.filter(
-            escola=escola,
-            turma=turma,
-            turma__ano_letivo=ano_letivo,
-        ).exists()
-
-        if not possui_chamada:
-            turmas_sem_chamada.append(turma)
-
-    total_turmas_sem_chamada = len(turmas_sem_chamada)
+    total_turmas_sem_chamada = sum(1 for item in turmas if item["total_chamadas"] == 0)
 
     if total_turmas == 0:
         registros_status = "sem_dados"
+
         registros_descricao = "Não existem turmas ativas para análise."
+
     elif total_turmas_sem_chamada > 0:
         registros_status = "atencao"
+
         registros_descricao = (
             f"{total_turmas_sem_chamada} "
             f"{'turma ainda não possui' if total_turmas_sem_chamada == 1 else 'turmas ainda não possuem'} "
             f"registro de chamada."
         )
+
     else:
         registros_status = "operacional"
+
         registros_descricao = "Todas as turmas possuem registros de chamada."
 
     registros_pedagogicos = {
@@ -440,31 +606,33 @@ def _obter_saude_operacional(escola, ano_letivo):
 
     total_avaliacoes = avaliacoes.count()
 
-    avaliacoes_sem_notas = 0
+    avaliacoes_com_nota = (
+        avaliacoes.filter(nota__valor__isnull=False).values("id").distinct()
+    )
 
-    for avaliacao in avaliacoes:
-        possui_nota = Nota.objects.filter(
-            avaliacao=avaliacao,
-            valor__isnull=False,
-        ).exists()
+    total_avaliacoes_com_nota = avaliacoes_com_nota.count()
 
-        if not possui_nota:
-            avaliacoes_sem_notas += 1
+    avaliacoes_sem_notas = total_avaliacoes - total_avaliacoes_com_nota
 
     if total_avaliacoes == 0:
         avaliacoes_status = "sem_dados"
+
         avaliacoes_descricao = (
             "Ainda não existem avaliações cadastradas " "para as turmas ativas."
         )
+
     elif avaliacoes_sem_notas > 0:
         avaliacoes_status = "atencao"
+
         avaliacoes_descricao = (
             f"{avaliacoes_sem_notas} "
             f"{'avaliação ainda não possui' if avaliacoes_sem_notas == 1 else 'avaliações ainda não possuem'} "
             f"notas lançadas."
         )
+
     else:
         avaliacoes_status = "boa"
+
         avaliacoes_descricao = (
             f"{total_avaliacoes} "
             f"{'avaliação registrada' if total_avaliacoes == 1 else 'avaliações registradas'} "
@@ -518,12 +686,14 @@ def _obter_saude_operacional(escola, ano_letivo):
             "quantidade": 0,
             "mensagem": ("Nenhum ponto operacional requer atenção."),
         }
+
     elif total_atencao == 1:
         resumo = {
             "status": "atencao",
             "quantidade": 1,
             "mensagem": ("1 ponto requer a atenção do diretor."),
         }
+
     else:
         resumo = {
             "status": "atencao",
@@ -547,15 +717,6 @@ def _obter_pontos_atencao(
     saude_operacional,
     turmas_atencao,
 ):
-    """
-    Converte os diagnósticos operacionais em pontos de atenção
-    apresentados no painel principal do diretor.
-
-    A ideia aqui é mostrar apenas aquilo que merece uma ação
-    ou acompanhamento do diretor, sem repetir a listagem
-    detalhada das turmas em atenção.
-    """
-
     pontos = []
 
     indicadores = {
@@ -712,14 +873,6 @@ def _obter_pontos_atencao(
     # ========================================================
     # 6. TURMAS COM INDICADORES ABAIXO DO ESPERADO
     # ========================================================
-    #
-    # Não adicionamos uma lista de cada turma aqui porque
-    # ela já aparece logo abaixo em "Turmas que precisam
-    # de atenção".
-    #
-    # Porém, caso não exista nenhum outro ponto operacional,
-    # podemos apresentar um resumo para o diretor.
-    # ========================================================
 
     if turmas_atencao:
         possui_ponto_operacional = any(ponto["tipo"] != "turmas" for ponto in pontos)
@@ -795,7 +948,7 @@ def obter_dashboard_diretor(user):
             "resumo": {
                 "status": "sem_dados",
                 "quantidade": 0,
-                "mensagem": ("Não foi possível calcular a saúde operacional."),
+                "mensagem": ("Não foi possível calcular " "a saúde operacional."),
             },
             "total_atencao": 0,
         },
@@ -853,20 +1006,28 @@ def obter_dashboard_diretor(user):
         return contexto
 
     # ========================================================
+    # DADOS CONSOLIDADOS DAS TURMAS
+    # ========================================================
+    #
+    # IMPORTANTE:
+    # Esta consulta consolidada é criada uma única vez e
+    # reutilizada pelo dashboard, pelas turmas em atenção e
+    # pela saúde operacional.
+    #
+    # ========================================================
+
+    dados_turmas = _obter_dados_turmas(
+        escola,
+        ano_letivo,
+    )
+
+    # ========================================================
     # MÉTRICAS EXECUTIVAS
     # ========================================================
 
-    matriculas_ativas = Matricula.objects.filter(
-        aluno__escola=escola,
-        ano_letivo=ano_letivo,
-        status="ATIVA",
-    )
+    contexto["metricas"]["alunos_ativos"] = dados_turmas["total_alunos"]
 
-    contexto["metricas"]["alunos_ativos"] = matriculas_ativas.count()
-
-    turmas_ativas = get_turmas_ativas(escola).filter(status="ATIVA")
-
-    contexto["metricas"]["turmas_ativas"] = turmas_ativas.count()
+    contexto["metricas"]["turmas_ativas"] = len(dados_turmas["turmas"])
 
     contexto["metricas"]["frequencia"] = _obter_frequencia_escola(
         escola,
@@ -885,6 +1046,7 @@ def obter_dashboard_diretor(user):
     contexto["turmas"] = _obter_turmas_dashboard(
         escola,
         ano_letivo,
+        dados_turmas=dados_turmas,
     )
 
     # ========================================================
@@ -894,6 +1056,7 @@ def obter_dashboard_diretor(user):
     contexto["turmas_atencao"] = _obter_turmas_atencao(
         escola,
         ano_letivo,
+        dados_turmas=dados_turmas,
     )
 
     # ========================================================
@@ -903,6 +1066,7 @@ def obter_dashboard_diretor(user):
     contexto["saude_operacional"] = _obter_saude_operacional(
         escola,
         ano_letivo,
+        dados_turmas=dados_turmas,
     )
 
     # ========================================================
@@ -942,7 +1106,6 @@ def obter_detalhamento_turma(turma, ano_letivo):
     quantidade_notas_turma = 0
 
     for matricula in matriculas:
-
         aluno = matricula.aluno
 
         presencas = Presenca.objects.filter(
@@ -1056,13 +1219,29 @@ def obter_detalhamento_aluno(aluno, ano_letivo):
         aluno=aluno,
     )
 
-    total_presencas = presencas.count()
+    resultado_presencas = presencas.aggregate(
+        total=Count("id"),
+        presentes=Count(
+            "id",
+            filter=Q(status="P"),
+        ),
+        justificadas=Count(
+            "id",
+            filter=Q(status="J"),
+        ),
+        faltas=Count(
+            "id",
+            filter=Q(status="F"),
+        ),
+    )
 
-    presentes = presencas.filter(status="P").count()
+    total_presencas = resultado_presencas["total"] or 0
 
-    justificadas = presencas.filter(status="J").count()
+    presentes = resultado_presencas["presentes"] or 0
 
-    faltas = presencas.filter(status="F").count()
+    justificadas = resultado_presencas["justificadas"] or 0
+
+    faltas = resultado_presencas["faltas"] or 0
 
     frequencia = _percentual(
         presentes,
@@ -1092,7 +1271,6 @@ def obter_detalhamento_aluno(aluno, ano_letivo):
     )
 
     for nota in notas:
-
         disciplina = getattr(
             nota.avaliacao,
             "disciplina",
