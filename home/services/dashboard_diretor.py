@@ -475,12 +475,12 @@ def _obter_saude_operacional(
 
     total_turmas = len(turmas)
 
-    # ========================================================
-    # MATRÍCULAS
-    # ========================================================
-
     total_alunos = dados_turmas["total_alunos"]
     alunos_sem_turma = dados_turmas["alunos_sem_turma"]
+
+    # ============================================================
+    # MATRÍCULAS
+    # ============================================================
 
     if alunos_sem_turma > 0:
         matriculas_status = "atencao"
@@ -515,9 +515,9 @@ def _obter_saude_operacional(
         "quantidade": alunos_sem_turma,
     }
 
-    # ========================================================
+    # ============================================================
     # TURMAS
-    # ========================================================
+    # ============================================================
 
     turmas_sem_alunos = [item for item in turmas if item["total_alunos"] == 0]
 
@@ -554,9 +554,9 @@ def _obter_saude_operacional(
         "quantidade": total_turmas_sem_alunos,
     }
 
-    # ========================================================
+    # ============================================================
     # PROFESSORES
-    # ========================================================
+    # ============================================================
 
     professores_resumo = TurmaDisciplina.objects.filter(
         escola=escola,
@@ -604,9 +604,9 @@ def _obter_saude_operacional(
         "quantidade": disciplinas_sem_professor,
     }
 
-    # ========================================================
+    # ============================================================
     # FREQUÊNCIA
-    # ========================================================
+    # ============================================================
 
     frequencia = dados_turmas.get("frequencia_escola")
 
@@ -639,9 +639,9 @@ def _obter_saude_operacional(
         "valor": frequencia,
     }
 
-    # ========================================================
+    # ============================================================
     # REGISTROS PEDAGÓGICOS
-    # ========================================================
+    # ============================================================
 
     total_turmas_sem_chamada = sum(1 for item in turmas if item["total_chamadas"] == 0)
 
@@ -672,9 +672,9 @@ def _obter_saude_operacional(
         "quantidade": total_turmas_sem_chamada,
     }
 
-    # ========================================================
+    # ============================================================
     # AVALIAÇÕES
-    # ========================================================
+    # ============================================================
 
     avaliacoes = Avaliacao.objects.filter(
         escola=escola,
@@ -685,7 +685,13 @@ def _obter_saude_operacional(
     total_avaliacoes = avaliacoes.count()
 
     avaliacoes_com_nota = (
-        avaliacoes.filter(nota__valor__isnull=False).values("id").distinct()
+        avaliacoes.filter(
+            notas__valor__isnull=False,
+        )
+        .values(
+            "id",
+        )
+        .distinct()
     )
 
     total_avaliacoes_com_nota = avaliacoes_com_nota.count()
@@ -725,9 +731,9 @@ def _obter_saude_operacional(
         "quantidade": avaliacoes_sem_notas,
     }
 
-    # ========================================================
+    # ============================================================
     # FINANCEIRO
-    # ========================================================
+    # ============================================================
 
     financeiro = {
         "chave": "financeiro",
@@ -740,9 +746,9 @@ def _obter_saude_operacional(
         "quantidade": None,
     }
 
-    # ========================================================
-    # RESUMO
-    # ========================================================
+    # ============================================================
+    # INDICADORES
+    # ============================================================
 
     indicadores = [
         matriculas,
@@ -753,6 +759,10 @@ def _obter_saude_operacional(
         avaliacoes_indicador,
         financeiro,
     ]
+
+    # ============================================================
+    # RESUMO
+    # ============================================================
 
     total_atencao = sum(
         1 for indicador in indicadores if indicador["status"] == "atencao"
@@ -778,6 +788,10 @@ def _obter_saude_operacional(
             "quantidade": total_atencao,
             "mensagem": (f"{total_atencao} pontos requerem " "a atenção do diretor."),
         }
+
+    # ============================================================
+    # RETORNO
+    # ============================================================
 
     return {
         "indicadores": indicadores,
