@@ -22,8 +22,10 @@
 
         <a href="{% url 'matricula:listar' %}"
            class="btn btn-outline-secondary">
+
             <i class="bi bi-arrow-left"></i>
             Voltar
+
         </a>
 
     </div>
@@ -111,50 +113,6 @@
             <form id="formEditarMatricula">
 
                 {% csrf_token %}
-
-                <!-- TURMA -->
-                <div class="mb-4">
-
-                    <label for="turma" class="form-label fw-semibold">
-                        Turma
-                    </label>
-
-                    <select
-                        id="turma"
-                        name="turma_id"
-                        class="form-select"
-                    >
-
-                        <option value="">
-                            Sem turma definida
-                        </option>
-
-                        {% for turma in turmas %}
-
-                            <option
-                                value="{{ turma.id }}"
-                                {% if matricula.turma_id == turma.id %}
-                                    selected
-                                {% endif %}
-                            >
-                                {{ turma.nome }}
-                                {% if turma.sala %}
-                                    - Sala {{ turma.sala }}
-                                {% endif %}
-                                {% if turma.turno %}
-                                    ({{ turma.turno }})
-                                {% endif %}
-                            </option>
-
-                        {% endfor %}
-
-                    </select>
-
-                    <div class="form-text">
-                        A turma deve pertencer ao ano letivo da matrícula.
-                    </div>
-
-                </div>
 
 
                 <!-- STATUS -->
@@ -247,8 +205,10 @@
                         id="btnSalvar"
                         class="btn btn-primary"
                     >
+
                         <i class="bi bi-check-lg"></i>
                         Salvar alterações
+
                     </button>
 
                 </div>
@@ -272,12 +232,13 @@ document
 
         const btnSalvar = document.getElementById("btnSalvar");
 
-        const turmaId = document.getElementById("turma").value;
         const status = document.getElementById("status").value;
+
         const observacao = document
             .getElementById("observacao")
             .value
             .trim();
+
 
         btnSalvar.disabled = true;
 
@@ -290,6 +251,7 @@ document
             Salvando...
         `;
 
+
         fetch(
             "{% url 'matricula:salvar_edicao' matricula.id %}",
             {
@@ -301,26 +263,30 @@ document
                 },
 
                 body: JSON.stringify({
-                    turma_id: turmaId || null,
                     status: status,
                     observacao: observacao
                 })
             }
         )
+
         .then(async response => {
 
             const data = await response.json();
 
             if (!response.ok) {
+
                 throw new Error(
                     data.erro ||
                     data.error ||
                     "Não foi possível salvar as alterações."
                 );
+
             }
 
             return data;
+
         })
+
         .then(data => {
 
             alert(
@@ -332,6 +298,7 @@ document
                 "{% url 'matricula:visualizar' matricula.id %}";
 
         })
+
         .catch(error => {
 
             console.error(error);
@@ -347,6 +314,7 @@ document
                 <i class="bi bi-check-lg"></i>
                 Salvar alterações
             `;
+
         });
 
     });

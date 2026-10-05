@@ -1400,3 +1400,82 @@ class Matricula(models.Model):
         turma_nome = self.turma.nome if self.turma else "Sem turma"
 
         return f"{self.aluno.nome} - " f"{self.ano_letivo.ano} - " f"{turma_nome}"
+
+
+from django.conf import settings
+
+
+class HistoricoAlocacaoAluno(models.Model):
+
+    class TipoMovimentacao(models.TextChoices):
+        MATRICULA = "matricula", "Matrícula"
+        TRANSFERENCIA_TURMA = "transferencia_turma", "Transferência de turma"
+        ALTERACAO_TURNO = "alteracao_turno", "Alteração de turno"
+        TRANSFERENCIA_TURMA_TURNO = (
+            "transferencia_turma_turno",
+            "Transferência de turma e turno",
+        )
+        REMANEJAMENTO = "remanejamento", "Remanejamento"
+        OUTRO = "outro", "Outro"
+
+    aluno = models.ForeignKey(
+        Aluno,
+        on_delete=models.CASCADE,
+        related_name="historico_alocacoes",
+    )
+
+    ano_letivo = models.ForeignKey(
+        AnoLetivo,
+        on_delete=models.PROTECT,
+        related_name="historico_alocacoes",
+    )
+
+    turma = models.ForeignKey(
+        Turma,
+        on_delete=models.PROTECT,
+        related_name="historico_alunos",
+    )
+
+    turno = models.CharField(
+        max_length=20,
+        blank=True,
+    )
+
+    data_inicio = models.DateField()
+
+    data_fim = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    tipo_movimentacao = models.CharField(
+        max_length=40,
+        choices=TipoMovimentacao.choices,
+    )
+
+    realizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="historicos_alocacao_realizados",
+    )
+
+    observacao = models.TextField(
+        blank=True,
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["-data_inicio", "-criado_em"]
+        verbose_name = "Histórico de Alocação do Aluno"
+        verbose_name_plural = "Históricos de Alocação dos Alunos"
+
+    def __str__(self):
+        return (
+            f"{self.aluno} - "
+            f"{self.turma} - "
+            f"{self.turno} - "
+            f"{self.data_inicio}"
+        )

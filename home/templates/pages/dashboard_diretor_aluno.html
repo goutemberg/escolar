@@ -1,0 +1,686 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+  <style>
+    .student-dashboard-wrapper {
+      padding: 28px;
+      background: #f6f8fb;
+      min-height: calc(100vh - 70px);
+    }
+    
+    /* ==========================================================
+         VOLTAR
+      ========================================================== */
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 20px;
+      color: #2563eb;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    
+    /* ==========================================================
+         CABEÇALHO DO ALUNO
+      ========================================================== */
+    
+    .student-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+    
+      background: #ffffff;
+      border: 1px solid #e8ebf0;
+      border-radius: 18px;
+    }
+    
+    .student-header-main {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .student-avatar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    
+      width: 58px;
+      height: 58px;
+    
+      border-radius: 16px;
+    
+      background: #eff6ff;
+      color: #2563eb;
+    
+      font-size: 22px;
+      font-weight: 700;
+    }
+    
+    .student-title {
+      margin: 0;
+    
+      color: #172033;
+      font-size: 26px;
+      font-weight: 700;
+    }
+    
+    .student-subtitle {
+      margin-top: 6px;
+    
+      color: #6b7280;
+      font-size: 14px;
+    }
+    
+    .student-status {
+      padding: 8px 12px;
+    
+      border-radius: 999px;
+    
+      background: #ecfdf5;
+      color: #15803d;
+    
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    
+    /* ==========================================================
+         INDICADORES
+      ========================================================== */
+    
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    
+      margin-bottom: 20px;
+    }
+    
+    .metric-card {
+      padding: 20px;
+    
+      background: #ffffff;
+      border: 1px solid #e8ebf0;
+      border-radius: 16px;
+    }
+    
+    .metric-label {
+      margin-bottom: 10px;
+    
+      color: #6b7280;
+      font-size: 13px;
+    }
+    
+    .metric-value {
+      color: #172033;
+      font-size: 29px;
+      font-weight: 750;
+      line-height: 1;
+    }
+    
+    .metric-description {
+      margin-top: 9px;
+    
+      color: #9ca3af;
+      font-size: 11px;
+    }
+    
+    /* ==========================================================
+         GRID
+      ========================================================== */
+    
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 20px;
+    }
+    
+    /* ==========================================================
+         PAINÉIS
+      ========================================================== */
+    
+    .panel {
+      padding: 22px;
+    
+      background: #ffffff;
+      border: 1px solid #e8ebf0;
+      border-radius: 16px;
+    }
+    
+    .panel-title {
+      margin: 0 0 18px;
+    
+      color: #172033;
+      font-size: 17px;
+      font-weight: 700;
+    }
+    
+    /* ==========================================================
+         ALERTA
+      ========================================================== */
+    
+    .attention-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    
+      padding: 14px;
+      margin-bottom: 18px;
+    
+      border-radius: 12px;
+    
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+    }
+    
+    .attention-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    
+      flex-shrink: 0;
+    
+      width: 32px;
+      height: 32px;
+    
+      border-radius: 9px;
+    
+      background: #ffedd5;
+      color: #c2410c;
+    
+      font-weight: 700;
+    }
+    
+    .attention-title {
+      color: #9a3412;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    
+    .attention-description {
+      margin-top: 3px;
+    
+      color: #7c2d12;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    
+    /* ==========================================================
+         SITUAÇÃO SEM ALERTA
+      ========================================================== */
+    
+    .success-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    
+      padding: 14px;
+      margin-bottom: 18px;
+    
+      border-radius: 12px;
+    
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+    
+    .success-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    
+      flex-shrink: 0;
+    
+      width: 32px;
+      height: 32px;
+    
+      border-radius: 9px;
+    
+      background: #dcfce7;
+      color: #15803d;
+    
+      font-weight: 700;
+    }
+    
+    .success-title {
+      color: #166534;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    
+    .success-description {
+      margin-top: 3px;
+    
+      color: #166534;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    
+    /* ==========================================================
+         AVALIAÇÕES
+      ========================================================== */
+    
+    .evaluation-row {
+      display: grid;
+      grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr;
+    
+      gap: 12px;
+    
+      align-items: center;
+    
+      padding: 13px 0;
+    
+      border-bottom: 1px solid #f0f1f3;
+    }
+    
+    .evaluation-row:last-child {
+      border-bottom: none;
+    }
+    
+    .evaluation-discipline {
+      color: #374151;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    
+    .evaluation-info {
+      color: #6b7280;
+      font-size: 12px;
+    }
+    
+    .evaluation-value {
+      color: #172033;
+      font-size: 13px;
+      font-weight: 700;
+      text-align: right;
+    }
+    
+    .evaluation-attention {
+      color: #dc2626;
+    }
+    
+    /* ==========================================================
+         FREQUÊNCIA
+      ========================================================== */
+    
+    .attendance-list {
+      display: grid;
+      gap: 0;
+    }
+    
+    .attendance-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    
+      padding: 13px 0;
+    
+      border-bottom: 1px solid #f0f1f3;
+    }
+    
+    .attendance-item:last-child {
+      border-bottom: none;
+    }
+    
+    .attendance-label {
+      color: #6b7280;
+      font-size: 13px;
+    }
+    
+    .attendance-value {
+      color: #172033;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    
+    /* ==========================================================
+         ESTADO VAZIO
+      ========================================================== */
+    
+    .empty-state {
+      padding: 30px 10px;
+    
+      color: #9ca3af;
+    
+      font-size: 13px;
+    
+      text-align: center;
+    }
+    
+    .empty-state strong {
+      display: block;
+    
+      margin-bottom: 7px;
+    
+      color: #374151;
+    
+      font-size: 14px;
+      font-weight: 600;
+    }
+    
+    /* ==========================================================
+         ERRO
+      ========================================================== */
+    
+    .error-panel {
+      padding: 30px;
+    
+      background: #ffffff;
+    
+      border: 1px solid #e8ebf0;
+      border-radius: 16px;
+    
+      text-align: center;
+    }
+    
+    .error-title {
+      margin-bottom: 8px;
+    
+      color: #374151;
+    
+      font-size: 15px;
+      font-weight: 700;
+    }
+    
+    .error-description {
+      color: #6b7280;
+      font-size: 13px;
+    }
+    
+    /* ==========================================================
+         RESPONSIVIDADE
+      ========================================================== */
+    
+    @media (max-width: 1100px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 700px) {
+      .student-dashboard-wrapper {
+        padding: 18px;
+      }
+    
+      .student-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+    
+      .evaluation-row {
+        grid-template-columns: 1fr 1fr;
+      }
+    
+      .evaluation-value {
+        text-align: left;
+      }
+    }
+  </style>
+
+  <div class="student-dashboard-wrapper">
+    <!--  ========================================================
+       VOLTAR
+  =========================================================  -->
+
+    {% if turma %}
+      <a href="{% url 'dashboard_diretor:dashboard_diretor_turma' turma.id %}" class="back-link">← Voltar para o diagnóstico da turma</a>
+    {% else %}
+      <a href="{% url 'dashboard_diretor:dashboard_diretor' %}" class="back-link">← Voltar para o dashboard</a>
+    {% endif %}
+
+    {% if aluno %}
+      <!--  ======================================================
+         CABEÇALHO
+    =======================================================  -->
+
+      <div class="student-header">
+        <div class="student-header-main">
+          <div class="student-avatar">👤</div>
+
+          <div>
+            <h1 class="student-title">{{ aluno.nome }}</h1>
+
+            <div class="student-subtitle">
+              {% if turma %}
+                {{ turma.nome }}
+
+                {% if turma.turno %}
+                  • {{ turma.turno }}
+                {% endif %}•
+              {% endif %}Ano letivo {{ matricula.ano_letivo.ano }}
+            </div>
+          </div>
+        </div>
+
+        {% if precisa_atencao %}
+          <div class="student-status" style="
+            background: #fef2f2;
+            color: #dc2626;
+          ">⚠️ Requer atenção</div>
+        {% else %}
+          <div class="student-status">✓ Sem alertas</div>
+        {% endif %}
+      </div>
+
+      <!--  ======================================================
+         INDICADORES
+    =======================================================  -->
+
+      <div class="metrics-grid">
+        <!-- FREQUÊNCIA -->
+
+        <div class="metric-card">
+          <div class="metric-label">Frequência</div>
+
+          <div class="
+            metric-value
+            {% if frequencia is not None and frequencia < 75 %}
+              attention
+            {% endif %}
+          ">
+            {% if frequencia is not None %}
+              {{ frequencia }}%
+            {% else %}
+              —
+            {% endif %}
+          </div>
+
+          <div class="metric-description">Percentual de presença</div>
+        </div>
+
+        <!-- MÉDIA -->
+
+        <div class="metric-card">
+          <div class="metric-label">Média geral</div>
+
+          <div class="
+            metric-value
+            {% if media is not None and media < 6 %}
+              attention
+            {% endif %}
+          ">
+            {% if media is not None %}
+              {{ media }}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+
+          <div class="metric-description">Média das avaliações</div>
+        </div>
+
+        <!-- PRESENTES -->
+
+        <div class="metric-card">
+          <div class="metric-label">Presenças</div>
+
+          <div class="metric-value">{{ presentes }}</div>
+
+          <div class="metric-description">Registros de presença</div>
+        </div>
+
+        <!-- FALTAS -->
+
+        <div class="metric-card">
+          <div class="metric-label">Faltas</div>
+
+          <div class="
+            metric-value
+            {% if faltas > 0 and frequencia is not None and frequencia < 75 %}
+              attention
+            {% endif %}
+          ">{{ faltas }}</div>
+
+          <div class="metric-description">Faltas registradas</div>
+        </div>
+      </div>
+
+      <!--  ======================================================
+         CONTEÚDO
+    =======================================================  -->
+
+      <div class="content-grid">
+        <!--  ====================================================
+           AVALIAÇÕES
+      =====================================================  -->
+
+        <div class="panel">
+          <h2 class="panel-title">📚 Avaliações</h2>
+
+          {% if avaliacoes %}
+            {% for avaliacao in avaliacoes %}
+              <div class="evaluation-row">
+                <div class="evaluation-discipline">{{ avaliacao.disciplina }}</div>
+
+                <div class="evaluation-info">
+                  {% if avaliacao.bimestre %}
+                    {{ avaliacao.bimestre }}º bimestre
+                  {% else %}
+                    Bimestre não informado
+                  {% endif %}
+                </div>
+
+                <div class="
+                  evaluation-value
+                  {% if avaliacao.valor is not None and avaliacao.valor < 6 %}
+                    evaluation-attention
+                  {% endif %}
+                ">
+                  {% if avaliacao.valor is not None %}
+                    {{ avaliacao.valor }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+
+                <div class="evaluation-info">
+                  {% if avaliacao.recuperacao %}
+                    Recuperação
+                  {% elif avaliacao.conceito %}
+                    {{ avaliacao.conceito }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="empty-state">
+              <strong>📚 Ainda não existem avaliações registradas.</strong>
+
+              As avaliações aparecerão aqui conforme forem lançadas para este aluno.
+            </div>
+          {% endif %}
+        </div>
+
+        <!--  ====================================================
+           SITUAÇÃO
+      =====================================================  -->
+
+        <div class="panel">
+          <h2 class="panel-title">📊 Situação do aluno</h2>
+
+          {% if precisa_atencao %}
+            {% for motivo in motivos_atencao %}
+              <div class="attention-box">
+                <div class="attention-icon">!</div>
+
+                <div>
+                  <div class="attention-title">Ponto de atenção</div>
+
+                  <div class="attention-description">{{ motivo }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="success-box">
+              <div class="success-icon">✓</div>
+
+              <div>
+                <div class="success-title">Nenhum ponto de atenção identificado</div>
+
+                <div class="success-description">Os indicadores disponíveis não estão abaixo dos limites de atenção.</div>
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- FREQUÊNCIA DETALHADA -->
+
+          <div class="attendance-list">
+            <div class="attendance-item">
+              <span class="attendance-label">Total de registros</span>
+
+              <span class="attendance-value">{{ total_presencas }}</span>
+            </div>
+
+            <div class="attendance-item">
+              <span class="attendance-label">Presenças</span>
+
+              <span class="attendance-value">{{ presentes }}</span>
+            </div>
+
+            <div class="attendance-item">
+              <span class="attendance-label">Faltas</span>
+
+              <span class="attendance-value">{{ faltas }}</span>
+            </div>
+
+            <div class="attendance-item">
+              <span class="attendance-label">Faltas justificadas</span>
+
+              <span class="attendance-value">{{ justificadas }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <!--  ======================================================
+         ALUNO NÃO DISPONÍVEL
+    =======================================================  -->
+
+      <div class="error-panel">
+        <div class="error-title">Não foi possível carregar o diagnóstico do aluno.</div>
+
+        <div class="error-description">{{ erro|default:'Aluno não encontrado.' }}</div>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}

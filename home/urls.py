@@ -332,4 +332,30 @@ urlpatterns = [
             namespace="matricula",
         ),
     ),
+    # --------------------------------
+    # Transferencia Interna
+    # --------------------------------
+    path(
+        "transferencia-interna/",
+        include(
+            (
+                "home.routes.transferencia_interna",
+                "transferencia_interna",
+            ),
+            namespace="transferencia_interna",
+        ),
+    ),
+    # --------------------------------
+    # Dashboard do Diretor
+    # --------------------------------
+    path(
+        "dashboard/diretor/",
+        include(
+            (
+                "home.routes.dashboard_diretor",
+                "dashboard_diretor",
+            ),
+            namespace="dashboard_diretor",
+        ),
+    ),
 ]
