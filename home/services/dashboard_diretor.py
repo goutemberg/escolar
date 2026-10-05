@@ -124,18 +124,27 @@ def _obter_media_por_turma(turma, ano_letivo):
 # ============================================================
 
 
-def _obter_dados_turmas(escola, ano_letivo):
+def _obter_dados_turmas(
+    escola,
+    ano_letivo,
+):
     """
     Carrega todos os indicadores necessários das turmas em
     consultas agrupadas.
 
-    O objetivo é evitar N+1 queries no dashboard principal.
+    O objetivo é evitar N+1 queries no dashboard principal
+    e permitir o reaproveitamento dos mesmos dados pelos
+    demais indicadores.
     """
 
     turmas = list(
         get_turmas_ativas(escola)
-        .filter(status="ATIVA")
-        .select_related("ano_letivo")
+        .filter(
+            status="ATIVA",
+        )
+        .select_related(
+            "ano_letivo",
+        )
         .order_by(
             "ano",
             "nome",
@@ -149,6 +158,8 @@ def _obter_dados_turmas(escola, ano_letivo):
             "por_id": {},
             "total_alunos": 0,
             "alunos_sem_turma": 0,
+            "frequencia_escola": None,
+            "media_escola": None,
         }
 
     turma_ids = [turma.id for turma in turmas]
@@ -164,18 +175,33 @@ def _obter_dados_turmas(escola, ano_letivo):
                 aluno__escola=escola,
                 ano_letivo=ano_letivo,
                 status="ATIVA",
+                turma_id__in=turma_ids,
             )
-            .values("turma_id")
-            .annotate(total=Count("id"))
+            .values(
+                "turma_id",
+            )
+            .annotate(
+                total=Count("id"),
+            )
         )
     }
 
     total_alunos = sum(matriculas_por_turma.values())
 
-    alunos_sem_turma = matriculas_por_turma.get(
-        None,
-        0,
-    )
+    # --------------------------------------------------------
+    # ALUNOS SEM TURMA
+    # --------------------------------------------------------
+    #
+    # Mantemos esta consulta separada porque alunos sem turma
+    # não pertencem ao conjunto de turma_ids acima.
+    #
+
+    alunos_sem_turma = Matricula.objects.filter(
+        aluno__escola=escola,
+        ano_letivo=ano_letivo,
+        status="ATIVA",
+        turma__isnull=True,
+    ).count()
 
     # --------------------------------------------------------
     # FREQUÊNCIA POR TURMA
@@ -186,26 +212,47 @@ def _obter_dados_turmas(escola, ano_letivo):
     presencas_por_turma = (
         Presenca.objects.filter(
             chamada__escola=escola,
+            chamada__turma_id__in=turma_ids,
             chamada__turma__ano_letivo=ano_letivo,
             chamada__turma__status="ATIVA",
             aluno__matriculas__ano_letivo=ano_letivo,
             aluno__matriculas__status="ATIVA",
         )
-        .values("chamada__turma_id")
+        .values(
+            "chamada__turma_id",
+        )
         .annotate(
             total=Count("id"),
             presentes=Count(
                 "id",
-                filter=Q(status="P"),
+                filter=Q(
+                    status="P",
+                ),
             ),
         )
     )
 
+    total_presencas_escola = 0
+    total_presentes_escola = 0
+
     for item in presencas_por_turma:
-        frequencia_por_turma[item["chamada__turma_id"]] = _percentual(
-            item["presentes"],
-            item["total"],
+        turma_id = item["chamada__turma_id"]
+
+        total = item["total"]
+        presentes = item["presentes"]
+
+        frequencia_por_turma[turma_id] = _percentual(
+            presentes,
+            total,
         )
+
+        total_presencas_escola += total
+        total_presentes_escola += presentes
+
+    frequencia_escola = _percentual(
+        total_presentes_escola,
+        total_presencas_escola,
+    )
 
     # --------------------------------------------------------
     # MÉDIA POR TURMA
@@ -217,13 +264,16 @@ def _obter_dados_turmas(escola, ano_letivo):
         Nota.objects.filter(
             escola=escola,
             avaliacao__escola=escola,
+            avaliacao__turma_id__in=turma_ids,
             avaliacao__turma__ano_letivo=ano_letivo,
             avaliacao__turma__status="ATIVA",
             aluno__matriculas__ano_letivo=ano_letivo,
             aluno__matriculas__status="ATIVA",
             valor__isnull=False,
         )
-        .values("avaliacao__turma_id")
+        .values(
+            "avaliacao__turma_id",
+        )
         .annotate(
             media=Avg("valor"),
         )
@@ -231,6 +281,25 @@ def _obter_dados_turmas(escola, ano_letivo):
 
     for item in medias:
         media_por_turma[item["avaliacao__turma_id"]] = _decimal_uma_casa(item["media"])
+
+    # --------------------------------------------------------
+    # MÉDIA GERAL DA ESCOLA
+    # --------------------------------------------------------
+
+    resultado_media_escola = Nota.objects.filter(
+        escola=escola,
+        avaliacao__escola=escola,
+        avaliacao__turma_id__in=turma_ids,
+        avaliacao__turma__ano_letivo=ano_letivo,
+        avaliacao__turma__status="ATIVA",
+        aluno__matriculas__ano_letivo=ano_letivo,
+        aluno__matriculas__status="ATIVA",
+        valor__isnull=False,
+    ).aggregate(
+        media=Avg("valor"),
+    )
+
+    media_escola = _decimal_uma_casa(resultado_media_escola["media"])
 
     # --------------------------------------------------------
     # CHAMADAS POR TURMA
@@ -241,11 +310,16 @@ def _obter_dados_turmas(escola, ano_letivo):
         for item in (
             Chamada.objects.filter(
                 escola=escola,
+                turma_id__in=turma_ids,
                 turma__ano_letivo=ano_letivo,
                 turma__status="ATIVA",
             )
-            .values("turma_id")
-            .annotate(total=Count("id"))
+            .values(
+                "turma_id",
+            )
+            .annotate(
+                total=Count("id"),
+            )
         )
     }
 
@@ -267,8 +341,12 @@ def _obter_dados_turmas(escola, ano_letivo):
                 turma.id,
                 0,
             ),
-            "frequencia": frequencia_por_turma.get(turma.id),
-            "media": media_por_turma.get(turma.id),
+            "frequencia": frequencia_por_turma.get(
+                turma.id,
+            ),
+            "media": media_por_turma.get(
+                turma.id,
+            ),
             "total_chamadas": chamadas_por_turma.get(
                 turma.id,
                 0,
@@ -277,6 +355,7 @@ def _obter_dados_turmas(escola, ano_letivo):
         }
 
         dados.append(item)
+
         por_id[turma.id] = item
 
     return {
@@ -284,6 +363,8 @@ def _obter_dados_turmas(escola, ano_letivo):
         "por_id": por_id,
         "total_alunos": total_alunos,
         "alunos_sem_turma": alunos_sem_turma,
+        "frequencia_escola": frequencia_escola,
+        "media_escola": media_escola,
     }
 
 
@@ -513,7 +594,7 @@ def _obter_saude_operacional(
     else:
         professores_status = "sem_dados"
 
-        professores_descricao = "Ainda não existem disciplinas vinculadas às turmas."
+        professores_descricao = "Ainda não existem disciplinas vinculadas " "às turmas."
 
     professores = {
         "chave": "professores",
@@ -527,10 +608,7 @@ def _obter_saude_operacional(
     # FREQUÊNCIA
     # ========================================================
 
-    frequencia = _obter_frequencia_escola(
-        escola,
-        ano_letivo,
-    )
+    frequencia = dados_turmas.get("frequencia_escola")
 
     if frequencia is None:
         frequencia_status = "sem_dados"
@@ -1009,10 +1087,11 @@ def obter_dashboard_diretor(user):
     # DADOS CONSOLIDADOS DAS TURMAS
     # ========================================================
     #
-    # IMPORTANTE:
-    # Esta consulta consolidada é criada uma única vez e
-    # reutilizada pelo dashboard, pelas turmas em atenção e
-    # pela saúde operacional.
+    # A partir daqui todos os indicadores compartilhados
+    # utilizam a mesma estrutura consolidada.
+    #
+    # Isso evita repetir consultas de matrículas, frequência,
+    # médias e chamadas.
     #
     # ========================================================
 
@@ -1029,15 +1108,9 @@ def obter_dashboard_diretor(user):
 
     contexto["metricas"]["turmas_ativas"] = len(dados_turmas["turmas"])
 
-    contexto["metricas"]["frequencia"] = _obter_frequencia_escola(
-        escola,
-        ano_letivo,
-    )
+    contexto["metricas"]["frequencia"] = dados_turmas["frequencia_escola"]
 
-    contexto["metricas"]["media_escola"] = _obter_media_escola(
-        escola,
-        ano_letivo,
-    )
+    contexto["metricas"]["media_escola"] = dados_turmas["media_escola"]
 
     # ========================================================
     # VISÃO DAS TURMAS
