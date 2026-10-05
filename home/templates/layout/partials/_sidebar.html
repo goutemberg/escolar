@@ -192,6 +192,11 @@
             <span>Matrícula Individual</span>
           </a>
 
+          <a href="{% url 'transferencia_interna:inicio' %}" class="nav-item {% if current_view == 'transferencia_interna:inicio' %}active{% endif %}">
+            <i class="bi bi-arrow-left-right"></i>
+            <span>Transferência Interna</span>
+          </a>
+
           {% comment %} <a href="javascript:void(0)" class="nav-item nav-disabled">
             <i class="bi bi-people-fill"></i>
             <span>Matrícula em Lote</span>
