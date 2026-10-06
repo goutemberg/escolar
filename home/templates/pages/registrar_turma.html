@@ -16,6 +16,44 @@
 
 {% block content %}
 
+<!-- Loading ao salvar/atualizar turma -->
+<div id="loadingSalvarTurma" style="
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(255,255,255,0.85);
+    z-index:99999;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+">
+    <div
+        class="spinner-border text-primary"
+        role="status"
+        style="width:4rem;height:4rem;"
+    >
+    </div>
+
+    <div style="
+        margin-top:20px;
+        font-size:18px;
+        font-weight:600;
+        color:#596981;
+    ">
+        Salvando turma...
+    </div>
+
+    <div style="
+        margin-top:10px;
+        color:#666;
+    ">
+        Aguarde, isso pode levar alguns segundos.
+    </div>
+</div>
+
 {% if turma.status == "INATIVA" %}
 <div style="
 background:#fff3cd;
@@ -372,6 +410,42 @@ class="btn btn-outline-secondary btn-sm">
 <script>
 
 document.addEventListener("DOMContentLoaded", function(){
+
+
+    // =========================================
+    // LOADING AO SALVAR / ATUALIZAR TURMA
+    // =========================================
+
+    const turmaForm = document.getElementById("turmaForm");
+    const loadingSalvarTurma = document.getElementById("loadingSalvarTurma");
+
+    if (turmaForm) {
+        turmaForm.addEventListener("submit", function () {
+
+            // Mostra o loading
+            if (loadingSalvarTurma) {
+                loadingSalvarTurma.style.display = "flex";
+            }
+
+            // Desabilita o botão para evitar duplo clique
+            const btnSalvar = turmaForm.querySelector(
+                'button[type="submit"]'
+            );
+
+            if (btnSalvar) {
+                btnSalvar.disabled = true;
+
+                btnSalvar.innerHTML = `
+                    <span
+                        class="spinner-border spinner-border-sm"
+                        role="status"
+                        aria-hidden="true"
+                    ></span>
+                    Salvando...
+                `;
+            }
+        });
+    }
 
 const turmaStatus = "{{ turma.status|default:'ATIVA' }}";
 
