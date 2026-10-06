@@ -103,7 +103,6 @@ def dados_aluno_transferencia(request, aluno_id):
     turmas = Turma.objects.filter(
         escola=escola,
         ano_letivo=ano_ativo,
-        status="ATIVA",
     ).order_by("nome")
 
     turmas_disponiveis = [
@@ -412,7 +411,11 @@ def salvar_transferencia_interna(request):
                 data_inicio=(
                     matricula.data_matricula
                     if matricula and matricula.data_matricula
-                    else ano_ativo.data_inicio
+                    else (
+                        ano_ativo.data_inicio
+                        if ano_ativo.data_inicio
+                        else data_transferencia
+                    )
                 ),
                 data_fim=data_transferencia,
                 tipo_movimentacao=(HistoricoAlocacaoAluno.TipoMovimentacao.MATRICULA),
