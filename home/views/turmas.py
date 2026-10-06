@@ -244,6 +244,458 @@ def cadastro_turma(request, turma_id=None):
     )
 
 
+##########################################
+# Com validacao de matricula ativa
+##########################################
+
+# def _salvar_turma(request):
+
+#     escola = request.escola
+
+#     try:
+#         data = json.loads(request.body)
+
+#         turma_id = data.get("turma_id")
+
+#         nome = data.get("nome")
+#         turno = data.get("turno")
+#         sala = data.get("sala")
+#         descricao = data.get("descricao", "")
+#         alunos_ids = data.get("alunos_ids", [])
+#         professores = data.get("professores", [])
+#         coordenadores_ids = data.get("coordenadores_ids", [])
+
+#         sistema_avaliacao = (data.get("sistema_avaliacao") or "NUM").strip().upper()
+
+#         tipo_turma = (data.get("tipo_turma") or "FUN").strip().upper()
+
+#         if tipo_turma not in ("INF", "FUN", "MED"):
+#             tipo_turma = "FUN"
+
+#         polivalente = data.get("polivalente", False)
+
+#         if isinstance(polivalente, str):
+#             polivalente = polivalente.lower() in (
+#                 "true",
+#                 "1",
+#                 "sim",
+#                 "on",
+#             )
+#         else:
+#             polivalente = bool(polivalente)
+
+#         if sistema_avaliacao not in ("NUM", "CON"):
+#             sistema_avaliacao = "NUM"
+
+#         # =========================================================
+#         # 🔹 VALIDAÇÃO DO ANO
+#         # =========================================================
+
+#         try:
+#             ano = int(data.get("ano"))
+#         except (TypeError, ValueError):
+
+#             return JsonResponse(
+#                 {
+#                     "success": False,
+#                     "mensagem": "Ano inválido.",
+#                 },
+#                 status=400,
+#             )
+
+#         if not all([nome, turno, ano, sala]):
+
+#             return JsonResponse(
+#                 {
+#                     "success": False,
+#                     "mensagem": "Preencha os dados básicos da turma.",
+#                 },
+#                 status=400,
+#             )
+
+#         # =========================================================
+#         # 🔹 ANO LETIVO ATIVO
+#         # =========================================================
+
+#         ano_letivo = get_ano_ativo()
+
+#         if not ano_letivo:
+
+#             return JsonResponse(
+#                 {
+#                     "success": False,
+#                     "mensagem": (
+#                         "Não existe um ano letivo ativo " "para cadastrar a turma."
+#                     ),
+#                 },
+#                 status=400,
+#             )
+
+#         # =========================================================
+#         # 🔹 NORMALIZAÇÃO DOS ALUNOS
+#         # =========================================================
+
+#         alunos_ids_normalizados = set()
+
+#         if alunos_ids:
+
+#             try:
+#                 alunos_ids_normalizados = {int(aluno_id) for aluno_id in alunos_ids}
+
+#             except (TypeError, ValueError):
+
+#                 return JsonResponse(
+#                     {
+#                         "success": False,
+#                         "mensagem": "Lista de alunos inválida.",
+#                     },
+#                     status=400,
+#                 )
+
+#         with transaction.atomic():
+
+#             # =========================================================
+#             # 🔹 CRIAR / ATUALIZAR TURMA
+#             # =========================================================
+
+#             if not turma_id:
+
+#                 turma = Turma.objects.create(
+#                     nome=nome,
+#                     turno=turno,
+#                     ano=ano,
+#                     ano_letivo=ano_letivo,
+#                     sala=sala,
+#                     descricao=descricao,
+#                     escola=escola,
+#                     sistema_avaliacao=sistema_avaliacao,
+#                     tipo_turma=tipo_turma,
+#                     polivalente=polivalente,
+#                 )
+
+#             else:
+
+#                 turma = get_object_or_404(
+#                     Turma,
+#                     id=turma_id,
+#                     escola=escola,
+#                 )
+
+#                 turma.nome = nome
+#                 turma.turno = turno
+#                 turma.ano = ano
+#                 turma.sala = sala
+#                 turma.descricao = descricao
+#                 turma.sistema_avaliacao = sistema_avaliacao
+#                 turma.tipo_turma = tipo_turma
+#                 turma.polivalente = polivalente
+
+#                 turma.save()
+
+#                 # =====================================================
+#                 # 🔹 ALUNOS ATUAIS DA TURMA
+#                 # =====================================================
+
+#                 alunos_atuais_ids = set(
+#                     turma.alunos.values_list(
+#                         "id",
+#                         flat=True,
+#                     )
+#                 )
+
+#                 # =====================================================
+#                 # 🔹 REMOVER SOMENTE OS ALUNOS DESTA TURMA
+#                 # =====================================================
+
+#                 alunos_remover_ids = alunos_atuais_ids - alunos_ids_normalizados
+
+#                 if alunos_remover_ids:
+
+#                     alunos_remover = Aluno.objects.filter(
+#                         id__in=alunos_remover_ids,
+#                         escola=escola,
+#                     )
+
+#                     for aluno in alunos_remover:
+
+#                         # -------------------------------------------------
+#                         # Remove somente esta turma.
+#                         # -------------------------------------------------
+
+#                         aluno.turmas.remove(turma)
+
+#                         # -------------------------------------------------
+#                         # Mantém a regra existente do turma_principal:
+#                         # só limpa se esta era realmente a turma principal.
+#                         # -------------------------------------------------
+
+#                         if aluno.turma_principal_id == turma.id:
+
+#                             aluno.turma_principal = None
+
+#                             aluno.save(update_fields=["turma_principal"])
+
+#                         # -------------------------------------------------
+#                         # Matrícula anual:
+#                         # mantém a matrícula ATIVA, mas remove a turma.
+#                         #
+#                         # O aluno continua matriculado no ano e poderá
+#                         # posteriormente ser colocado em outra turma.
+#                         # -------------------------------------------------
+
+#                         Matricula.objects.filter(
+#                             aluno=aluno,
+#                             ano_letivo=ano_letivo,
+#                             status="ATIVA",
+#                             turma=turma,
+#                         ).update(
+#                             turma=None,
+#                             atualizado_em=timezone.now(),
+#                         )
+
+#                 # =====================================================
+#                 # 🔹 DISCIPLINAS DA TURMA
+#                 # =====================================================
+
+#                 TurmaDisciplina.objects.filter(
+#                     turma=turma,
+#                     escola=escola,
+#                 ).delete()
+
+#             # =========================================================
+#             # 🔹 COORDENADORES
+#             # =========================================================
+
+#             turma.coordenadores.set(coordenadores_ids)
+
+#             # =========================================================
+#             # 🔹 ALUNOS
+#             # =========================================================
+
+#             # ---------------------------------------------------------
+#             # Somente alunos com matrícula ATIVA no ano letivo da turma
+#             # ---------------------------------------------------------
+
+#             matriculas_ativas = Matricula.objects.filter(
+#                 aluno__id__in=alunos_ids_normalizados,
+#                 aluno__escola=escola,
+#                 aluno__ativo=True,
+#                 ano_letivo=ano_letivo,
+#                 status="ATIVA",
+#             ).select_related("aluno")
+
+#             matriculas_por_aluno = {
+#                 matricula.aluno_id: matricula for matricula in matriculas_ativas
+#             }
+
+#             # =========================================================
+#             # 🔹 BLOQUEIA ALUNO SEM MATRÍCULA ATIVA
+#             # =========================================================
+
+#             alunos_sem_matricula = alunos_ids_normalizados - set(
+#                 matriculas_por_aluno.keys()
+#             )
+
+#             if alunos_sem_matricula:
+
+#                 return JsonResponse(
+#                     {
+#                         "success": False,
+#                         "mensagem": (
+#                             "Um ou mais alunos selecionados "
+#                             "não possuem matrícula ativa "
+#                             "neste ano letivo."
+#                         ),
+#                     },
+#                     status=400,
+#                 )
+
+#             # =========================================================
+#             # 🔹 BUSCA ALUNOS VÁLIDOS
+#             # =========================================================
+
+#             alunos = Aluno.objects.filter(
+#                 id__in=alunos_ids_normalizados,
+#                 escola=escola,
+#                 ativo=True,
+#             )
+
+#             for aluno in alunos:
+
+#                 matricula = matriculas_por_aluno.get(aluno.id)
+
+#                 if not matricula:
+#                     continue
+
+#                 # =====================================================
+#                 # Atualiza a matrícula anual
+#                 #
+#                 # Se estava sem turma, passa a apontar para esta turma.
+#                 # =====================================================
+
+#                 matricula.turma = turma
+
+#                 matricula.save(
+#                     update_fields=[
+#                         "turma",
+#                         "atualizado_em",
+#                     ]
+#                 )
+
+#                 # =====================================================
+#                 # Mantém compatibilidade com a estrutura atual
+#                 # =====================================================
+
+#                 aluno.turmas.add(turma)
+
+#                 # -----------------------------------------------------
+#                 # O aluno selecionado passa a ter esta turma como
+#                 # turma principal.
+#                 # -----------------------------------------------------
+
+#                 aluno.turma_principal = turma
+
+#                 aluno.save(update_fields=["turma_principal"])
+
+#             # =========================================================
+#             # 🔹 PROFESSORES + DISCIPLINAS
+#             # =========================================================
+
+#             for item in professores:
+
+#                 TurmaDisciplina.objects.create(
+#                     turma=turma,
+#                     professor_id=item.get("professor_id"),
+#                     disciplina_id=(
+#                         item.get("disciplinas_id") or item.get("disciplina_id")
+#                     ),
+#                     escola=escola,
+#                 )
+
+#             # =========================================================
+#             # 🔹 DISCIPLINAS
+#             # =========================================================
+
+#             disciplinas_turma = Disciplina.objects.filter(
+#                 turmadisciplina__turma=turma
+#             ).distinct()
+
+#             tipo_prova, _ = TipoAvaliacao.objects.get_or_create(
+#                 escola=escola,
+#                 nome="Prova",
+#             )
+
+#             tipo_trabalho, _ = TipoAvaliacao.objects.get_or_create(
+#                 escola=escola,
+#                 nome="Trabalho",
+#             )
+
+#             # =========================================================
+#             # 🔹 MODELOS DE AVALIAÇÃO
+#             # =========================================================
+
+#             for disciplina in disciplinas_turma:
+
+#                 if not ModeloAvaliacao.objects.filter(
+#                     escola=escola,
+#                     disciplina=disciplina,
+#                 ).exists():
+
+#                     ModeloAvaliacao.objects.create(
+#                         nome="Prova",
+#                         tipo=tipo_prova,
+#                         peso=7,
+#                         quantidade=3,
+#                         escola=escola,
+#                         disciplina=disciplina,
+#                         ativo=True,
+#                     )
+
+#                     ModeloAvaliacao.objects.create(
+#                         nome="Trabalho",
+#                         tipo=tipo_trabalho,
+#                         peso=3,
+#                         quantidade=1,
+#                         escola=escola,
+#                         disciplina=disciplina,
+#                         ativo=True,
+#                     )
+
+#             # =========================================================
+#             # 🔹 BIMESTRES / AVALIAÇÕES
+#             # =========================================================
+
+#             bimestres = [1, 2, 3, 4]
+
+#             for disciplina in disciplinas_turma:
+
+#                 modelos = ModeloAvaliacao.objects.filter(
+#                     escola=escola,
+#                     disciplina=disciplina,
+#                     ativo=True,
+#                 )
+
+#                 for bimestre in bimestres:
+
+#                     for modelo in modelos:
+
+#                         for i in range(
+#                             1,
+#                             modelo.quantidade + 1,
+#                         ):
+
+#                             nome_avaliacao = (
+#                                 f"{modelo.nome} {i}"
+#                                 if modelo.quantidade > 1
+#                                 else modelo.nome
+#                             )
+
+#                             Avaliacao.objects.get_or_create(
+#                                 turma=turma,
+#                                 disciplina=disciplina,
+#                                 bimestre=bimestre,
+#                                 descricao=nome_avaliacao,
+#                                 escola=escola,
+#                                 defaults={
+#                                     "tipo": modelo.tipo,
+#                                     "data": timezone.now().date(),
+#                                 },
+#                             )
+
+#         # =========================================================
+#         # 🔹 ATUALIZA TURMA
+#         # =========================================================
+
+#         turma.refresh_from_db()
+
+#         return JsonResponse(
+#             {
+#                 "success": True,
+#                 "mensagem": "Turma salva com sucesso.",
+#                 "turma_id": turma.id,
+#             }
+#         )
+
+#     except Exception as e:
+
+#         import traceback
+
+#         traceback.print_exc()
+
+#         return JsonResponse(
+#             {
+#                 "success": False,
+#                 "mensagem": (f"Erro ao salvar turma: {str(e)}"),
+#             },
+#             status=500,
+#         )
+
+
+##########################################
+# Sem validacao de matricula ativa
+##########################################
+
+
 def _salvar_turma(request):
 
     escola = request.escola
@@ -467,10 +919,15 @@ def _salvar_turma(request):
             # =========================================================
             # 🔹 ALUNOS
             # =========================================================
-
-            # ---------------------------------------------------------
-            # Somente alunos com matrícula ATIVA no ano letivo da turma
-            # ---------------------------------------------------------
+            #
+            # A matrícula NÃO é obrigatória durante o ano letivo.
+            #
+            # A validação oficial da situação dos alunos será realizada
+            # no fechamento do ano letivo.
+            #
+            # Caso exista uma matrícula ATIVA, ela continua sendo
+            # atualizada para apontar para a turma.
+            # =========================================================
 
             matriculas_ativas = Matricula.objects.filter(
                 aluno__id__in=alunos_ids_normalizados,
@@ -485,28 +942,6 @@ def _salvar_turma(request):
             }
 
             # =========================================================
-            # 🔹 BLOQUEIA ALUNO SEM MATRÍCULA ATIVA
-            # =========================================================
-
-            alunos_sem_matricula = alunos_ids_normalizados - set(
-                matriculas_por_aluno.keys()
-            )
-
-            if alunos_sem_matricula:
-
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "mensagem": (
-                            "Um ou mais alunos selecionados "
-                            "não possuem matrícula ativa "
-                            "neste ano letivo."
-                        ),
-                    },
-                    status=400,
-                )
-
-            # =========================================================
             # 🔹 BUSCA ALUNOS VÁLIDOS
             # =========================================================
 
@@ -518,25 +953,26 @@ def _salvar_turma(request):
 
             for aluno in alunos:
 
+                # =====================================================
+                # Matrícula é opcional durante o ano letivo.
+                #
+                # Se existir matrícula ativa, atualiza a turma.
+                # Se não existir, o aluno continua podendo pertencer
+                # à turma normalmente.
+                # =====================================================
+
                 matricula = matriculas_por_aluno.get(aluno.id)
 
-                if not matricula:
-                    continue
+                if matricula:
 
-                # =====================================================
-                # Atualiza a matrícula anual
-                #
-                # Se estava sem turma, passa a apontar para esta turma.
-                # =====================================================
+                    matricula.turma = turma
 
-                matricula.turma = turma
-
-                matricula.save(
-                    update_fields=[
-                        "turma",
-                        "atualizado_em",
-                    ]
-                )
+                    matricula.save(
+                        update_fields=[
+                            "turma",
+                            "atualizado_em",
+                        ]
+                    )
 
                 # =====================================================
                 # Mantém compatibilidade com a estrutura atual
