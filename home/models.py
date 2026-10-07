@@ -1479,3 +1479,133 @@ class HistoricoAlocacaoAluno(models.Model):
             f"{self.turno} - "
             f"{self.data_inicio}"
         )
+
+
+class AuditoriaChamada(models.Model):
+    """
+    Histórico de eventos relacionados às chamadas.
+
+    O registro permanece mesmo que a Chamada original seja excluída.
+    """
+
+    ACAO_CRIADA = "CRIADA"
+    ACAO_EXCLUIDA = "EXCLUIDA"
+
+    ACAO_CHOICES = [
+        (ACAO_CRIADA, "Chamada criada"),
+        (ACAO_EXCLUIDA, "Chamada excluída"),
+    ]
+
+    # Referência para a chamada original.
+    # SET_NULL garante que a auditoria não seja apagada
+    # caso a Chamada seja excluída.
+    chamada = models.ForeignKey(
+        "Chamada",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditorias",
+        verbose_name="Chamada",
+    )
+
+    # Guarda o ID original mesmo depois que a FK for anulada.
+    chamada_id_original = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name="ID original da chamada",
+    )
+
+    # Snapshot dos dados principais da chamada.
+    # São independentes da existência da Chamada.
+    turma_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Turma",
+    )
+
+    disciplina_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Disciplina",
+    )
+
+    professor_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Professor",
+    )
+
+    data_chamada = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Data da chamada",
+    )
+
+    acao = models.CharField(
+        max_length=20,
+        choices=ACAO_CHOICES,
+        db_index=True,
+        verbose_name="Ação",
+    )
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditorias_chamadas",
+        verbose_name="Usuário",
+    )
+
+    usuario_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Nome do usuário",
+    )
+
+    # Snapshot da situação da chamada no momento do evento.
+    total_alunos = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Total de alunos",
+    )
+
+    total_presentes = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Total de presentes",
+    )
+
+    total_faltas = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Total de faltas",
+    )
+
+    total_justificadas = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Total de faltas justificadas",
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Registrado em",
+    )
+
+    class Meta:
+        verbose_name = "Auditoria de chamada"
+        verbose_name_plural = "Auditorias de chamadas"
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(fields=["acao", "criado_em"]),
+            models.Index(fields=["chamada_id_original"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.acao} - "
+            f"Chamada #{self.chamada_id_original or 'N/A'} - "
+            f"{self.data_chamada or 'sem data'}"
+        )
