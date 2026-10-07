@@ -1174,7 +1174,24 @@ def obter_dashboard_diretor(user):
 
 
 def obter_detalhamento_turma(turma, ano_letivo):
-    matriculas = (
+    """
+    Obtém o detalhamento executivo de uma turma.
+
+    Regras:
+    - Considera apenas matrículas ATIVAS do ano letivo informado.
+    - Calcula frequência por aluno.
+    - Calcula média por aluno.
+    - Identifica alunos que precisam de atenção.
+    - Mantém o cálculo atual da média da turma como média
+      das médias individuais dos alunos.
+
+    Otimização:
+    - Não executa consultas ao banco dentro do loop de alunos.
+    - Presença é carregada em uma única consulta agrupada.
+    - Notas são carregadas em uma única consulta agrupada.
+    """
+
+    matriculas = list(
         Matricula.objects.filter(
             turma=turma,
             ano_letivo=ano_letivo,
@@ -1183,6 +1200,71 @@ def obter_detalhamento_turma(turma, ano_letivo):
         .select_related("aluno")
         .order_by("aluno__nome")
     )
+
+    # ---------------------------------------------------------
+    # ESTADO VAZIO
+    # ---------------------------------------------------------
+
+    if not matriculas:
+        return {
+            "turma": turma,
+            "total_alunos": 0,
+            "frequencia": None,
+            "media": None,
+            "alunos": [],
+            "alunos_atencao": [],
+            "sem_alunos": True,
+        }
+
+    aluno_ids = [matricula.aluno_id for matricula in matriculas]
+
+    # ---------------------------------------------------------
+    # PRESENÇAS — UMA ÚNICA CONSULTA
+    # ---------------------------------------------------------
+
+    presencas_por_aluno = {
+        item["aluno_id"]: item
+        for item in (
+            Presenca.objects.filter(
+                chamada__turma=turma,
+                chamada__turma__ano_letivo=ano_letivo,
+                aluno_id__in=aluno_ids,
+            )
+            .values("aluno_id")
+            .annotate(
+                total=Count("id"),
+                presentes=Count(
+                    "id",
+                    filter=Q(status="P"),
+                ),
+            )
+        )
+    }
+
+    # ---------------------------------------------------------
+    # NOTAS — UMA ÚNICA CONSULTA
+    # ---------------------------------------------------------
+
+    medias_por_aluno = {
+        item["aluno_id"]: _decimal_uma_casa(item["media"])
+        for item in (
+            Nota.objects.filter(
+                escola=turma.escola,
+                avaliacao__turma=turma,
+                avaliacao__turma__ano_letivo=ano_letivo,
+                aluno_id__in=aluno_ids,
+                valor__isnull=False,
+            )
+            .values("aluno_id")
+            .annotate(
+                media=Avg("valor"),
+            )
+        )
+    }
+
+    # ---------------------------------------------------------
+    # PROCESSAMENTO EM MEMÓRIA
+    # ---------------------------------------------------------
 
     alunos = []
 
@@ -1195,30 +1277,35 @@ def obter_detalhamento_turma(turma, ano_letivo):
     for matricula in matriculas:
         aluno = matricula.aluno
 
-        presencas = Presenca.objects.filter(
-            chamada__turma=turma,
-            chamada__turma__ano_letivo=ano_letivo,
-            aluno=aluno,
+        # -----------------------------------------------------
+        # FREQUÊNCIA DO ALUNO
+        # -----------------------------------------------------
+
+        dados_presenca = presencas_por_aluno.get(
+            aluno.id,
+            {
+                "total": 0,
+                "presentes": 0,
+            },
         )
 
-        total_presencas = presencas.count()
-
-        presentes = presencas.filter(status="P").count()
+        total_presencas = dados_presenca["total"]
+        presentes = dados_presenca["presentes"]
 
         frequencia = _percentual(
             presentes,
             total_presencas,
         )
 
-        resultado_nota = Nota.objects.filter(
-            escola=turma.escola,
-            avaliacao__turma=turma,
-            avaliacao__turma__ano_letivo=ano_letivo,
-            aluno=aluno,
-            valor__isnull=False,
-        ).aggregate(media=Avg("valor"))
+        # -----------------------------------------------------
+        # MÉDIA DO ALUNO
+        # -----------------------------------------------------
 
-        media = _decimal_uma_casa(resultado_nota["media"])
+        media = medias_por_aluno.get(aluno.id)
+
+        # -----------------------------------------------------
+        # TOTAIS DA TURMA
+        # -----------------------------------------------------
 
         total_presencas_turma += total_presencas
         total_presentes_turma += presentes
@@ -1226,6 +1313,10 @@ def obter_detalhamento_turma(turma, ano_letivo):
         if media is not None:
             soma_notas_turma += media
             quantidade_notas_turma += 1
+
+        # -----------------------------------------------------
+        # PONTOS DE ATENÇÃO
+        # -----------------------------------------------------
 
         motivos = []
 
@@ -1246,6 +1337,10 @@ def obter_detalhamento_turma(turma, ano_letivo):
             }
         )
 
+    # ---------------------------------------------------------
+    # INDICADORES DA TURMA
+    # ---------------------------------------------------------
+
     frequencia_turma = _percentual(
         total_presentes_turma,
         total_presencas_turma,
@@ -1256,14 +1351,26 @@ def obter_detalhamento_turma(turma, ano_letivo):
     if quantidade_notas_turma:
         media_turma = _decimal_uma_casa(soma_notas_turma / quantidade_notas_turma)
 
+    # ---------------------------------------------------------
+    # ALUNOS EM ATENÇÃO
+    # ---------------------------------------------------------
+
     alunos_atencao = [aluno for aluno in alunos if aluno["precisa_atencao"]]
 
     alunos_atencao.sort(
         key=lambda aluno: (
-            aluno["frequencia"] if aluno["frequencia"] is not None else Decimal("999"),
+            (
+                aluno["frequencia"]
+                if aluno["frequencia"] is not None
+                else Decimal("999")
+            ),
             aluno["nome"],
         )
     )
+
+    # ---------------------------------------------------------
+    # RETORNO
+    # ---------------------------------------------------------
 
     return {
         "turma": turma,
@@ -1272,6 +1379,7 @@ def obter_detalhamento_turma(turma, ano_letivo):
         "media": media_turma,
         "alunos": alunos,
         "alunos_atencao": alunos_atencao,
+        "sem_alunos": False,
     }
 
 
