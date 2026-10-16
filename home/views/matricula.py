@@ -466,7 +466,6 @@ def salvar_edicao_matricula(request, matricula_id):
             status=400,
         )
 
-    turma_id = data.get("turma_id")
     status_matricula = (data.get("status") or "").strip().upper()
     observacao = (data.get("observacao") or "").strip()
 
@@ -492,70 +491,28 @@ def salvar_edicao_matricula(request, matricula_id):
         )
 
     # --------------------------------------------------------
-    # 5. Buscar nova turma, se informada
-    # --------------------------------------------------------
-
-    nova_turma = None
-
-    if turma_id:
-
-        nova_turma = get_object_or_404(
-            Turma,
-            id=turma_id,
-            escola=escola,
-            ano_letivo=ano_ativo,
-        )
-
-    turma_anterior = matricula.turma
-
-    # --------------------------------------------------------
-    # 6. Atualizar matrícula
+    # 5. Atualizar matrícula
+    #
+    # A turma NÃO é alterada aqui.
+    #
+    # Alterações de turma/turno devem ocorrer exclusivamente
+    # através do fluxo de transferência interna do aluno.
     # --------------------------------------------------------
 
     try:
 
         with transaction.atomic():
 
-            matricula.turma = nova_turma
             matricula.status = status_matricula
             matricula.observacao = observacao
 
             matricula.save(
                 update_fields=[
-                    "turma",
                     "status",
                     "observacao",
                     "atualizado_em",
                 ]
             )
-
-            # ------------------------------------------------
-            # Remover vínculo operacional da turma anterior
-            # ------------------------------------------------
-
-            if turma_anterior and turma_anterior.id != (
-                nova_turma.id if nova_turma else None
-            ):
-
-                matricula.aluno.turmas.remove(turma_anterior)
-
-                if matricula.aluno.turma_principal_id == turma_anterior.id:
-
-                    matricula.aluno.turma_principal = None
-
-                    matricula.aluno.save(update_fields=["turma_principal"])
-
-            # ------------------------------------------------
-            # Adicionar vínculo operacional da nova turma
-            # ------------------------------------------------
-
-            if nova_turma:
-
-                matricula.aluno.turmas.add(nova_turma)
-
-                matricula.aluno.turma_principal = nova_turma
-
-                matricula.aluno.save(update_fields=["turma_principal"])
 
     except IntegrityError:
 
@@ -568,17 +525,17 @@ def salvar_edicao_matricula(request, matricula_id):
         )
 
     # --------------------------------------------------------
-    # 7. Retorno
+    # 6. Retorno
     # --------------------------------------------------------
 
     return JsonResponse(
         {
             "success": True,
             "mensagem": (
-                f"Matrícula de {matricula.aluno.nome} " f"atualizada com sucesso."
+                f"Matrícula de {matricula.aluno.nome} " "atualizada com sucesso."
             ),
             "matricula_id": matricula.id,
-            "turma_id": (nova_turma.id if nova_turma else None),
+            "turma_id": (matricula.turma_id if matricula.turma_id else None),
             "status": matricula.status,
         },
         status=200,

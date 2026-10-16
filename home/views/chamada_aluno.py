@@ -55,6 +55,7 @@ from home.models import (
     Presenca,
     Aluno,
     DiarioDeClasse,
+    AuditoriaChamada,
 )
 
 import logging
@@ -302,28 +303,39 @@ def api_carregar_alunos(request, turma_id):
 @csrf_exempt
 @login_required
 def salvar_presencas(request):
-    logger.warning("====== SALVAR PRESENCAS ======")
-    logger.warning(f"USER: {request.user}")
-    logger.warning(f"ROLE: {getattr(request.user, 'role', None)}")
-    logger.warning(f"METHOD: {request.method}")
-    logger.warning(f"BODY: {request.body}")
+    # logger.warning("====== SALVAR PRESENCAS ======")
+    # logger.warning(f"USER: {request.user}")
+    # logger.warning(f"ROLE: {getattr(request.user, 'role', None)}")
+    # logger.warning(f"METHOD: {request.method}")
+    # logger.warning(f"BODY: {request.body}")
 
     acesso = get_professor_or_gestor(request.user)
 
     if acesso == "bloqueado":
         return JsonResponse(
-            {"status": "erro", "mensagem": "Acesso negado."}, status=403
+            {"status": "erro", "mensagem": "Acesso negado."},
+            status=403,
         )
 
     if request.method != "POST":
         return JsonResponse(
-            {"status": "erro", "mensagem": "Método não permitido"}, status=405
+            {
+                "status": "erro",
+                "mensagem": "Método não permitido",
+            },
+            status=405,
         )
 
     try:
         data = json.loads(request.body)
     except Exception:
-        return JsonResponse({"status": "erro", "mensagem": "JSON inválido"}, status=400)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "JSON inválido",
+            },
+            status=400,
+        )
 
     turma_id = data.get("turma")
     disciplina_id = data.get("disciplina")
@@ -332,14 +344,19 @@ def salvar_presencas(request):
 
     if not turma_id or not disciplina_id or not data_aula:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Campos obrigatórios faltando."}, status=400
+            {
+                "status": "erro",
+                "mensagem": "Campos obrigatórios faltando.",
+            },
+            status=400,
         )
 
     professor = None
 
     if acesso == "professor":
         professor = Docente.objects.filter(
-            user=request.user, escola=request.escola
+            user=request.user,
+            escola=request.escola,
         ).first()
 
         if not professor:
@@ -352,17 +369,31 @@ def salvar_presencas(request):
             )
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=request.escola)
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=request.escola,
+        )
     except Turma.DoesNotExist:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Turma inválida."}, status=404
+            {
+                "status": "erro",
+                "mensagem": "Turma inválida.",
+            },
+            status=404,
         )
 
     try:
-        disciplina = Disciplina.objects.get(id=disciplina_id, escola=request.escola)
+        disciplina = Disciplina.objects.get(
+            id=disciplina_id,
+            escola=request.escola,
+        )
     except Disciplina.DoesNotExist:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Disciplina inválida."}, status=404
+            {
+                "status": "erro",
+                "mensagem": "Disciplina inválida.",
+            },
+            status=404,
         )
 
     # Professor só pode lançar chamada das turmas/disciplina dele
@@ -386,11 +417,18 @@ def salvar_presencas(request):
             )
 
     try:
-        data_aula = datetime.strptime(data_aula, "%Y-%m-%d").date()
+        data_aula = datetime.strptime(
+            data_aula,
+            "%Y-%m-%d",
+        ).date()
 
     except ValueError:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Data inválida."}, status=400
+            {
+                "status": "erro",
+                "mensagem": "Data inválida.",
+            },
+            status=400,
         )
 
     erros_alunos = []
@@ -401,7 +439,7 @@ def salvar_presencas(request):
             # =====================================================
             # CHAMADA AGORA É INDEPENDENTE DO DIÁRIO
             # =====================================================
-            chamada, _ = Chamada.objects.get_or_create(
+            chamada, chamada_criada = Chamada.objects.get_or_create(
                 turma=turma,
                 disciplina=disciplina,
                 professor=(professor if acesso == "professor" else None),
@@ -419,23 +457,30 @@ def salvar_presencas(request):
 
                 aluno_id = item.get("aluno_id")
 
-                status = item.get("status", "").strip().upper()
+                status_presenca = item.get("status", "").strip().upper()
 
                 # Compatibilidade com versão antiga
-                if status not in ("P", "F", "J"):
+                if status_presenca not in ("P", "F", "J"):
                     presente_bool = bool(item.get("presente", False))
-                    status = "P" if presente_bool else "F"
 
-                presente = status == "P"
+                    status_presenca = "P" if presente_bool else "F"
+
+                presente = status_presenca == "P"
 
                 observacao = (item.get("observacao") or "").strip()
 
                 try:
-                    aluno = Aluno.objects.get(id=aluno_id, escola=request.escola)
+                    aluno = Aluno.objects.get(
+                        id=aluno_id,
+                        escola=request.escola,
+                    )
 
                 except Aluno.DoesNotExist:
                     erros_alunos.append(
-                        {"aluno_id": aluno_id, "mensagem": "Aluno não encontrado."}
+                        {
+                            "aluno_id": aluno_id,
+                            "mensagem": "Aluno não encontrado.",
+                        }
                     )
                     continue
 
@@ -443,10 +488,69 @@ def salvar_presencas(request):
                     chamada=chamada,
                     aluno=aluno,
                     defaults={
-                        "status": status,
+                        "status": status_presenca,
                         "presente": presente,
                         "observacao": observacao,
                     },
+                )
+
+            # =====================================================
+            # AUDITORIA
+            # =====================================================
+            #
+            # Só registra CRIADA quando a chamada realmente
+            # nasceu neste momento.
+            #
+            # Se o usuário apenas editar as presenças de uma
+            # chamada existente, não cria uma nova auditoria.
+            #
+            if chamada_criada:
+
+                # Os totais são calculados sobre os registros
+                # efetivamente gravados no banco.
+                total_alunos = chamada.presencas.count()
+
+                total_presentes = chamada.presencas.filter(status="P").count()
+
+                total_faltas = chamada.presencas.filter(status="F").count()
+
+                total_justificadas = chamada.presencas.filter(status="J").count()
+
+                # =================================================
+                # NOME DO PROFESSOR
+                # =================================================
+                #
+                # Para professor:
+                #   usamos o docente encontrado acima.
+                #
+                # Para coordenador/diretor:
+                #   a chamada pode não ter professor,
+                #   então tentamos usar o professor da própria
+                #   chamada, caso exista.
+                #
+                professor_nome = ""
+
+                if chamada.professor:
+                    professor_nome = getattr(
+                        chamada.professor,
+                        "nome",
+                        str(chamada.professor),
+                    )
+
+                AuditoriaChamada.objects.create(
+                    chamada=chamada,
+                    chamada_id_original=chamada.id,
+                    turma_nome=turma.nome,
+                    disciplina_nome=disciplina.nome,
+                    professor_nome=professor_nome,
+                    data_chamada=chamada.data,
+                    acao=AuditoriaChamada.ACAO_CRIADA,
+                    usuario=request.user,
+                    usuario_nome=request.user.get_full_name().strip(),
+                    total_alunos=total_alunos,
+                    total_presentes=total_presentes,
+                    total_faltas=total_faltas,
+                    total_justificadas=total_justificadas,
                 )
 
     except IntegrityError:
@@ -471,9 +575,20 @@ def salvar_presencas(request):
         )
 
     if erros_alunos:
-        return JsonResponse({"status": "parcial", "erros": erros_alunos}, status=207)
+        return JsonResponse(
+            {
+                "status": "parcial",
+                "erros": erros_alunos,
+            },
+            status=207,
+        )
 
-    return JsonResponse({"status": "sucesso", "mensagem": "Chamada salva com sucesso!"})
+    return JsonResponse(
+        {
+            "status": "sucesso",
+            "mensagem": "Chamada salva com sucesso!",
+        }
+    )
 
 
 @login_required

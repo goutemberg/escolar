@@ -1,0 +1,1233 @@
+{% extends 'layout/base.html' %}
+
+{% block content %}
+  <style>
+    /* ==========================================================
+           BASE
+         ========================================================== */
+    
+    .dashboard-wrapper {
+      padding: 28px;
+    
+      background: #f6f8fb;
+    
+      min-height: calc(100vh - 70px);
+    }
+    
+    /* ==========================================================
+           CABEÇALHO
+         ========================================================== */
+    
+    .dashboard-header {
+      display: flex;
+    
+      justify-content: space-between;
+    
+      align-items: flex-start;
+    
+      gap: 20px;
+    
+      margin-bottom: 28px;
+    }
+    
+    .dashboard-title {
+      margin: 0;
+    
+      color: #172033;
+    
+      font-size: 28px;
+    
+      font-weight: 700;
+    
+      line-height: 1.2;
+    }
+    
+    .dashboard-subtitle {
+      margin-top: 7px;
+    
+      color: #6b7280;
+    
+      font-size: 14px;
+    }
+    
+    .year-badge {
+      padding: 10px 16px;
+    
+      background: #ffffff;
+    
+      border: 1px solid #e5e7eb;
+    
+      border-radius: 10px;
+    
+      color: #4b5563;
+    
+      font-size: 13px;
+    
+      white-space: nowrap;
+    }
+    
+    /* ==========================================================
+           PERGUNTE AO ESCOLINHA
+         ========================================================== */
+    
+    .question-box {
+      margin-bottom: 28px;
+    
+      padding: 24px;
+    
+      color: #ffffff;
+    
+      background: linear-gradient(135deg, #1e88e5, #2563eb);
+    
+      border-radius: 18px;
+    
+      box-shadow: 0 10px 30px rgba(30, 136, 229, 0.18);
+    }
+    
+    .question-box h2 {
+      margin: 0 0 6px;
+    
+      font-size: 20px;
+    
+      font-weight: 700;
+    }
+    
+    .question-box p {
+      margin: 0 0 18px;
+    
+      opacity: 0.88;
+    
+      font-size: 14px;
+    }
+    
+    .question-input {
+      width: 100%;
+    
+      box-sizing: border-box;
+    
+      padding: 14px 16px;
+    
+      border: none;
+    
+      outline: none;
+    
+      border-radius: 12px;
+    
+      background: #ffffff;
+    
+      color: #172033;
+    
+      font-size: 14px;
+    }
+    
+    .question-input::placeholder {
+      color: #6b7280;
+    }
+    
+    /* ==========================================================
+           SEÇÕES
+         ========================================================== */
+    
+    .section-title {
+      margin: 0 0 14px;
+    
+      color: #172033;
+    
+      font-size: 16px;
+    
+      font-weight: 700;
+    }
+    
+    /* ==========================================================
+           INDICADORES
+         ========================================================== */
+    
+    .metrics-grid {
+      display: grid;
+    
+      grid-template-columns: repeat(4, 1fr);
+    
+      gap: 16px;
+    
+      margin-bottom: 30px;
+    }
+    
+    .metric-card {
+      padding: 20px;
+    
+      background: #ffffff;
+    
+      border: 1px solid #e8ebf0;
+    
+      border-radius: 16px;
+    
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    
+    .metric-card:hover {
+      transform: translateY(-2px);
+    
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+    }
+    
+    .metric-label {
+      margin-bottom: 10px;
+    
+      color: #6b7280;
+    
+      font-size: 13px;
+    }
+    
+    .metric-value {
+      color: #172033;
+    
+      font-size: 30px;
+    
+      font-weight: 750;
+    
+      line-height: 1;
+    }
+    
+    .metric-description {
+      margin-top: 10px;
+    
+      color: #9ca3af;
+    
+      font-size: 12px;
+    }
+    
+    /* ==========================================================
+           GRID PRINCIPAL
+         ========================================================== */
+    
+    .dashboard-grid {
+      display: grid;
+    
+      grid-template-columns: 2fr 1fr;
+    
+      gap: 20px;
+    
+      margin-bottom: 24px;
+    }
+    
+    /* ==========================================================
+           PAINÉIS
+         ========================================================== */
+    
+    .panel {
+      padding: 22px;
+    
+      background: #ffffff;
+    
+      border: 1px solid #e8ebf0;
+    
+      border-radius: 16px;
+    
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+    }
+    
+    .panel-header {
+      display: flex;
+    
+      align-items: center;
+    
+      justify-content: space-between;
+    
+      gap: 15px;
+    
+      margin-bottom: 18px;
+    }
+    
+    .panel-header h3 {
+      margin: 0;
+    
+      color: #172033;
+    
+      font-size: 16px;
+    }
+    
+    /* ==========================================================
+           PONTOS DE ATENÇÃO
+         ========================================================== */
+    
+    .alert-item {
+      display: flex;
+    
+      align-items: flex-start;
+    
+      gap: 12px;
+    
+      padding: 14px 0;
+    
+      border-bottom: 1px solid #f0f1f3;
+    
+      text-decoration: none;
+    }
+    
+    .alert-item:last-child {
+      border-bottom: none;
+    }
+    
+    .alert-icon {
+      display: flex;
+    
+      align-items: center;
+    
+      justify-content: center;
+    
+      flex-shrink: 0;
+    
+      width: 34px;
+    
+      height: 34px;
+    
+      border-radius: 10px;
+    
+      font-weight: 700;
+    }
+    
+    .alert-content {
+      flex: 1;
+    
+      min-width: 0;
+    }
+    
+    .alert-title {
+      color: #374151;
+    
+      font-size: 13px;
+    
+      font-weight: 600;
+    
+      line-height: 1.4;
+    }
+    
+    .alert-description {
+      margin-top: 4px;
+    
+      color: #6b7280;
+    
+      font-size: 12px;
+    
+      line-height: 1.45;
+    }
+    
+    .alert-arrow {
+      align-self: center;
+    
+      color: #9ca3af;
+    
+      font-size: 20px;
+    
+      line-height: 1;
+    }
+    
+    /* ==========================================================
+           NÍVEIS DOS PONTOS DE ATENÇÃO
+         ========================================================== */
+    
+    .alert-alta {
+      background: #fef2f2;
+    
+      color: #dc2626;
+    }
+    
+    .alert-media {
+      background: #fff7ed;
+    
+      color: #d97706;
+    }
+    
+    .alert-baixa {
+      background: #fefce8;
+    
+      color: #ca8a04;
+    }
+    
+    .alert-item-link {
+      display: flex;
+    
+      align-items: flex-start;
+    
+      gap: 12px;
+    
+      padding: 14px 8px;
+    
+      margin: 0 -8px;
+    
+      border-bottom: 1px solid #f0f1f3;
+    
+      border-radius: 8px;
+    
+      color: inherit;
+    
+      text-decoration: none;
+    
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+    
+    .alert-item-link:hover {
+      background: #f8fafc;
+    
+      transform: translateX(2px);
+    }
+    
+    /* ==========================================================
+           TURMAS EM ATENÇÃO
+         ========================================================== */
+    
+    .attention-title {
+      margin-bottom: 10px;
+    
+      color: #374151;
+    
+      font-size: 13px;
+    
+      font-weight: 700;
+    }
+    
+    .attention-item {
+      display: flex;
+    
+      align-items: center;
+    
+      gap: 12px;
+    
+      padding: 14px 8px;
+    
+      border-bottom: 1px solid #f0f1f3;
+    
+      border-radius: 8px;
+    
+      cursor: pointer;
+    
+      text-decoration: none;
+    
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+    
+    .attention-item:last-child {
+      border-bottom: none;
+    }
+    
+    .attention-item:hover {
+      background: #f8fafc;
+    
+      transform: translateX(2px);
+    }
+    
+    .attention-icon {
+      display: flex;
+    
+      align-items: center;
+    
+      justify-content: center;
+    
+      flex-shrink: 0;
+    
+      width: 34px;
+    
+      height: 34px;
+    
+      border-radius: 10px;
+    
+      background: #fff4d6;
+    
+      color: #b7791f;
+    
+      font-weight: 700;
+    }
+    
+    .attention-content {
+      flex: 1;
+    
+      min-width: 0;
+    }
+    
+    .attention-name {
+      color: #374151;
+    
+      font-size: 13px;
+    
+      font-weight: 600;
+    }
+    
+    .attention-info {
+      margin-top: 4px;
+    
+      color: #6b7280;
+    
+      font-size: 12px;
+    }
+    
+    .attention-reason {
+      margin-top: 4px;
+    
+      color: #9ca3af;
+    
+      font-size: 11px;
+    }
+    
+    .attention-arrow {
+      color: #9ca3af;
+    
+      font-size: 20px;
+    }
+    
+    /* ==========================================================
+           SAÚDE OPERACIONAL
+         ========================================================== */
+    
+    .health-summary {
+      display: flex;
+    
+      align-items: center;
+    
+      gap: 12px;
+    
+      margin-bottom: 14px;
+    
+      padding: 13px 14px;
+    
+      border-radius: 12px;
+    
+      border: 1px solid #eef1f4;
+    
+      background: #f8fafc;
+    }
+    
+    .health-summary-icon {
+      display: flex;
+    
+      align-items: center;
+    
+      justify-content: center;
+    
+      flex-shrink: 0;
+    
+      width: 36px;
+    
+      height: 36px;
+    
+      border-radius: 10px;
+    
+      font-size: 15px;
+    
+      font-weight: 700;
+    }
+    
+    .health-summary-content {
+      flex: 1;
+    
+      min-width: 0;
+    }
+    
+    .health-summary-title {
+      color: #374151;
+    
+      font-size: 13px;
+    
+      font-weight: 700;
+    }
+    
+    .health-summary-description {
+      margin-top: 3px;
+    
+      color: #6b7280;
+    
+      font-size: 11px;
+    
+      line-height: 1.4;
+    }
+    
+    .health-summary-operacional {
+      border-color: #dcfce7;
+    
+      background: #f0fdf4;
+    }
+    
+    .health-summary-operacional .health-summary-icon {
+      background: #dcfce7;
+    
+      color: #16a34a;
+    }
+    
+    .health-summary-atencao {
+      border-color: #fed7aa;
+    
+      background: #fff7ed;
+    }
+    
+    .health-summary-atencao .health-summary-icon {
+      background: #ffedd5;
+    
+      color: #d97706;
+    }
+    
+    .health-list {
+      display: grid;
+    
+      gap: 0;
+    }
+    
+    .health-item {
+      display: flex;
+    
+      align-items: center;
+    
+      gap: 10px;
+    
+      padding: 13px 0;
+    
+      border-bottom: 1px solid #f0f1f3;
+    }
+    
+    .health-item:last-child {
+      border-bottom: none;
+    }
+    
+    .health-indicator {
+      display: flex;
+    
+      align-items: center;
+    
+      justify-content: center;
+    
+      flex-shrink: 0;
+    
+      width: 32px;
+    
+      height: 32px;
+    
+      border-radius: 9px;
+    
+      font-size: 13px;
+    
+      font-weight: 700;
+    }
+    
+    .health-content {
+      flex: 1;
+    
+      min-width: 0;
+    }
+    
+    .health-top {
+      display: flex;
+    
+      align-items: center;
+    
+      justify-content: space-between;
+    
+      gap: 10px;
+    }
+    
+    .health-label {
+      color: #4b5563;
+    
+      font-size: 13px;
+    
+      font-weight: 600;
+    }
+    
+    .health-status {
+      font-size: 11px;
+    
+      font-weight: 700;
+    
+      white-space: nowrap;
+    }
+    
+    .health-description {
+      margin-top: 3px;
+    
+      color: #9ca3af;
+    
+      font-size: 10px;
+    
+      line-height: 1.35;
+    }
+    
+    /* OPERACIONAL */
+    
+    .health-operacional .health-indicator {
+      background: #ecfdf3;
+    
+      color: #16a34a;
+    }
+    
+    .health-operacional .health-status {
+      color: #16a34a;
+    }
+    
+    /* BOA */
+    
+    .health-boa .health-indicator {
+      background: #ecfdf3;
+    
+      color: #16a34a;
+    }
+    
+    .health-boa .health-status {
+      color: #16a34a;
+    }
+    
+    /* ATENÇÃO */
+    
+    .health-atencao .health-indicator {
+      background: #fff7ed;
+    
+      color: #d97706;
+    }
+    
+    .health-atencao .health-status {
+      color: #d97706;
+    }
+    
+    /* SEM DADOS */
+    
+    .health-sem-dados .health-indicator {
+      background: #f3f4f6;
+    
+      color: #9ca3af;
+    }
+    
+    .health-sem-dados .health-status {
+      color: #9ca3af;
+    }
+    
+    /* EM ANÁLISE */
+    
+    .health-analise .health-indicator {
+      background: #f3f4f6;
+    
+      color: #6b7280;
+    }
+    
+    .health-analise .health-status {
+      color: #6b7280;
+    }
+    
+    /* ==========================================================
+           VISÃO DAS TURMAS
+         ========================================================== */
+    
+    .classes-panel {
+      margin-bottom: 24px;
+    }
+    
+    .classes-header {
+      display: flex;
+    
+      align-items: center;
+    
+      justify-content: space-between;
+    
+      gap: 15px;
+    
+      margin-bottom: 18px;
+    }
+    
+    .classes-header h3 {
+      margin: 0;
+    
+      color: #172033;
+    
+      font-size: 16px;
+    }
+    
+    .classes-count {
+      color: #9ca3af;
+    
+      font-size: 12px;
+    }
+    
+    .classes-grid {
+      display: grid;
+    
+      grid-template-columns: repeat(3, 1fr);
+    
+      gap: 12px;
+    }
+    
+    .class-card {
+      display: block;
+    
+      padding: 16px;
+    
+      background: #ffffff;
+    
+      border: 1px solid #e8ebf0;
+    
+      border-radius: 12px;
+    
+      color: inherit;
+    
+      text-decoration: none;
+    
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+    
+    .class-card:hover {
+      transform: translateY(-2px);
+    
+      border-color: #cbd5e1;
+    
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+    }
+    
+    .class-name {
+      color: #172033;
+    
+      font-size: 14px;
+    
+      font-weight: 700;
+    }
+    
+    .class-meta {
+      margin-top: 5px;
+    
+      color: #9ca3af;
+    
+      font-size: 11px;
+    }
+    
+    .class-action {
+      display: inline-block;
+    
+      margin-top: 12px;
+    
+      color: #2563eb;
+    
+      font-size: 11px;
+    
+      font-weight: 600;
+    }
+    
+    /* ==========================================================
+           ESTADO VAZIO
+         ========================================================== */
+    
+    .empty-state {
+      padding: 28px 10px;
+    
+      color: #9ca3af;
+    
+      font-size: 13px;
+    
+      text-align: center;
+    }
+    
+    /* ==========================================================
+           RESPONSIVIDADE
+         ========================================================== */
+    
+    @media (max-width: 1100px) {
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    
+      .classes-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 650px) {
+      .dashboard-wrapper {
+        padding: 18px;
+      }
+    
+      .dashboard-header {
+        flex-direction: column;
+      }
+    
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+    
+      .classes-grid {
+        grid-template-columns: 1fr;
+      }
+    
+      .dashboard-title {
+        font-size: 24px;
+      }
+    
+      .health-top {
+        align-items: flex-start;
+    
+        flex-direction: column;
+    
+        gap: 3px;
+      }
+    }
+  </style>
+
+  <div class="dashboard-wrapper">
+    <!--  ======================================================
+       CABEÇALHO
+       ======================================================  -->
+
+    <div class="dashboard-header">
+      <div>
+        <h1 class="dashboard-title">Bom dia, Diretor 👋</h1>
+
+        <div class="dashboard-subtitle">Aqui está o estado da sua escola hoje.</div>
+      </div>
+
+      {% if ano_letivo %}
+        <div class="year-badge">Ano letivo {{ ano_letivo.ano }}</div>
+      {% endif %}
+    </div>
+
+    <!--  ======================================================
+       PERGUNTE AO ESCOLINHA
+       ======================================================  -->
+
+    <div class="question-box">
+      <h2>O que você quer saber sobre sua escola?</h2>
+
+      <p>Consulte rapidamente os principais indicadores da gestão escolar.</p>
+
+      <input type="text" class="question-input" placeholder="Ex.: Quais turmas precisam de atenção?" disabled />
+    </div>
+
+    <!--  ======================================================
+       VISÃO EXECUTIVA
+       ======================================================  -->
+
+    <h2 class="section-title">Visão executiva</h2>
+
+    <div class="metrics-grid">
+      <!-- ALUNOS -->
+
+      <div class="metric-card">
+        <div class="metric-label">Alunos ativos</div>
+
+        <div class="metric-value">{{ metricas.alunos_ativos }}</div>
+
+        <div class="metric-description">Matrículas ativas no ano letivo</div>
+      </div>
+
+      <!-- TURMAS -->
+
+      <div class="metric-card">
+        <div class="metric-label">Turmas ativas</div>
+
+        <div class="metric-value">{{ metricas.turmas_ativas }}</div>
+
+        <div class="metric-description">Turmas em funcionamento</div>
+      </div>
+
+      <!-- FREQUÊNCIA -->
+
+      <div class="metric-card">
+        <div class="metric-label">Frequência</div>
+
+        <div class="metric-value">
+          {% if metricas.frequencia is not None %}
+            {{ metricas.frequencia }}%
+          {% else %}
+            —
+          {% endif %}
+        </div>
+
+        <div class="metric-description">Presença geral dos alunos</div>
+      </div>
+
+      <!-- MÉDIA -->
+
+      <div class="metric-card">
+        <div class="metric-label">Média da escola</div>
+
+        <div class="metric-value">
+          {% if metricas.media_escola is not None %}
+            {{ metricas.media_escola }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+
+        <div class="metric-description">Desempenho acadêmico geral</div>
+      </div>
+    </div>
+
+    <!--  ======================================================
+       GRID PRINCIPAL
+       ======================================================  -->
+
+    <div class="dashboard-grid">
+      <!--  ====================================================
+         PONTOS DE ATENÇÃO
+         ====================================================  -->
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3>⚠️ Pontos de atenção</h3>
+        </div>
+
+        {% if pontos_atencao %}
+          {% for ponto in pontos_atencao %}
+            <div class="alert-item-link">
+              {% if ponto.nivel == 'alta' %}
+                <div class="alert-icon alert-alta">!</div>
+              {% elif ponto.nivel == 'media' %}
+                <div class="alert-icon alert-media">!</div>
+              {% else %}
+                <div class="alert-icon alert-baixa">!</div>
+              {% endif %}
+
+              <div class="alert-content">
+                <div class="alert-title">{{ ponto.titulo }}</div>
+
+                <div class="alert-description">{{ ponto.descricao }}</div>
+              </div>
+
+              <div class="alert-arrow">›</div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            Tudo certo por aqui! 🎉
+
+            <br />
+
+            Nenhum ponto de atenção foi identificado.
+          </div>
+        {% endif %}
+
+        <!--  ==================================================
+           TURMAS EM ATENÇÃO
+           ==================================================  -->
+
+        {% if turmas_atencao %}
+          <div style="margin-top: 18px;">
+            <div class="attention-title">Turmas que precisam de atenção</div>
+
+            {% for turma in turmas_atencao %}
+              <a href="{% url 'dashboard_diretor:dashboard_diretor_turma' turma.id %}" class="attention-item">
+                <div class="attention-icon">!</div>
+
+                <div class="attention-content">
+                  <div class="attention-name">{{ turma.nome }}</div>
+
+                  <div class="attention-info">
+                    {% if turma.frequencia is not None %}
+                      Frequência:
+                      {{ turma.frequencia }}%
+                    {% endif %}
+
+                    {% if turma.media is not None %}
+                      {% if turma.frequencia is not None %}
+                        &nbsp; • &nbsp;
+                      {% endif %}Média:
+                      {{ turma.media }}
+                    {% endif %}
+                  </div>
+
+                  <div class="attention-reason">{{ turma.motivos|join:' • ' }}</div>
+                </div>
+
+                <div class="attention-arrow">›</div>
+              </a>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+      <!--  ====================================================
+         SAÚDE OPERACIONAL
+         ====================================================  -->
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Saúde operacional</h3>
+        </div>
+
+        <!--  ==================================================
+           RESUMO
+           ==================================================  -->
+
+        {% if saude_operacional.resumo.status == 'operacional' %}
+          <div class="health-summary health-summary-operacional">
+            <div class="health-summary-icon">✓</div>
+
+            <div class="health-summary-content">
+              <div class="health-summary-title">Operação em ordem</div>
+
+              <div class="health-summary-description">{{ saude_operacional.resumo.mensagem }}</div>
+            </div>
+          </div>
+        {% elif saude_operacional.resumo.status == 'atencao' %}
+          <div class="health-summary health-summary-atencao">
+            <div class="health-summary-icon">!</div>
+
+            <div class="health-summary-content">
+              <div class="health-summary-title">Atenção necessária</div>
+
+              <div class="health-summary-description">{{ saude_operacional.resumo.mensagem }}</div>
+            </div>
+          </div>
+        {% endif %}
+
+        <!--  ==================================================
+           INDICADORES OPERACIONAIS
+           ==================================================  -->
+
+        {% if saude_operacional.indicadores %}
+          <div class="health-list">
+            {% for indicador in saude_operacional.indicadores %}
+              <!-- OPERACIONAL -->
+
+              {% if indicador.status == 'operacional' %}
+                <div class="health-item health-operacional">
+                  <div class="health-indicator">✓</div>
+
+                  <div class="health-content">
+                    <div class="health-top">
+                      <span class="health-label">{{ indicador.titulo }}</span>
+
+                      <span class="health-status">Operacional</span>
+                    </div>
+
+                    <div class="health-description">{{ indicador.descricao }}</div>
+                  </div>
+                </div>
+
+                <!-- BOA -->
+              {% elif indicador.status == 'boa' %}
+                <div class="health-item health-boa">
+                  <div class="health-indicator">✓</div>
+
+                  <div class="health-content">
+                    <div class="health-top">
+                      <span class="health-label">{{ indicador.titulo }}</span>
+
+                      <span class="health-status">Boa</span>
+                    </div>
+
+                    <div class="health-description">{{ indicador.descricao }}</div>
+                  </div>
+                </div>
+
+                <!-- ATENÇÃO -->
+              {% elif indicador.status == 'atencao' %}
+                <div class="health-item health-atencao">
+                  <div class="health-indicator">!</div>
+
+                  <div class="health-content">
+                    <div class="health-top">
+                      <span class="health-label">{{ indicador.titulo }}</span>
+
+                      <span class="health-status">Atenção</span>
+                    </div>
+
+                    <div class="health-description">{{ indicador.descricao }}</div>
+                  </div>
+                </div>
+
+                <!-- SEM DADOS -->
+              {% elif indicador.status == 'sem_dados' %}
+                <div class="health-item health-sem-dados">
+                  <div class="health-indicator">—</div>
+
+                  <div class="health-content">
+                    <div class="health-top">
+                      <span class="health-label">{{ indicador.titulo }}</span>
+
+                      <span class="health-status">Sem dados</span>
+                    </div>
+
+                    <div class="health-description">{{ indicador.descricao }}</div>
+                  </div>
+                </div>
+
+                <!-- EM ANÁLISE -->
+              {% elif indicador.status == 'analise' %}
+                <div class="health-item health-analise">
+                  <div class="health-indicator">•</div>
+
+                  <div class="health-content">
+                    <div class="health-top">
+                      <span class="health-label">{{ indicador.titulo }}</span>
+
+                      <span class="health-status">Em análise</span>
+                    </div>
+
+                    <div class="health-description">{{ indicador.descricao }}</div>
+                  </div>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">Não há indicadores operacionais disponíveis.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!--  ======================================================
+       VISÃO DAS TURMAS
+       ======================================================  -->
+
+    <div class="panel classes-panel">
+      <div class="classes-header">
+        <h3>📚 Visão das turmas</h3>
+
+        <span class="classes-count">
+          {{ turmas|length }}
+
+          turma{{ turmas|length|pluralize }}
+        </span>
+      </div>
+
+      {% if turmas %}
+        <div class="classes-grid">
+          {% for turma in turmas %}
+            <a href="{% url 'dashboard_diretor:dashboard_diretor_turma' turma.id %}" class="class-card">
+              <div class="class-name">{{ turma.nome }}</div>
+
+              <div class="class-meta">
+                {% if turma.ano %}
+                  {{ turma.ano }}º ano
+                {% endif %}
+
+                {% if turma.turno %}
+                  • {{ turma.turno }}
+                {% endif %}
+
+                {% if turma.sala %}
+                  • Sala {{ turma.sala }}
+                {% endif %}
+              </div>
+
+              <div class="class-meta">
+                {{ turma.total_alunos }}
+
+                aluno{{ turma.total_alunos|pluralize }}
+
+                {% if turma.frequencia is not None %}
+                  • {{ turma.frequencia }}% frequência
+                {% endif %}
+
+                {% if turma.media is not None %}
+                  • Média {{ turma.media }}
+                {% endif %}
+              </div>
+
+              <span class="class-action">Ver diagnóstico →</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">Nenhuma turma ativa foi encontrada para o ano letivo atual.</div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -14,6 +14,7 @@ from home.models import (
     Chamada,
     Presenca,
     Aluno,
+    AuditoriaChamada,
 )
 
 
@@ -35,10 +36,16 @@ def salvar_chamada_api(request):
 
     if user.role == "professor":
         try:
-            docente = Docente.objects.get(user=user, escola=user.escola)
+            docente = Docente.objects.get(
+                user=user,
+                escola=user.escola,
+            )
         except Docente.DoesNotExist:
             return Response(
-                {"ok": False, "erro": "Docente não encontrado para este usuário."},
+                {
+                    "ok": False,
+                    "erro": "Docente não encontrado para este usuário.",
+                },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -64,29 +71,47 @@ def salvar_chamada_api(request):
 
     if not resumo_conteudo:
         return Response(
-            {"ok": False, "erro": "O resumo do conteúdo é obrigatório."},
+            {
+                "ok": False,
+                "erro": "O resumo do conteúdo é obrigatório.",
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     if not isinstance(presencas, list) or len(presencas) == 0:
         return Response(
-            {"ok": False, "erro": "A lista de presenças é obrigatória."},
+            {
+                "ok": False,
+                "erro": "A lista de presenças é obrigatória.",
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=user.escola)
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=user.escola,
+        )
     except Turma.DoesNotExist:
         return Response(
-            {"ok": False, "erro": "Turma não encontrada."},
+            {
+                "ok": False,
+                "erro": "Turma não encontrada.",
+            },
             status=status.HTTP_404_NOT_FOUND,
         )
 
     try:
-        disciplina = Disciplina.objects.get(id=disciplina_id, escola=user.escola)
+        disciplina = Disciplina.objects.get(
+            id=disciplina_id,
+            escola=user.escola,
+        )
     except Disciplina.DoesNotExist:
         return Response(
-            {"ok": False, "erro": "Disciplina não encontrada."},
+            {
+                "ok": False,
+                "erro": "Disciplina não encontrada.",
+            },
             status=status.HTTP_404_NOT_FOUND,
         )
 
@@ -102,21 +127,35 @@ def salvar_chamada_api(request):
             return Response(
                 {
                     "ok": False,
-                    "erro": "Você não tem permissão para lançar chamada nesta turma/disciplina.",
+                    "erro": (
+                        "Você não tem permissão para lançar chamada "
+                        "nesta turma/disciplina."
+                    ),
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-    status_validos = {"PLANEJADA", "REALIZADA", "CANCELADA", "INVALIDA"}
+    status_validos = {
+        "PLANEJADA",
+        "REALIZADA",
+        "CANCELADA",
+        "INVALIDA",
+    }
 
     if status_aula not in status_validos:
         return Response(
-            {"ok": False, "erro": "Status inválido."},
+            {
+                "ok": False,
+                "erro": "Status inválido.",
+            },
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     alunos_ids_turma = set(
-        turma.alunos.filter(escola=user.escola).values_list("id", flat=True)
+        turma.alunos.filter(escola=user.escola).values_list(
+            "id",
+            flat=True,
+        )
     )
 
     presencas_tratadas = []
@@ -130,7 +169,7 @@ def salvar_chamada_api(request):
             return Response(
                 {
                     "ok": False,
-                    "erro": "Todos os registros de presença precisam de aluno_id.",
+                    "erro": ("Todos os registros de presença " "precisam de aluno_id."),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -148,7 +187,9 @@ def salvar_chamada_api(request):
             return Response(
                 {
                     "ok": False,
-                    "erro": f"Status de presença inválido para o aluno {aluno_id}.",
+                    "erro": (
+                        "Status de presença inválido " f"para o aluno {aluno_id}."
+                    ),
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -208,6 +249,7 @@ def salvar_chamada_api(request):
                 criado_por=user,
                 escola=user.escola,
             )
+
             chamada_criada = True
 
         if diario:
@@ -232,6 +274,59 @@ def salvar_chamada_api(request):
                     "presente": item["status"] in ["P", "J"],
                     "observacao": item["observacao"],
                 },
+            )
+
+        # ============================================================
+        # AUDITORIA DA CRIAÇÃO DA CHAMADA
+        # ============================================================
+
+        if chamada_criada:
+
+            total_alunos = len(presencas_tratadas)
+
+            total_presentes = sum(
+                1 for item in presencas_tratadas if item["status"] == "P"
+            )
+
+            total_faltas = sum(
+                1 for item in presencas_tratadas if item["status"] == "F"
+            )
+
+            total_justificadas = sum(
+                1 for item in presencas_tratadas if item["status"] == "J"
+            )
+
+            # Usa o nome do docente quando disponível.
+            # O fallback para str() evita depender de um campo
+            # específico do model Docente.
+            professor_nome = ""
+
+            if docente:
+                professor_nome = getattr(
+                    docente,
+                    "nome",
+                    str(docente),
+                )
+            elif chamada.professor:
+                professor_nome = getattr(
+                    chamada.professor,
+                    "nome",
+                    str(chamada.professor),
+                )
+
+            AuditoriaChamada.objects.create(
+                chamada=chamada,
+                chamada_id_original=chamada.id,
+                turma_nome=turma.nome,
+                disciplina_nome=disciplina.nome,
+                professor_nome=professor_nome,
+                data_chamada=chamada.data,
+                acao=AuditoriaChamada.ACAO_CRIADA,
+                usuario=user,
+                total_alunos=total_alunos,
+                total_presentes=total_presentes,
+                total_faltas=total_faltas,
+                total_justificadas=total_justificadas,
             )
 
     return Response(
