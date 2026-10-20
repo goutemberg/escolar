@@ -64,14 +64,19 @@ def presenca_aluno_mensal(request):
     # =====================================
     if mes:
         mes = int(mes)
+
         _, ultimo_dia = monthrange(ano, mes)
+
         data_inicio = date(ano, mes, 1)
         data_fim = date(ano, mes, ultimo_dia)
+
         tipo_relatorio = "mensal"
         mes_atual = mes
+
     else:
         data_inicio = date(ano, 1, 1)
         data_fim = date(ano, 12, 31)
+
         tipo_relatorio = "anual"
         mes_atual = None
 
@@ -84,21 +89,26 @@ def presenca_aluno_mensal(request):
         aluno__escola=escola,
     )
 
-    # Apenas professores enxergam suas próprias chamadas
+    # Professor visualiza somente suas próprias chamadas.
     if user.role == "professor":
-        presencas = presencas.filter(chamada__professor=professor)
+        presencas = presencas.filter(
+            chamada__professor=professor,
+        )
 
+    # Filtro por turma registrada na chamada.
     if turma_id and turma_id != "None":
-        presencas = presencas.filter(chamada__turma_id=turma_id)
+        presencas = presencas.filter(
+            chamada__turma_id=turma_id,
+        )
 
     # =====================================
-    # AGRUPAMENTO
+    # AGRUPAMENTO POR ALUNO E TURMA HISTÓRICA
     # =====================================
     resumo = list(
         presencas.values(
             "aluno_id",
             "aluno__nome",
-            "aluno__turma_principal__nome",
+            "chamada__turma__nome",
         )
         .annotate(
             total_aulas=Count("id"),
@@ -111,11 +121,15 @@ def presenca_aluno_mensal(request):
                 filter=Q(presente=False),
             ),
         )
-        .annotate(percentual_presenca=F("total_presentes") * 100.0 / F("total_aulas"))
-        .order_by("aluno__nome")
+        .annotate(percentual_presenca=(F("total_presentes") * 100.0 / F("total_aulas")))
+        .order_by(
+            "aluno__nome",
+            "chamada__turma__nome",
+        )
     )
+
     # =====================================
-    # AJUSTES
+    # AJUSTES DOS PERCENTUAIS
     # =====================================
     for r in resumo:
         if r["total_aulas"] == 0:
@@ -129,25 +143,37 @@ def presenca_aluno_mensal(request):
     # =====================================
     # DASHBOARD
     # =====================================
+
+    # Quantidade de linhas do resumo.
+    # Um aluno em duas turmas poderá aparecer
+    # em duas linhas distintas.
     total_alunos = len(resumo)
 
-    total_aulas = sum(r["total_aulas"] for r in resumo)
+    # Conta cada chamada distinta somente uma vez,
+    # independentemente da quantidade de alunos.
+    total_aulas = presencas.values("chamada_id").distinct().count()
+
+    # Média geral ponderada pela quantidade de
+    # registros individuais de frequência.
+    total_registros = sum(r["total_aulas"] for r in resumo)
+
+    total_presentes = sum(r["total_presentes"] for r in resumo)
 
     media_presenca = (
         round(
-            sum(r["percentual_presenca"] for r in resumo) / total_alunos,
+            total_presentes * 100 / total_registros,
             1,
         )
-        if total_alunos
+        if total_registros
         else 0
     )
 
+    # Alunos com frequência abaixo de 75%.
     alunos_risco = sum(1 for r in resumo if r["percentual_presenca"] < 75)
 
     # ==========================================
     # PAGINAÇÃO
     # ==========================================
-
     paginator = Paginator(
         resumo,
         25,
@@ -196,6 +222,9 @@ def presenca_aluno_mensal(request):
         {"valor": 12, "nome": "Dezembro"},
     ]
 
+    # =====================================
+    # RENDERIZAÇÃO
+    # =====================================
     return render(
         request,
         "pages/relatorios/presenca_aluno_mensal.html",
