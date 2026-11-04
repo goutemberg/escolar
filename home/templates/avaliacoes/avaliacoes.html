@@ -374,7 +374,90 @@ Nenhuma avaliação cadastrada.
 
 </tbody>
 
+
 </table>
+
+<!-- ========================================= -->
+<!-- PAGINAÇÃO -->
+<!-- ========================================= -->
+
+{% if avaliacoes.has_other_pages %}
+
+<div class="d-flex flex-column flex-md-row
+            justify-content-between align-items-center
+            mt-3 gap-2">
+
+    <small class="text-muted">
+        Exibindo {{ avaliacoes.start_index }}
+        até {{ avaliacoes.end_index }}
+        de {{ avaliacoes.paginator.count }} avaliações
+    </small>
+
+    <nav aria-label="Paginação de avaliações">
+        <ul class="pagination pagination-sm mb-0">
+
+            <!-- PRIMEIRA -->
+            {% if avaliacoes.has_previous %}
+            <li class="page-item">
+                <a class="page-link"
+                   href="?page=1{% if request.GET.turma_id %}&turma_id={{ request.GET.turma_id }}{% endif %}">
+                    Primeira
+                </a>
+            </li>
+
+            <li class="page-item">
+                <a class="page-link"
+                   href="?page={{ avaliacoes.previous_page_number }}{% if request.GET.turma_id %}&turma_id={{ request.GET.turma_id }}{% endif %}">
+                    Anterior
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">Primeira</span>
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link">Anterior</span>
+            </li>
+            {% endif %}
+
+            <!-- PÁGINA ATUAL -->
+            <li class="page-item active">
+                <span class="page-link">
+                    {{ avaliacoes.number }} /
+                    {{ avaliacoes.paginator.num_pages }}
+                </span>
+            </li>
+
+            <!-- PRÓXIMA -->
+            {% if avaliacoes.has_next %}
+            <li class="page-item">
+                <a class="page-link"
+                   href="?page={{ avaliacoes.next_page_number }}{% if request.GET.turma_id %}&turma_id={{ request.GET.turma_id }}{% endif %}">
+                    Próxima
+                </a>
+            </li>
+
+            <li class="page-item">
+                <a class="page-link"
+                   href="?page={{ avaliacoes.paginator.num_pages }}{% if request.GET.turma_id %}&turma_id={{ request.GET.turma_id }}{% endif %}">
+                    Última
+                </a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <span class="page-link">Próxima</span>
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link">Última</span>
+            </li>
+            {% endif %}
+
+        </ul>
+    </nav>
+
+</div>
+
+{% endif %}
 
 </div>
 
@@ -384,239 +467,305 @@ Nenhuma avaliação cadastrada.
 
 {% block extra_js %}
 
+
+
 <script>
-
-// (JS ORIGINAL MANTIDO 100% INTACTO)
-
 document.addEventListener("DOMContentLoaded", function () {
 
-const btnCadastrar = document.getElementById("btnCadastrar");
-const campoData = document.getElementById("data");
+    const btnCadastrar = document.getElementById("btnCadastrar");
+    const campoData = document.getElementById("data");
 
-if (!campoData.value) {
+    // ======================================
+    // FUNÇÕES AUXILIARES
+    // ======================================
 
-const hoje = new Date();
+    function dataHoje() {
+        const hoje = new Date();
+        const ano = hoje.getFullYear();
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        const dia = String(hoje.getDate()).padStart(2, '0');
 
-const ano = hoje.getFullYear();
-const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-const dia = String(hoje.getDate()).padStart(2, '0');
+        return `${ano}-${mes}-${dia}`;
+    }
 
-campoData.value = `${ano}-${mes}-${dia}`;
+    function atualizarListagem() {
+        const turma = document.getElementById("turma").value;
+        const url = new URL(window.location.href);
 
-}
+        url.searchParams.delete("page");
 
-btnCadastrar.addEventListener("click", function () {
+        if (turma) {
+            url.searchParams.set("turma_id", turma);
+        }
 
-const turma = document.getElementById("turma").value;
-const disciplina = document.getElementById("disciplina").value;
-const tipo = document.getElementById("tipo").value;
-const descricao = document.getElementById("descricao").value.trim();
-const bimestre = document.getElementById("bimestre").value;
-const quantidade = document.getElementById("quantidade").value || 1;
-const data = document.getElementById("data").value;
+        window.location.href = url.toString();
+    }
 
-if (!turma){ alert("Selecione a turma."); return; }
-if (!disciplina){ alert("Selecione a disciplina."); return; }
-if (!tipo){ alert("Selecione o tipo."); return; }
-if (!descricao){ alert("Informe a descrição."); return; }
-if (!bimestre || bimestre < 1 || bimestre > 4){
-alert("Bimestre deve ser entre 1 e 4."); return;
-}
-if (!data){ alert("Informe a data."); return; }
+    if (campoData && !campoData.value) {
+        campoData.value = dataHoje();
+    }
 
-const editId = btnCadastrar.dataset.editId || null;
+    // ======================================
+    // CADASTRAR / EDITAR PELO FORMULÁRIO
+    // ======================================
 
-let url = "";
-let method = "";
+    btnCadastrar.addEventListener("click", function () {
 
-if (editId){
-    url = `/avaliacoes/editar/${editId}/`;
-    method = "PUT";
-}else{
-    url = "/avaliacoes/";
-    method = "POST";
-}
+        const turma = document.getElementById("turma").value;
+        const disciplina = document.getElementById("disciplina").value;
+        const tipo = document.getElementById("tipo").value;
+        const descricao = document.getElementById("descricao").value.trim();
+        const bimestre = document.getElementById("bimestre").value;
+        const quantidade = document.getElementById("quantidade").value || 1;
+        const data = document.getElementById("data").value;
 
-fetch(url,{
-method: method,
-headers:{
-"Content-Type":"application/json",
-"X-CSRFToken":"{{ csrf_token }}"
-},
-body: JSON.stringify({
-turma_id: turma,
-disciplina_id: disciplina,
-tipo_id: tipo,
-descricao: descricao,
-bimestre: bimestre,
-quantidade: quantidade,
-data: data
-})
-})
-.then(r=>r.json())
-.then(data=>{
-if (data.mensagem){
-    alert(data.mensagem);
+        if (!turma) {
+            alert("Selecione a turma.");
+            return;
+        }
 
-    //LIMPAR CAMPOS (mantendo turma selecionada)
-    document.getElementById("disciplina").value = "";
-    document.getElementById("tipo").value = "";
-    document.getElementById("descricao").value = "";
-    document.getElementById("bimestre").value = "";
-    document.getElementById("quantidade").value = "";
+        if (!disciplina) {
+            alert("Selecione a disciplina.");
+            return;
+        }
 
-    // mantém a data como hoje
-    const hoje = new Date();
-    const ano = hoje.getFullYear();
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const dia = String(hoje.getDate()).padStart(2, '0');
-    document.getElementById("data").value = `${ano}-${mes}-${dia}`;
+        if (!tipo) {
+            alert("Selecione o tipo.");
+            return;
+        }
 
-    // eset modo edição
-    btnCadastrar.textContent = "Cadastrar Avaliação";
-    delete btnCadastrar.dataset.editId;
+        if (!descricao) {
+            alert("Informe a descrição.");
+            return;
+        }
 
-    //reload mantendo turma
-    const turma = document.getElementById("turma").value;
-    window.location.href = `/avaliacoes/?turma_id=${turma}`;
-}
-else{
-alert(data.erro || "Erro.");
-}
+        if (!bimestre || bimestre < 1 || bimestre > 4) {
+            alert("Bimestre deve ser entre 1 e 4.");
+            return;
+        }
+
+        if (!data) {
+            alert("Informe a data.");
+            return;
+        }
+
+        const editId = btnCadastrar.dataset.editId || null;
+
+        const url = editId
+            ? `/avaliacoes/editar/${editId}/`
+            : "/avaliacoes/";
+
+        const method = editId ? "PUT" : "POST";
+
+        btnCadastrar.disabled = true;
+
+        fetch(url, {
+            method: method,
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({
+                turma_id: turma,
+                disciplina_id: disciplina,
+                tipo_id: tipo,
+                descricao: descricao,
+                bimestre: bimestre,
+                quantidade: quantidade,
+                data: data
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+
+            // Mantém a verificação original.
+            if (data.mensagem) {
+
+                alert(data.mensagem);
+
+                document.getElementById("disciplina").value = "";
+                document.getElementById("tipo").value = "";
+                document.getElementById("descricao").value = "";
+                document.getElementById("bimestre").value = "";
+                document.getElementById("quantidade").value = "";
+
+                document.getElementById("data").value = dataHoje();
+
+                btnCadastrar.textContent = "Cadastrar Avaliação";
+                delete btnCadastrar.dataset.editId;
+
+                // Atualiza a listagem após o alerta.
+                atualizarListagem();
+
+            } else {
+                alert(data.erro || "Erro ao salvar avaliação.");
+            }
+
+        })
+        .catch(error => {
+            console.error("Erro:", error);
+            alert("Erro de comunicação com o servidor.");
+        })
+        .finally(() => {
+            btnCadastrar.disabled = false;
+        });
+
+    });
+
+    // ======================================
+    // EXCLUIR AVALIAÇÃO
+    // ======================================
+
+    document.querySelectorAll(".btnExcluir").forEach(function (btn) {
+
+        btn.addEventListener("click", function () {
+
+            const id = this.dataset.id;
+
+            if (!confirm("Deseja realmente excluir?")) return;
+
+            fetch(`/avaliacoes/excluir/${id}/`, {
+                method: "DELETE",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}"
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+
+                if (data.mensagem) {
+                    alert(data.mensagem);
+                    atualizarListagem();
+                } else {
+                    alert(data.erro || "Erro ao excluir avaliação.");
+                }
+
+            })
+            .catch(error => {
+                console.error("Erro:", error);
+                alert("Erro ao excluir avaliação.");
+            });
+
+        });
+
+    });
+
+    // ======================================
+    // EDITAR AVALIAÇÃO PELO FORMULÁRIO
+    // ======================================
+
+    document.querySelectorAll(".btnEditar").forEach(function (btn) {
+
+        btn.addEventListener("click", function () {
+
+            const id = this.dataset.id;
+
+            document.getElementById("turma").value = this.dataset.turma;
+            document.getElementById("disciplina").value = this.dataset.disciplina;
+            document.getElementById("tipo").value = this.dataset.tipo;
+            document.getElementById("descricao").value = this.dataset.descricao;
+            document.getElementById("bimestre").value = this.dataset.bimestre;
+            document.getElementById("data").value = this.dataset.data;
+
+            btnCadastrar.textContent = "Atualizar Avaliação";
+            btnCadastrar.dataset.editId = id;
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+
+        });
+
+    });
+
+    // ======================================
+    // EDIÇÃO INLINE
+    // ======================================
+
+    document.addEventListener("click", function (e) {
+
+        // ENTRAR NO MODO DE EDIÇÃO
+
+        const btnEditarInline = e.target.closest(".btnEditarInline");
+
+        if (btnEditarInline) {
+
+            const id = btnEditarInline.dataset.id;
+            const linha = document.getElementById(`linha-${id}`);
+
+            if (!linha) return;
+
+            linha.querySelectorAll(".view-mode").forEach(el => {
+                el.classList.add("d-none");
+            });
+
+            linha.querySelectorAll(".edit-mode").forEach(el => {
+                el.classList.remove("d-none");
+            });
+
+            linha.querySelector(".btnEditarInline").classList.add("d-none");
+            linha.querySelector(".btnSalvarInline").classList.remove("d-none");
+
+            return;
+        }
+
+        // SALVAR EDIÇÃO INLINE
+
+        const btnSalvar = e.target.closest(".btnSalvarInline");
+
+        if (btnSalvar) {
+
+            const id = btnSalvar.dataset.id;
+            const linha = document.getElementById(`linha-${id}`);
+
+            if (!linha) return;
+
+            const descricao = linha.querySelector(".descricao-input").value;
+            const disciplina = linha.querySelector(".disciplina-input").value;
+            const tipo = linha.querySelector(".tipo-input").value;
+            const bimestre = linha.querySelector(".bimestre-input").value;
+            const data = linha.querySelector(".data-input").value;
+
+            btnSalvar.disabled = true;
+
+            fetch(`/avaliacoes/editar/${id}/`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({
+                    descricao: descricao,
+                    disciplina_id: disciplina,
+                    tipo_id: tipo,
+                    bimestre: bimestre,
+                    data: data
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+
+                if (data.mensagem) {
+                    alert(data.mensagem);
+                    atualizarListagem();
+                } else {
+                    alert(data.erro || "Erro ao atualizar.");
+                    btnSalvar.disabled = false;
+                }
+
+            })
+            .catch(error => {
+                console.error("Erro:", error);
+                alert("Erro ao atualizar avaliação.");
+                btnSalvar.disabled = false;
+            });
+
+        }
+
+    });
+
 });
-
-});
-
-document.querySelectorAll(".btnExcluir").forEach(function (btn){
-
-btn.addEventListener("click", function (){
-
-const id = this.dataset.id;
-
-if (!confirm("Deseja realmente excluir?")) return;
-
-fetch(`/avaliacoes/excluir/${id}/`,{
-method:"DELETE",
-headers:{
-"X-CSRFToken":"{{ csrf_token }}"
-}
-})
-.then(r=>r.json())
-.then(data=>{
-alert(data.mensagem || data.erro);
-location.reload();
-});
-
-});
-
-});
-
-document.querySelectorAll(".btnEditar").forEach(function (btn){
-
-btn.addEventListener("click", function (){
-
-const id = this.dataset.id;
-
-document.getElementById("turma").value = this.dataset.turma;
-document.getElementById("disciplina").value = this.dataset.disciplina;
-document.getElementById("tipo").value = this.dataset.tipo;
-document.getElementById("descricao").value = this.dataset.descricao;
-document.getElementById("bimestre").value = this.dataset.bimestre;
-document.getElementById("data").value = this.dataset.data;
-
-btnCadastrar.textContent = "Atualizar Avaliação";
-btnCadastrar.dataset.editId = id;
-
-window.scrollTo({ top:0, behavior:'smooth' });
-
-});
-
-});
-
-});
-
-// ======================================
-// EDIÇÃO INLINE + SALVAR
-// ======================================
-
-document.addEventListener("click", function(e){
-
-// ======================================
-// EDITAR
-// ======================================
-
-const btnEditar = e.target.closest(".btnEditarInline");
-
-if(btnEditar){
-
-const id = btnEditar.dataset.id;
-
-const linha = document.getElementById(`linha-${id}`);
-
-linha.querySelectorAll(".view-mode").forEach(el=>{
-el.classList.add("d-none");
-});
-
-linha.querySelectorAll(".edit-mode").forEach(el=>{
-el.classList.remove("d-none");
-});
-
-linha.querySelector(".btnEditarInline").classList.add("d-none");
-linha.querySelector(".btnSalvarInline").classList.remove("d-none");
-
-}
-
-// ======================================
-// SALVAR
-// ======================================
-
-const btnSalvar = e.target.closest(".btnSalvarInline");
-
-if(btnSalvar){
-
-const id = btnSalvar.dataset.id;
-
-const linha = document.getElementById(`linha-${id}`);
-
-const descricao = linha.querySelector(".descricao-input").value;
-const disciplina = linha.querySelector(".disciplina-input").value;
-const tipo = linha.querySelector(".tipo-input").value;
-const bimestre = linha.querySelector(".bimestre-input").value;
-const data = linha.querySelector(".data-input").value;
-
-fetch(`/avaliacoes/editar/${id}/`,{
-method:"PUT",
-headers:{
-"Content-Type":"application/json",
-"X-CSRFToken":"{{ csrf_token }}"
-},
-body: JSON.stringify({
-descricao: descricao,
-disciplina_id: disciplina,
-tipo_id: tipo,
-bimestre: bimestre,
-data: data
-})
-})
-.then(r=>r.json())
-.then(data=>{
-
-if(data.mensagem){
-
-location.reload();
-
-}else{
-
-alert(data.erro || "Erro ao atualizar.");
-
-}
-
-});
-
-}
-
-});
-
 </script>
 
 {% endblock extra_js %}
