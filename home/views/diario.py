@@ -54,7 +54,8 @@ def api_disciplinas_por_turma(request, turma_id):
 
     qs = TurmaDisciplina.objects.filter(
         turma_id=turma_id,
-        turma__escola=user.escola
+        turma__escola=user.escola,
+        escola=user.escola,
     )
 
     # professor vê apenas o que leciona
@@ -66,19 +67,23 @@ def api_disciplinas_por_turma(request, turma_id):
 
     disciplinas = (
         qs.select_related("disciplina")
-          .values("disciplina__id", "disciplina__nome")
-          .distinct()
+        .values(
+            "disciplina__id",
+            "disciplina__nome",
+        )
+        .distinct()
     )
 
     data = [
         {
             "id": d["disciplina__id"],
-            "nome": d["disciplina__nome"]
+            "nome": d["disciplina__nome"],
         }
         for d in disciplinas
     ]
 
     return JsonResponse(data, safe=False)
+
 
 @login_required
 def api_listar_diario(request):
@@ -91,18 +96,13 @@ def api_listar_diario(request):
 
     ano, mes_num = mes.split("-")
 
-    diarios = (
-        DiarioDeClasse.objects
-        .filter(
-            turma_id=turma_id,
-            disciplina_id=disciplina_id,
-            data_ministrada__year=int(ano),
-            data_ministrada__month=int(mes_num),
-            escola=request.escola
-
-        )
-        .order_by("data_ministrada", "hora_inicio")
-    )
+    diarios = DiarioDeClasse.objects.filter(
+        turma_id=turma_id,
+        disciplina_id=disciplina_id,
+        data_ministrada__year=int(ano),
+        data_ministrada__month=int(mes_num),
+        escola=request.escola,
+    ).order_by("data_ministrada", "hora_inicio")
 
     data = [
         {
@@ -110,7 +110,7 @@ def api_listar_diario(request):
             "data_ministrada": d.data_ministrada.isoformat(),
             "hora_inicio": d.hora_inicio.strftime("%H:%M") if d.hora_inicio else "",
             "hora_fim": d.hora_fim.strftime("%H:%M") if d.hora_fim else "",
-            "resumo_conteudo": d.resumo_conteudo
+            "resumo_conteudo": d.resumo_conteudo,
         }
         for d in diarios
     ]
@@ -134,31 +134,19 @@ def salvar_diario_classe(request):
 
         if not all([turma_id, disciplina_id, data_ministrada, resumo_conteudo]):
             return JsonResponse(
-                {"error": "Campos obrigatórios não informados."},
-                status=400
+                {"error": "Campos obrigatórios não informados."}, status=400
             )
 
         # converte data
         try:
             data_ministrada_date = date.fromisoformat(data_ministrada)
         except ValueError:
-            return JsonResponse(
-                {"error": "Data ministrada inválida."},
-                status=400
-            )
+            return JsonResponse({"error": "Data ministrada inválida."}, status=400)
 
-        turma = Turma.objects.get(
-            id=turma_id,
-            escola=request.escola
-
-        )
+        turma = Turma.objects.get(id=turma_id, escola=request.escola)
 
         # ✅ blindagem: disciplina sempre da mesma escola
-        disciplina = Disciplina.objects.get(
-            id=disciplina_id,
-            escola=request.escola
-
-        )
+        disciplina = Disciplina.objects.get(id=disciplina_id, escola=request.escola)
 
         # =========================
         # CONTROLE DE PERMISSÃO
@@ -167,53 +155,36 @@ def salvar_diario_classe(request):
 
         if request.user.role == "professor":
             professor_obj = Docente.objects.filter(
-                user=request.user,
-                escola=request.escola
-
+                user=request.user, escola=request.escola
             ).first()
 
             if not professor_obj:
                 return JsonResponse(
-                    {"error": "Professor sem vínculo com docente."},
-                    status=403
+                    {"error": "Professor sem vínculo com docente."}, status=403
                 )
 
             # garante que o professor leciona a turma/disciplina
             if not turma.turmadisciplina_set.filter(
-                professor=professor_obj,
-                disciplina=disciplina,
-                escola=request.escola
-
+                professor=professor_obj, disciplina=disciplina, escola=request.escola
             ).exists():
                 return JsonResponse(
                     {"error": "Acesso não autorizado para esta turma/disciplina."},
-                    status=403
+                    status=403,
                 )
 
             # ✅ REMOVIDO: bloqueio retroativo para professor
             # (agora professor pode salvar/editar datas anteriores)
 
         elif request.user.role not in ["diretor", "coordenador"]:
-            return JsonResponse(
-                {"error": "Acesso negado."},
-                status=403
-            )
+            return JsonResponse({"error": "Acesso negado."}, status=403)
 
         # =========================
         # CREATE ou UPDATE
         # =========================
         if diario_id:
-            diario = DiarioDeClasse.objects.get(
-                id=diario_id,
-                escola=request.escola
-
-            )
+            diario = DiarioDeClasse.objects.get(id=diario_id, escola=request.escola)
         else:
-            diario = DiarioDeClasse(
-                escola=request.escola
-,
-                criado_por=request.user
-            )
+            diario = DiarioDeClasse(escola=request.escola, criado_por=request.user)
 
         diario.turma = turma
         diario.disciplina = disciplina
@@ -243,11 +214,10 @@ def salvar_diario_classe(request):
 
     except Exception as e:
         return JsonResponse(
-            {"error": "Erro interno ao salvar diário.", "detail": str(e)},
-            status=500
+            {"error": "Erro interno ao salvar diário.", "detail": str(e)}, status=500
         )
-  
-    
+
+
 @login_required
 @require_GET
 def diario_classe_pdf(request):
@@ -259,22 +229,16 @@ def diario_classe_pdf(request):
         if not all([turma_id, disciplina_id, mes]):
             return HttpResponseBadRequest("Parâmetros obrigatórios ausentes.")
 
-        turma = get_object_or_404(
-            Turma,
-            id=turma_id,
-            escola=request.escola
-        )
+        turma = get_object_or_404(Turma, id=turma_id, escola=request.escola)
 
         disciplina = get_object_or_404(
-            Disciplina,
-            id=disciplina_id
+            Disciplina, id=disciplina_id, escola=request.escola
         )
 
         ano, mes_num = map(int, mes.split("-"))
 
         diarios = (
-            DiarioDeClasse.objects
-            .filter(
+            DiarioDeClasse.objects.filter(
                 escola=request.escola,
                 turma=turma,
                 disciplina=disciplina,
@@ -348,27 +312,19 @@ def diario_classe_pdf(request):
         # ============================
 
         elements.append(
-            Paragraph(
-                f"<b>{request.escola.nome.upper()}</b>",
-                titulo_style
-            )
+            Paragraph(f"<b>{request.escola.nome.upper()}</b>", titulo_style)
         )
 
         elements.append(
             Paragraph(
                 "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
-                styles["Normal"]
+                styles["Normal"],
             )
         )
 
         elements.append(Spacer(1, 6))
 
-        elements.append(
-            Paragraph(
-                "<b>DIÁRIO DE CLASSE</b>",
-                titulo_style
-            )
-        )
+        elements.append(Paragraph("<b>DIÁRIO DE CLASSE</b>", titulo_style))
 
         mes_formatado = format_date(
             date(ano, mes_num, 1),
@@ -393,9 +349,7 @@ def diario_classe_pdf(request):
         # 📊 TABELA
         # ============================
 
-        tabela_data = [
-            ["#", "Data", "Horário", "Conteúdo", "Status"]
-        ]
+        tabela_data = [["#", "Data", "Horário", "Conteúdo", "Status"]]
 
         def fmt_hora(h):
             return h.strftime("%H:%M") if h else "-"
@@ -415,67 +369,60 @@ def diario_classe_pdf(request):
                 .replace("\n", "<br/>")
             )
 
-            conteudo = Paragraph(
-                texto_formatado,
-                conteudo_style
-            )
+            conteudo = Paragraph(texto_formatado, conteudo_style)
 
-            status = Paragraph(
-                "<b>✔ Aula Realizada</b>",
-                status_style
-            )
+            status = Paragraph("<b>✔ Aula Realizada</b>", status_style)
 
-            tabela_data.append([
-                str(idx),
-                d.data_ministrada.strftime("%d/%m/%Y"),
-                horario,
-                conteudo,
-                status,
-            ])
+            tabela_data.append(
+                [
+                    str(idx),
+                    d.data_ministrada.strftime("%d/%m/%Y"),
+                    horario,
+                    conteudo,
+                    status,
+                ]
+            )
 
         tabela = Table(
             tabela_data,
             colWidths=[
-                1.2 * cm,   # #
-                2.8 * cm,   # Data
-                3.5 * cm,   # Horário
-                8.5 * cm,   # Conteúdo
-                2.5 * cm,   # Status
+                1.2 * cm,  # #
+                2.8 * cm,  # Data
+                3.5 * cm,  # Horário
+                8.5 * cm,  # Conteúdo
+                2.5 * cm,  # Status
             ],
             repeatRows=1,
         )
 
-        tabela.setStyle(TableStyle([
-
-            # Cabeçalho
-            ("BACKGROUND", (0, 0), (-1, 0), azul),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, 0), 9),
-
-            # Grid
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
-
-            # Alinhamentos
-            ("ALIGN", (0, 0), (0, -1), "CENTER"),
-            ("ALIGN", (1, 1), (2, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-
-            # Padding cabeçalho
-            ("TOPPADDING", (0, 0), (-1, 0), 8),
-            ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-
-            # Padding geral
-            ("TOPPADDING", (0, 1), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
-
-            # Padding especial conteúdo
-            ("LEFTPADDING", (3, 1), (3, -1), 8),
-            ("RIGHTPADDING", (3, 1), (3, -1), 8),
-            ("TOPPADDING", (3, 1), (3, -1), 8),
-            ("BOTTOMPADDING", (3, 1), (3, -1), 8),
-
-        ]))
+        tabela.setStyle(
+            TableStyle(
+                [
+                    # Cabeçalho
+                    ("BACKGROUND", (0, 0), (-1, 0), azul),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, 0), 9),
+                    # Grid
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    # Alinhamentos
+                    ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                    ("ALIGN", (1, 1), (2, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    # Padding cabeçalho
+                    ("TOPPADDING", (0, 0), (-1, 0), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+                    # Padding geral
+                    ("TOPPADDING", (0, 1), (-1, -1), 6),
+                    ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
+                    # Padding especial conteúdo
+                    ("LEFTPADDING", (3, 1), (3, -1), 8),
+                    ("RIGHTPADDING", (3, 1), (3, -1), 8),
+                    ("TOPPADDING", (3, 1), (3, -1), 8),
+                    ("BOTTOMPADDING", (3, 1), (3, -1), 8),
+                ]
+            )
+        )
 
         elements.append(tabela)
 
@@ -495,10 +442,14 @@ def diario_classe_pdf(request):
             colWidths=[8 * cm, 8 * cm],
         )
 
-        assinatura_tabela.setStyle(TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("TOPPADDING", (0, 0), (-1, -1), 20),
-        ]))
+        assinatura_tabela.setStyle(
+            TableStyle(
+                [
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("TOPPADDING", (0, 0), (-1, -1), 20),
+                ]
+            )
+        )
 
         elements.append(assinatura_tabela)
 
@@ -511,10 +462,7 @@ def diario_classe_pdf(request):
         pdf = buffer.getvalue()
         buffer.close()
 
-        response = HttpResponse(
-            pdf,
-            content_type="application/pdf"
-        )
+        response = HttpResponse(pdf, content_type="application/pdf")
 
         response["Content-Disposition"] = (
             f'inline; filename="diario_classe_{turma.nome}_{mes}.pdf"'
@@ -523,25 +471,17 @@ def diario_classe_pdf(request):
         return response
 
     except Exception as e:
-        return HttpResponse(
-            f"Erro ao gerar PDF: {str(e)}",
-            status=500
-        )
+        return HttpResponse(f"Erro ao gerar PDF: {str(e)}", status=500)
+
 
 @login_required
 def excluir_diario_classe(request, registro_id):
     if request.method != "DELETE":
-        return JsonResponse(
-            {"error": "Método não permitido."},
-            status=405
-        )
+        return JsonResponse({"error": "Método não permitido."}, status=405)
 
     try:
         diario = get_object_or_404(
-            DiarioDeClasse,
-            id=registro_id,
-            escola=request.escola
-
+            DiarioDeClasse, id=registro_id, escola=request.escola
         )
 
         # =========================
@@ -549,15 +489,12 @@ def excluir_diario_classe(request, registro_id):
         # =========================
         if request.user.role == "professor":
             professor_obj = Docente.objects.filter(
-                user=request.user,
-                escola=request.escola
-
+                user=request.user, escola=request.escola
             ).first()
 
             if not professor_obj:
                 return JsonResponse(
-                    {"error": "Professor sem vínculo com docente."},
-                    status=403
+                    {"error": "Professor sem vínculo com docente."}, status=403
                 )
 
             # ✅ garante que o professor está vinculado à turma/disciplina do diário
@@ -565,14 +502,13 @@ def excluir_diario_classe(request, registro_id):
                 turma=diario.turma,
                 disciplina=diario.disciplina,
                 professor=professor_obj,
-                escola=request.escola
-
+                escola=request.escola,
             ).exists()
 
             if not permitido:
                 return JsonResponse(
                     {"error": "Você não tem permissão para excluir este registro."},
-                    status=403
+                    status=403,
                 )
 
             # ✅ REMOVIDO: bloqueio retroativo para professor
@@ -584,12 +520,10 @@ def excluir_diario_classe(request, registro_id):
         diario.delete()
 
         return JsonResponse(
-            {"success": True, "message": "Registro excluído com sucesso."},
-            status=200
+            {"success": True, "message": "Registro excluído com sucesso."}, status=200
         )
 
     except Exception as e:
         return JsonResponse(
-            {"error": "Erro interno ao excluir diário.", "detail": str(e)},
-            status=500
+            {"error": "Erro interno ao excluir diário.", "detail": str(e)}, status=500
         )

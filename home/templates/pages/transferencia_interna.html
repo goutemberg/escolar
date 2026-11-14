@@ -1,0 +1,736 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}
+  Transferência Interna
+{% endblock %}
+
+{% block content %}
+  <div class="container-fluid py-4">
+    <!-- ===================================================== -->
+    <!-- CABEÇALHO -->
+    <!-- ===================================================== -->
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h2 class="fw-bold mb-1">
+          <i class="bi bi-arrow-left-right"></i>
+          Transferência Interna
+        </h2>
+
+        <p class="text-muted mb-0">Transfira o aluno de turma e/ou turno dentro da escola</p>
+      </div>
+
+      <a href="{% url 'matricula:listar' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+        Voltar
+      </a>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- AVISO -->
+    <!-- ===================================================== -->
+
+    <div class="alert alert-info border-0 shadow-sm mb-4">
+      <div class="d-flex align-items-start">
+        <i class="bi bi-info-circle-fill fs-4 me-3"></i>
+
+        <div>
+          <strong>Sobre a transferência interna</strong>
+
+          <p class="mb-0 mt-1">A matrícula do aluno será mantida. A transferência altera apenas a turma e/ou turno atual. Notas, frequência, registros pedagógicos e demais históricos do aluno serão preservados.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- SELEÇÃO DO ALUNO -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-semibold">
+          <i class="bi bi-person-search"></i>
+          Selecionar Aluno
+        </h5>
+      </div>
+
+      <div class="card-body">
+        <div class="row g-4">
+          <!-- ALUNO -->
+
+          <div class="col-md-8">
+            <label for="aluno" class="form-label fw-semibold">Aluno</label>
+
+            <select id="aluno" name="aluno" class="form-select">
+              <option value="">Selecione o aluno...</option>
+
+              {% for aluno in alunos %}
+                <option value="{{ aluno.id }}">{{ aluno.nome }}</option>
+              {% endfor %}
+            </select>
+
+            <div class="form-text">Selecione o aluno que será transferido.</div>
+          </div>
+
+          <!-- MATRÍCULA -->
+
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Matrícula</label>
+
+            <div id="matriculaAtual" class="form-control bg-light">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- ALOCAÇÃO ATUAL -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-semibold">
+          <i class="bi bi-geo-alt"></i>
+          Alocação Atual
+        </h5>
+      </div>
+
+      <div class="card-body">
+        <div class="row g-4">
+          <!-- TURMA ATUAL -->
+
+          <div class="col-md-6">
+            <label class="form-label text-muted small">Turma atual</label>
+
+            <div id="turmaAtual" class="form-control bg-light">—</div>
+          </div>
+
+          <!-- TURNO ATUAL -->
+
+          <div class="col-md-6">
+            <label class="form-label text-muted small">Turno atual</label>
+
+            <div id="turnoAtual" class="form-control bg-light">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- NOVA ALOCAÇÃO -->
+    <!-- ===================================================== -->
+
+    <div class="card shadow-sm border-0 mb-4">
+      <div class="card-header bg-white py-3">
+        <h5 class="mb-0 fw-semibold">
+          <i class="bi bi-arrow-right-circle"></i>
+          Nova Alocação
+        </h5>
+      </div>
+
+      <div class="card-body">
+        <div class="row g-4">
+          <!-- NOVA TURMA -->
+
+          <div class="col-md-6">
+            <label for="novaTurma" class="form-label fw-semibold">Nova turma</label>
+
+            <select id="novaTurma" name="nova_turma" class="form-select" disabled>
+              <option value="">Selecione o aluno primeiro...</option>
+            </select>
+          </div>
+
+          <!-- NOVO TURNO -->
+
+          <div class="col-md-6">
+            <label for="novoTurno" class="form-label fw-semibold">Novo turno</label>
+
+            <select id="novoTurno" name="novo_turno" class="form-select" disabled>
+              <option value="">Selecione o novo turno...</option>
+
+              <option value="manha">Manhã</option>
+
+              <option value="tarde">Tarde</option>
+
+              <option value="noite">Noite</option>
+            </select>
+          </div>
+
+          <!-- DATA -->
+
+          <div class="col-md-4">
+            <label for="dataTransferencia" class="form-label fw-semibold">Data da transferência</label>
+
+            <input type="date" id="dataTransferencia" name="data_transferencia" class="form-control" value="{% now 'Y-m-d' %}" />
+          </div>
+
+          <!-- OBSERVAÇÃO -->
+
+          <div class="col-md-8">
+            <label for="observacao" class="form-label fw-semibold">Observação</label>
+
+            <textarea id="observacao" name="observacao" class="form-control" rows="1" placeholder="Informe o motivo ou alguma observação sobre a transferência..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- RESUMO -->
+    <!-- ===================================================== -->
+
+    <div id="resumoTransferencia" class="alert alert-warning border-0 shadow-sm mb-4 d-none">
+      <div class="d-flex align-items-start">
+        <i class="bi bi-exclamation-triangle-fill fs-4 me-3"></i>
+
+        <div>
+          <strong>Confirme a transferência</strong>
+
+          <p id="textoResumo" class="mb-0 mt-1"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- BOTÕES -->
+    <!-- ===================================================== -->
+
+    <div class="d-flex justify-content-end gap-2">
+      <a href="{% url 'matricula:listar' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-x-lg"></i>
+        Cancelar
+      </a>
+
+      <button type="button" id="btnTransferir" class="btn btn-primary" disabled>
+        <i class="bi bi-arrow-left-right"></i>
+        Transferir aluno
+      </button>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const alunoSelect = document.getElementById('aluno')
+      const novaTurma = document.getElementById('novaTurma')
+      const novoTurno = document.getElementById('novoTurno')
+      const btnTransferir = document.getElementById('btnTransferir')
+    
+      const matriculaAtual = document.getElementById('matriculaAtual')
+      const turmaAtual = document.getElementById('turmaAtual')
+      const turnoAtual = document.getElementById('turnoAtual')
+    
+      const dataTransferencia = document.getElementById('dataTransferencia')
+      const observacao = document.getElementById('observacao')
+    
+      /*
+       * =======================================================
+       * URLS
+       * =======================================================
+       */
+    
+      const urlDadosAluno = "{% url 'transferencia_interna:dados_aluno' 0 %}"
+      const urlSalvarTransferencia = "{% url 'transferencia_interna:salvar' %}"
+    
+      /*
+       * =======================================================
+       * CSRF
+       * =======================================================
+       */
+    
+      function obterCsrfToken() {
+        const cookie = document.cookie.split('; ').find((row) => row.startsWith('csrftoken='))
+    
+        return cookie ? decodeURIComponent(cookie.split('=')[1]) : ''
+      }
+    
+      /*
+       * =======================================================
+       * DATA ATUAL
+       * =======================================================
+       */
+    
+      function obterDataAtual() {
+        const hoje = new Date()
+    
+        const ano = hoje.getFullYear()
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0')
+        const dia = String(hoje.getDate()).padStart(2, '0')
+    
+        return `${ano}-${mes}-${dia}`
+      }
+    
+      /*
+       * =======================================================
+       * RESETAR NOVO TURNO
+       * =======================================================
+       */
+    
+      function resetarNovoTurno() {
+        novoTurno.innerHTML = `
+            <option value="">
+              Selecione a nova turma primeiro...
+            </option>
+          `
+    
+        novoTurno.value = ''
+        novoTurno.disabled = true
+      }
+    
+      /*
+       * =======================================================
+       * LIMPAR CAMPOS DA TRANSFERÊNCIA
+       * =======================================================
+       */
+    
+      function limparCamposTransferencia() {
+        /*
+         * Mantém o aluno selecionado.
+         */
+    
+        novaTurma.innerHTML = `
+            <option value="">
+              Selecione a nova turma...
+            </option>
+          `
+    
+        novaTurma.disabled = true
+    
+        resetarNovoTurno()
+    
+        /*
+         * Limpa a observação.
+         */
+    
+        if (observacao) {
+          observacao.value = ''
+        }
+    
+        /*
+         * Volta a data para hoje.
+         */
+    
+        if (dataTransferencia) {
+          dataTransferencia.value = obterDataAtual()
+        }
+    
+        /*
+         * Desabilita o botão até uma nova turma
+         * ser selecionada.
+         */
+    
+        btnTransferir.disabled = true
+      }
+    
+      /*
+       * =======================================================
+       * CARREGAR DADOS DO ALUNO
+       * =======================================================
+       */
+    
+      alunoSelect.addEventListener('change', async function () {
+        const alunoId = this.value
+    
+        /*
+         * =====================================================
+         * NENHUM ALUNO SELECIONADO
+         * =====================================================
+         */
+    
+        if (!alunoId) {
+          matriculaAtual.textContent = '—'
+          turmaAtual.textContent = '—'
+          turnoAtual.textContent = '—'
+    
+          novaTurma.innerHTML = `
+              <option value="">
+                Selecione o aluno primeiro...
+              </option>
+            `
+    
+          novaTurma.disabled = true
+    
+          resetarNovoTurno()
+    
+          btnTransferir.disabled = true
+    
+          return
+        }
+    
+        /*
+         * =====================================================
+         * ESTADO DE CARREGAMENTO
+         * =====================================================
+         */
+    
+        matriculaAtual.textContent = 'Carregando...'
+        turmaAtual.textContent = 'Carregando...'
+        turnoAtual.textContent = 'Carregando...'
+    
+        novaTurma.innerHTML = `
+            <option value="">
+              Carregando turmas...
+            </option>
+          `
+    
+        novaTurma.disabled = true
+    
+        resetarNovoTurno()
+    
+        btnTransferir.disabled = true
+    
+        try {
+          const url = urlDadosAluno.replace('/0/', `/${alunoId}/`)
+    
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+    
+          const data = await response.json()
+    
+          if (!response.ok || !data.success) {
+            throw new Error(data.mensagem || 'Não foi possível carregar os dados do aluno.')
+          }
+    
+          /*
+           * =================================================
+           * DADOS ATUAIS
+           * =================================================
+           */
+    
+          matriculaAtual.textContent = data.aluno.matricula || '—'
+    
+          turmaAtual.textContent = data.aluno.turma_atual || '—'
+    
+          turnoAtual.textContent = data.aluno.turno_atual || '—'
+    
+          /*
+           * =================================================
+           * TURMAS DISPONÍVEIS
+           * =================================================
+           */
+    
+          novaTurma.innerHTML = ''
+    
+          const opcaoInicial = document.createElement('option')
+    
+          opcaoInicial.value = ''
+          opcaoInicial.textContent = 'Selecione a nova turma...'
+    
+          novaTurma.appendChild(opcaoInicial)
+    
+          data.turmas.forEach(function (turma) {
+            const option = document.createElement('option')
+    
+            option.value = turma.id
+            option.textContent = turma.nome
+    
+            /*
+             * Guarda o turno da própria turma.
+             */
+    
+            option.dataset.turno = turma.turno || ''
+    
+            novaTurma.appendChild(option)
+          })
+    
+          novaTurma.disabled = data.turmas.length === 0
+    
+          resetarNovoTurno()
+    
+          verificarFormulario()
+        } catch (error) {
+          console.error('Erro ao carregar dados do aluno:', error)
+    
+          matriculaAtual.textContent = '—'
+          turmaAtual.textContent = '—'
+          turnoAtual.textContent = '—'
+    
+          novaTurma.innerHTML = `
+              <option value="">
+                Não foi possível carregar as turmas
+              </option>
+            `
+    
+          novaTurma.disabled = true
+    
+          resetarNovoTurno()
+    
+          btnTransferir.disabled = true
+    
+          alert(error.message || 'Não foi possível carregar os dados do aluno.')
+        }
+      })
+    
+      /*
+       * =======================================================
+       * QUANDO ESCOLHER A NOVA TURMA
+       * =======================================================
+       */
+    
+      novaTurma.addEventListener('change', function () {
+        const optionSelecionada = novaTurma.options[novaTurma.selectedIndex]
+    
+        /*
+         * Nenhuma turma selecionada.
+         */
+    
+        if (!novaTurma.value || !optionSelecionada) {
+          resetarNovoTurno()
+    
+          verificarFormulario()
+    
+          return
+        }
+    
+        /*
+         * Recupera o turno da turma.
+         */
+    
+        const turno = optionSelecionada.dataset.turno || ''
+    
+        /*
+         * =================================================
+         * IMPORTANTE:
+         *
+         * O turno é recriado dinamicamente.
+         *
+         * Assim não dependemos de valores
+         * previamente existentes no select.
+         * =================================================
+         */
+    
+        novoTurno.innerHTML = ''
+    
+        const optionTurno = document.createElement('option')
+    
+        optionTurno.value = turno
+    
+        optionTurno.textContent = turno || 'Turno não informado'
+    
+        novoTurno.appendChild(optionTurno)
+    
+        /*
+         * Seleciona automaticamente o turno.
+         */
+    
+        novoTurno.value = turno
+    
+        /*
+         * Não permite edição manual.
+         */
+    
+        novoTurno.disabled = true
+    
+        verificarFormulario()
+      })
+    
+      /*
+       * =======================================================
+       * VALIDAÇÃO
+       * =======================================================
+       */
+    
+      function verificarFormulario() {
+        const alunoSelecionado = alunoSelect.value
+    
+        const turmaSelecionada = novaTurma.value
+    
+        const turnoSelecionado = novoTurno.value
+    
+        btnTransferir.disabled = !(alunoSelecionado && turmaSelecionada && turnoSelecionado)
+      }
+    
+      /*
+       * =======================================================
+       * SALVAR TRANSFERÊNCIA
+       * =======================================================
+       */
+    
+      btnTransferir.addEventListener('click', async function () {
+        const alunoId = alunoSelect.value
+    
+        const turmaId = novaTurma.value
+    
+        const novoTurnoValor = novoTurno.value
+    
+        const dataValor = dataTransferencia.value
+    
+        const observacaoValor = observacao ? observacao.value.trim() : ''
+    
+        /*
+         * =================================================
+         * VALIDAÇÃO
+         * =================================================
+         */
+    
+        if (!alunoId || !turmaId || !novoTurnoValor) {
+          alert('Selecione o aluno e a nova turma.')
+    
+          return
+        }
+    
+        if (!dataValor) {
+          alert('Informe a data da transferência.')
+    
+          return
+        }
+    
+        /*
+         * =================================================
+         * NOME DA TURMA SELECIONADA
+         * =================================================
+         */
+    
+        const novaTurmaSelecionada = novaTurma.options[novaTurma.selectedIndex]
+    
+        const novaTurmaNome = novaTurmaSelecionada ? novaTurmaSelecionada.textContent.trim() : '—'
+    
+        /*
+         * =================================================
+         * NOME DO ALUNO
+         * =================================================
+         */
+    
+        const nomeAluno = alunoSelect.options[alunoSelect.selectedIndex].textContent.trim()
+    
+        /*
+         * =================================================
+         * CONFIRMAÇÃO
+         * =================================================
+         */
+    
+        const mensagemConfirmacao = `
+    
+      Confirme a transferência interna:
+    
+      Aluno: ${nomeAluno}
+    
+      Matrícula: ${matriculaAtual.textContent}
+    
+      Turma atual: ${turmaAtual.textContent}
+    
+      Turno atual: ${turnoAtual.textContent}
+    
+      Nova turma: ${novaTurmaNome}
+    
+      Novo turno: ${novoTurnoValor}
+    
+      Data: ${dataValor.split('-').reverse().join('/')}
+    
+      Deseja realizar esta transferência?
+    
+            `.trim()
+    
+        const confirmado = window.confirm(mensagemConfirmacao)
+    
+        if (!confirmado) {
+          return
+        }
+    
+        /*
+         * =================================================
+         * EVITA MÚLTIPLOS ENVIOS
+         * =================================================
+         */
+    
+        btnTransferir.disabled = true
+    
+        const textoOriginal = btnTransferir.innerHTML
+    
+        btnTransferir.innerHTML = `
+              <span
+                class="spinner-border spinner-border-sm me-2"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              Transferindo...
+            `
+    
+        try {
+          const csrfToken = obterCsrfToken()
+    
+          const response = await fetch(urlSalvarTransferencia, {
+            method: 'POST',
+    
+            headers: {
+              'Content-Type': 'application/json',
+    
+              'X-CSRFToken': csrfToken,
+    
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+    
+            body: JSON.stringify({
+              aluno_id: alunoId,
+    
+              nova_turma_id: turmaId,
+    
+              novo_turno: novoTurnoValor,
+    
+              data_transferencia: dataValor,
+    
+              observacao: observacaoValor
+            })
+          })
+    
+          const data = await response.json()
+    
+          if (!response.ok || !data.success) {
+            throw new Error(data.mensagem || 'Não foi possível realizar a transferência.')
+          }
+    
+          /*
+           * =================================================
+           * SUCESSO
+           * =================================================
+           */
+    
+          alert(data.mensagem || 'Transferência realizada com sucesso.')
+    
+          /*
+           * =================================================
+           * ATUALIZA A ALOCAÇÃO ATUAL
+           * =================================================
+           */
+    
+          turmaAtual.textContent = data.nova_turma || novaTurmaNome
+    
+          turnoAtual.textContent = data.novo_turno || novoTurnoValor
+    
+          /*
+           * =================================================
+           * LIMPA OS CAMPOS DA NOVA TRANSFERÊNCIA
+           * =================================================
+           *
+           * O aluno permanece selecionado.
+           * =================================================
+           */
+    
+          limparCamposTransferencia()
+    
+          /*
+           * =================================================
+           * RECARREGA OS DADOS DO ALUNO
+           * =================================================
+           *
+           * Isso garante que as turmas disponíveis
+           * e os dados atuais venham novamente do backend.
+           * =================================================
+           */
+    
+          await alunoSelect.dispatchEvent(new Event('change'))
+        } catch (error) {
+          console.error('Erro ao salvar transferência:', error)
+    
+          alert(error.message || 'Não foi possível realizar a transferência.')
+        } finally {
+          btnTransferir.innerHTML = textoOriginal
+    
+          verificarFormulario()
+        }
+      })
+    })
+  </script>
+{% endblock %}

@@ -1,0 +1,183 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/pages/rbac/rbac.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <div class="titulo-pagina">
+    <i class="bi bi-shield-lock-fill"></i>
+    Perfis de Acesso
+  </div>
+
+  <div class="rbac-container">
+    <!-- Cabeçalho -->
+
+    <div class="rbac-header">
+      <div>
+        <h2>Perfis</h2>
+
+        <p>Gerencie os perfis e permissões de acesso dos usuários do sistema.</p>
+      </div>
+
+      <a href="{% url 'rbac:role_create' %}" class="btn btn-success">
+        <i class="bi bi-plus-circle me-1"></i>
+
+        Novo Perfil
+      </a>
+    </div>
+
+    <!-- Cards -->
+
+    <div class="rbac-cards">
+      <div class="rbac-card-info">
+        <div class="icon bg-primary-subtle text-primary">
+          <i class="bi bi-person-badge-fill"></i>
+        </div>
+
+        <div class="content">
+          <span class="number">{{ total_roles }}</span>
+
+          <span class="label">Perfis</span>
+        </div>
+      </div>
+
+      <div class="rbac-card-info">
+        <div class="icon bg-success-subtle text-success">
+          <i class="bi bi-people-fill"></i>
+        </div>
+
+        <div class="content">
+          <span class="number">{{ total_users }}</span>
+
+          <span class="label">Usuários</span>
+        </div>
+      </div>
+
+      <div class="rbac-card-info">
+        <div class="icon bg-warning-subtle text-warning">
+          <i class="bi bi-shield-check"></i>
+        </div>
+
+        <div class="content">
+          <span class="number">{{ total_permissions }}</span>
+
+          <span class="label">Permissões</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card da tabela -->
+
+    <div class="rbac-table-card">
+      <!-- Pesquisa -->
+
+      <div class="rbac-toolbar">
+        <div class="rbac-search">
+          <i class="bi bi-search"></i>
+
+          <input type="text" id="searchRole" placeholder="Pesquisar perfil..." autocomplete="off" />
+        </div>
+      </div>
+
+      <!-- Tabela -->
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th style="width: 20%;">Perfil</th>
+
+              <th>Descrição</th>
+
+              <th class="text-center" style="width: 10%;">Usuários</th>
+
+              <th class="text-center" style="width: 18%;">Ações</th>
+            </tr>
+          </thead>
+
+          <tbody id="rolesTableBody">
+            {% for role in roles %}
+              <tr class="role-row">
+                <td>
+                  <span class="badge rounded-pill text-bg-{{ role.color }} fs-6 px-3 py-2">
+                    <i class="bi {{ role.icon }} me-1"></i>
+
+                    {{ role.group.name }}
+                  </span>
+                </td>
+
+                <td>{{ role.description|default:'Sem descrição' }}</td>
+
+                <td class="text-center">{{ role.group.user_set.count }}</td>
+
+                <td>
+                  <div class="d-flex justify-content-center gap-2">
+                    <a href="{% url 'rbac:role_edit' role.id %}" class="btn btn-outline-primary btn-sm" title="Editar"><i class="bi bi-pencil"></i></a>
+
+                    <a href="{% url 'rbac:role_permissions' role.id %}" class="btn btn-outline-warning btn-sm" title="Permissões"><i class="bi bi-shield-lock"></i></a>
+
+                    <a href="{% url 'rbac:role_users' role.id %}" class="btn btn-outline-info btn-sm" title="Usuários"><i class="bi bi-people"></i></a>
+
+                    {% if not role.is_system %}
+                      <a href="{% url 'rbac:role_delete' role.id %}" class="btn btn-outline-danger btn-sm" title="Excluir"><i class="bi bi-trash"></i></a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="4" class="text-center py-5">
+                  <i class="bi bi-folder-x fs-1 text-muted"></i>
+
+                  <p class="mt-3 mb-0">Nenhum perfil cadastrado.</p>
+                </td>
+              </tr>
+            {% endfor %}
+
+            <!-- Mensagem exibida quando a pesquisa não encontra resultado -->
+
+            <tr id="noSearchResults" style="display: none;">
+              <td colspan="4" class="text-center py-5">
+                <i class="bi bi-search fs-1 text-muted"></i>
+
+                <p class="mt-3 mb-0">Nenhum perfil encontrado para a pesquisa.</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pesquisa de perfis -->
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const searchInput = document.getElementById('searchRole')
+      const rows = document.querySelectorAll('.role-row')
+      const noResults = document.getElementById('noSearchResults')
+    
+      searchInput.addEventListener('input', function () {
+        const searchTerm = this.value.trim().toLowerCase()
+    
+        let visibleRows = 0
+    
+        rows.forEach(function (row) {
+          const text = row.textContent.toLowerCase()
+    
+          const matches = text.includes(searchTerm)
+    
+          row.style.display = matches ? '' : 'none'
+    
+          if (matches) {
+            visibleRows++
+          }
+        })
+    
+        noResults.style.display = visibleRows === 0 && searchTerm !== '' ? '' : 'none'
+      })
+    })
+  </script>
+{% endblock %}

@@ -1,0 +1,618 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}
+  Declaração de Matrícula
+{% endblock %}
+
+{% block content %}
+  <div class="container py-4">
+    <!-- BOTÕES DE AÇÃO -->
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+      <a href="{% url 'matricula:visualizar' matricula.id %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i>
+        Voltar
+      </a>
+
+      <button type="button" class="btn btn-primary" onclick="window.print()">
+        <i class="bi bi-printer"></i>
+        Imprimir
+      </button>
+    </div>
+
+    <!-- DOCUMENTO -->
+    <div class="comprovante">
+      <!-- ========================================= -->
+      <!-- CABEÇALHO -->
+      <!-- ========================================= -->
+
+      <div class="cabecalho">
+        <div class="logo-area">
+          {% if escola.logo %}
+            <img src="{{ escola.logo.url }}" alt="Logo da escola" class="logo-escola" />
+          {% endif %}
+        </div>
+
+        <div class="dados-escola">
+          <h1>{{ escola.nome }}</h1>
+
+          {% if escola.cnpj %}
+            <div>CNPJ: {{ escola.cnpj }}</div>
+          {% endif %}
+
+          {% if escola.endereco %}
+            <div>
+              {{ escola.endereco }}
+              {% if escola.numero %}
+                , {{ escola.numero }}
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if escola.bairro or escola.cidade or escola.estado %}
+            <div>
+              {% if escola.bairro %}
+                {{ escola.bairro }}
+              {% endif %}
+
+              {% if escola.cidade %}
+                - {{ escola.cidade }}
+              {% endif %}
+
+              {% if escola.estado %}
+                / {{ escola.estado }}
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if escola.cep %}
+            <div>CEP: {{ escola.cep }}</div>
+          {% endif %}
+
+          {% if escola.telefone %}
+            <div>Tel.: {{ escola.telefone }}</div>
+          {% endif %}
+
+          {% if escola.email %}
+            <div>{{ escola.email }}</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="linha"></div>
+
+      <!-- ========================================= -->
+      <!-- TÍTULO -->
+      <!-- ========================================= -->
+
+      <div class="titulo">
+        <h2>DECLARAÇÃO DE MATRÍCULA</h2>
+
+        <div class="ano-letivo">Ano Letivo {{ matricula.ano_letivo.ano }}</div>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- DADOS DA MATRÍCULA -->
+      <!-- ========================================= -->
+
+      <section>
+        <h3>Dados da Matrícula</h3>
+
+        <div class="grid">
+          <div class="campo">
+            <span>Nº da Matrícula</span>
+
+            <strong>{{ matricula.aluno.matricula }}</strong>
+          </div>
+
+          <div class="campo">
+            <span>Data da Matrícula</span>
+
+            <strong>{{ matricula.data_matricula|date:'d/m/Y' }}</strong>
+          </div>
+
+          <div class="campo">
+            <span>Status</span>
+
+            <strong>{{ matricula.get_status_display }}</strong>
+          </div>
+
+          <div class="campo">
+            <span>Ano Letivo</span>
+
+            <strong>{{ matricula.ano_letivo.ano }}</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================= -->
+      <!-- DADOS DO ALUNO -->
+      <!-- ========================================= -->
+
+      <section>
+        <h3>Dados do Aluno</h3>
+
+        <div class="grid">
+          <div class="campo campo-largo">
+            <span>Nome Completo</span>
+
+            <strong>{{ matricula.aluno.nome }}</strong>
+          </div>
+
+          {% if matricula.aluno.cpf %}
+            <div class="campo">
+              <span>CPF</span>
+
+              <strong>{{ matricula.aluno.cpf }}</strong>
+            </div>
+          {% endif %}
+
+          {% if matricula.aluno.data_nascimento %}
+            <div class="campo">
+              <span>Data de Nascimento</span>
+
+              <strong>{{ matricula.aluno.data_nascimento|date:'d/m/Y' }}</strong>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+
+      <!-- ========================================= -->
+      <!-- RESPONSÁVEIS -->
+      <!-- ========================================= -->
+
+      {% if matricula.aluno.responsaveis.all %}
+        <section>
+          <h3>Responsáveis</h3>
+
+          <div class="responsaveis">
+            {% for responsavel in matricula.aluno.responsaveis.all %}
+              <div class="responsavel-card">
+                <div class="responsavel-cabecalho">
+                  <strong>
+                    {% if responsavel.tipo %}
+                      {{ responsavel.get_tipo_display }}
+                    {% elif responsavel.parentesco %}
+                      {{ responsavel.parentesco }}
+                    {% else %}
+                      Responsável
+                    {% endif %}
+                  </strong>
+                </div>
+
+                <div class="responsavel-grid">
+                  <div class="campo">
+                    <span>Nome</span>
+
+                    <strong>{{ responsavel.nome }}</strong>
+                  </div>
+
+                  {% if responsavel.parentesco %}
+                    <div class="campo">
+                      <span>Parentesco</span>
+
+                      <strong>{{ responsavel.parentesco }}</strong>
+                    </div>
+                  {% endif %}
+
+                  {% if responsavel.cpf %}
+                    <div class="campo">
+                      <span>CPF</span>
+
+                      <strong>{{ responsavel.cpf }}</strong>
+                    </div>
+                  {% endif %}
+
+                  {% if responsavel.telefone %}
+                    <div class="campo">
+                      <span>Telefone</span>
+
+                      <strong>{{ responsavel.telefone }}</strong>
+                    </div>
+                  {% endif %}
+
+                  {% if responsavel.email %}
+                    <div class="campo campo-largo">
+                      <span>E-mail</span>
+
+                      <strong>{{ responsavel.email }}</strong>
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+
+      <!-- ========================================= -->
+      <!-- DADOS ESCOLARES -->
+      <!-- ========================================= -->
+
+      <section>
+        <h3>Dados Escolares</h3>
+
+        <div class="grid">
+          <div class="campo">
+            <span>Turma</span>
+
+            <strong>
+              {% if matricula.turma %}
+                {{ matricula.turma.nome }}
+              {% else %}
+                Sem turma definida
+              {% endif %}
+            </strong>
+          </div>
+
+          {% if matricula.turma.turno %}
+            <div class="campo">
+              <span>Turno</span>
+
+              <strong>{{ matricula.turma.turno }}</strong>
+            </div>
+          {% endif %}
+
+          {% if matricula.turma.sala %}
+            <div class="campo">
+              <span>Sala</span>
+
+              <strong>{{ matricula.turma.sala }}</strong>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+
+      <!-- ========================================= -->
+      <!-- DECLARAÇÃO -->
+      <!-- ========================================= -->
+
+      <div class="declaracao">
+        <p>
+          Declaramos, para os devidos fins, que o(a) aluno(a)
+          <strong>{{ matricula.aluno.nome }}</strong>
+          encontra-se regularmente matriculado(a) nesta instituição de ensino para o ano letivo de
+          <strong>{{ matricula.ano_letivo.ano }}</strong>, conforme os registros acadêmicos da escola.
+        </p>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- OBSERVAÇÃO -->
+      <!-- ========================================= -->
+
+      {% if matricula.observacao %}
+        <section>
+          <h3>Observação</h3>
+
+          <div class="observacao">{{ matricula.observacao|linebreaksbr }}</div>
+        </section>
+      {% endif %}
+
+      <!-- ========================================= -->
+      <!-- DATA -->
+      <!-- ========================================= -->
+
+      <div class="data-documento">
+        {% if escola.cidade %}
+          {{ escola.cidade }},
+        {% endif %}
+
+        {{ matricula.data_matricula|date:'d' }}
+        de
+        {{ matricula.data_matricula|date:'F' }}
+        de
+        {{ matricula.data_matricula|date:'Y' }}.
+      </div>
+
+      <!-- ========================================= -->
+      <!-- ASSINATURA -->
+      <!-- ========================================= -->
+
+      <div class="assinatura">
+        <div class="linha-assinatura"></div>
+
+        <strong>Direção da Escola</strong>
+
+        <span>Responsável pela emissão</span>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- RODAPÉ -->
+      <!-- ========================================= -->
+
+      <div class="rodape">
+        Documento emitido pelo sistema escolar.
+
+        <br />
+
+        Matrícula:
+        {{ matricula.aluno.matricula }}
+
+        | Ano:
+        {{ matricula.ano_letivo.ano }}
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================= -->
+  <!-- ESTILOS -->
+  <!-- ========================================= -->
+
+  <style>
+    body {
+      background: #f5f6fa;
+    }
+    
+    .comprovante {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 55px 65px;
+      border-radius: 8px;
+      box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+      color: #212529;
+    }
+    
+    /* CABEÇALHO */
+    
+    .cabecalho {
+      display: flex;
+      align-items: center;
+      gap: 25px;
+    }
+    
+    .logo-area {
+      width: 100px;
+      min-width: 100px;
+      text-align: center;
+    }
+    
+    .logo-escola {
+      max-width: 90px;
+      max-height: 90px;
+      object-fit: contain;
+    }
+    
+    .dados-escola {
+      flex: 1;
+      text-align: center;
+    }
+    
+    .dados-escola h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    
+    .dados-escola div {
+      font-size: 13px;
+      margin-bottom: 3px;
+    }
+    
+    .linha {
+      border-top: 2px solid #212529;
+      margin: 25px 0 30px;
+    }
+    
+    /* TÍTULO */
+    
+    .titulo {
+      text-align: center;
+      margin-bottom: 35px;
+    }
+    
+    .titulo h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .ano-letivo {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    
+    /* SEÇÕES */
+    
+    section {
+      margin-bottom: 28px;
+    }
+    
+    section h3 {
+      font-size: 15px;
+      font-weight: 700;
+      border-bottom: 1px solid #dee2e6;
+      padding-bottom: 7px;
+      margin-bottom: 15px;
+    }
+    
+    /* GRID */
+    
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px 25px;
+    }
+    
+    .campo {
+      min-height: 45px;
+    }
+    
+    .campo-largo {
+      grid-column: span 2;
+    }
+    
+    .campo span {
+      display: block;
+      color: #6c757d;
+      font-size: 11px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+    
+    .campo strong {
+      display: block;
+      font-size: 14px;
+    }
+    
+    /* RESPONSÁVEIS */
+    
+    .responsaveis {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .responsavel-card {
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      padding: 15px;
+      page-break-inside: avoid;
+    }
+    
+    .responsavel-cabecalho {
+      border-bottom: 1px solid #e9ecef;
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+      font-size: 14px;
+    }
+    
+    .responsavel-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px 25px;
+    }
+    
+    /* DECLARAÇÃO */
+    
+    .declaracao {
+      margin: 35px 0;
+      text-align: justify;
+      line-height: 1.8;
+      font-size: 14px;
+    }
+    
+    /* OBSERVAÇÃO */
+    
+    .observacao {
+      border: 1px solid #dee2e6;
+      border-radius: 5px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    
+    /* DATA */
+    
+    .data-documento {
+      margin-top: 45px;
+      text-align: right;
+      font-size: 14px;
+    }
+    
+    /* ASSINATURA */
+    
+    .assinatura {
+      width: 300px;
+      margin: 75px auto 0;
+      text-align: center;
+    }
+    
+    .linha-assinatura {
+      border-top: 1px solid #212529;
+      margin-bottom: 8px;
+    }
+    
+    .assinatura strong,
+    .assinatura span {
+      display: block;
+    }
+    
+    .assinatura strong {
+      font-size: 13px;
+    }
+    
+    .assinatura span {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 3px;
+    }
+    
+    /* RODAPÉ */
+    
+    .rodape {
+      border-top: 1px solid #dee2e6;
+      margin-top: 55px;
+      padding-top: 12px;
+      text-align: center;
+      font-size: 10px;
+      color: #6c757d;
+    }
+    
+    /* IMPRESSÃO */
+    
+    @media print {
+      body {
+        background: #ffffff !important;
+      }
+    
+      .no-print {
+        display: none !important;
+      }
+    
+      .container {
+        max-width: none !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+    
+      .comprovante {
+        max-width: none;
+        width: 100%;
+        margin: 0;
+        padding: 25px 40px;
+        border-radius: 0;
+        box-shadow: none;
+      }
+    
+      .responsavel-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    
+      @page {
+        size: A4;
+        margin: 10mm;
+      }
+    }
+    
+    /* RESPONSIVO */
+    
+    @media (max-width: 768px) {
+      .comprovante {
+        padding: 30px 20px;
+      }
+    
+      .cabecalho {
+        flex-direction: column;
+      }
+    
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    
+      .responsavel-grid {
+        grid-template-columns: 1fr;
+      }
+    
+      .campo-largo {
+        grid-column: span 1;
+      }
+    
+      .data-documento {
+        text-align: left;
+      }
+    }
+  </style>
+{% endblock %}

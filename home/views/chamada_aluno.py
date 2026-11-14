@@ -3,7 +3,29 @@ from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction, IntegrityError
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from home.services.chamada_config import ConfiguracaoChamada
+from home.services.chamada_permission import pode_excluir_chamada
+from django.views.decorators.http import require_POST
+from django.core.exceptions import PermissionDenied
+from django.contrib import messages
+from django.shortcuts import redirect
 
+
+import csv
+
+from openpyxl import Workbook
+from openpyxl.styles import (
+    Alignment,
+    Border,
+    Font,
+    PatternFill,
+    Side,
+)
+
+from django.db.models import Count, Q
+from django.http import HttpResponse
+from django.utils import timezone
 
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -33,6 +55,8 @@ from home.models import (
     Presenca,
     Aluno,
     DiarioDeClasse,
+    AuditoriaChamada,
+    HistoricoAlocacaoAluno,
 )
 
 import logging
@@ -51,7 +75,10 @@ def user_has_role(user, roles):
 
 
 def get_professor_or_gestor(user):
-    professor = Docente.objects.filter(user=user).first()
+    professor = Docente.objects.filter(
+        user=user,
+        escola=user.escola,
+    ).first()
     if professor:
         return professor
 
@@ -131,7 +158,6 @@ def tela_chamada(request):
 # ======================================================
 @login_required
 def api_carregar_alunos(request, turma_id):
-
     try:
         turma = Turma.objects.get(
             id=turma_id,
@@ -143,54 +169,107 @@ def api_carregar_alunos(request, turma_id):
             status=404,
         )
 
-    # =====================================================
-    # ALUNOS DA TURMA
-    # =====================================================
-    alunos_qs = turma.alunos.filter(ativo=True).order_by("nome")
-
-    alunos = list(
-        alunos_qs.values(
-            "id",
-            "nome",
+    # ======================================================
+    # 1. ALUNOS ATUALMENTE VINCULADOS À TURMA
+    # Considera tanto a relação M2M quanto turma_principal.
+    # ======================================================
+    alunos_atuais_qs = (
+        Aluno.objects.filter(
+            escola=request.escola,
+            ativo=True,
         )
+        .filter(Q(turma_principal=turma) | Q(turmas=turma))
+        .distinct()
+        .order_by("nome")
+    )
+
+    alunos_por_id = {}
+
+    for aluno in alunos_atuais_qs:
+        alunos_por_id[aluno.id] = {
+            "id": aluno.id,
+            "nome": aluno.nome,
+            "transferido": False,
+        }
+
+    # ======================================================
+    # 2. ALUNOS COM ALOCAÇÃO HISTÓRICA ENCERRADA
+    # Somente do mesmo ano letivo e que não continuam
+    # vinculados à turma como alunos atuais.
+    # ======================================================
+    if turma.ano_letivo_id:
+        historicos_qs = (
+            HistoricoAlocacaoAluno.objects.filter(
+                turma=turma,
+                ano_letivo_id=turma.ano_letivo_id,
+                data_fim__isnull=False,
+                aluno__escola=request.escola,
+                aluno__ativo=True,
+            )
+            .exclude(Q(aluno__turma_principal=turma) | Q(aluno__turmas=turma))
+            .select_related("aluno")
+            .order_by("aluno__nome")
+        )
+
+        for historico in historicos_qs:
+            aluno = historico.aluno
+
+            # Evita duplicidade caso existam vários registros
+            # históricos para o mesmo aluno e a mesma turma.
+            if aluno.id not in alunos_por_id:
+                alunos_por_id[aluno.id] = {
+                    "id": aluno.id,
+                    "nome": aluno.nome,
+                    "transferido": True,
+                }
+
+    # Ordena a lista final pelo nome.
+    alunos = sorted(
+        alunos_por_id.values(),
+        key=lambda item: item["nome"].casefold(),
     )
 
     data_aula = request.GET.get("data")
     disciplina_id = request.GET.get("disciplina")
 
-    # =====================================================
-    # SEM CONTEXTO -> RETORNA APENAS ALUNOS
-    # =====================================================
+    # ======================================================
+    # 3. SEM DATA OU DISCIPLINA
+    # Retorna os alunos com a identificação histórica.
+    # ======================================================
     if not data_aula or not disciplina_id:
         return JsonResponse({"alunos": alunos})
 
-    # =====================================================
-    # VALIDAR DATA
-    # =====================================================
+    # ======================================================
+    # 4. VALIDAR DATA
+    # ======================================================
     try:
         data_aula_dt = datetime.strptime(
             data_aula,
             "%Y-%m-%d",
         ).date()
-
     except ValueError:
-        return JsonResponse({"alunos": alunos})
+        return JsonResponse(
+            {"alunos": alunos},
+            status=400,
+        )
 
-    # =====================================================
-    # VALIDAR DISCIPLINA
-    # =====================================================
+    # ======================================================
+    # 5. VALIDAR DISCIPLINA
+    # ======================================================
     try:
         disciplina = Disciplina.objects.get(
             id=disciplina_id,
             escola=request.escola,
         )
-    except Disciplina.DoesNotExist:
-        return JsonResponse({"alunos": alunos})
+    except (Disciplina.DoesNotExist, ValueError, TypeError):
+        return JsonResponse(
+            {"alunos": alunos},
+            status=400,
+        )
 
-    # =====================================================
-    # NOVO FLUXO:
-    # PROCURA DIRETAMENTE A CHAMADA
-    # =====================================================
+    # ======================================================
+    # 6. PROCURAR CHAMADA DIRETAMENTE
+    # ======================================================
     chamada = (
         Chamada.objects.filter(
             escola=request.escola,
@@ -202,11 +281,11 @@ def api_carregar_alunos(request, turma_id):
         .first()
     )
 
-    # =====================================================
-    # COMPATIBILIDADE COM DADOS ANTIGOS
-    # =====================================================
+    # ======================================================
+    # 7. COMPATIBILIDADE COM CHAMADAS ANTIGAS
+    # Vínculo com Diário de Classe permanece opcional.
+    # ======================================================
     if not chamada:
-
         diario = (
             DiarioDeClasse.objects.filter(
                 escola=request.escola,
@@ -221,84 +300,85 @@ def api_carregar_alunos(request, turma_id):
         if diario:
             chamada = Chamada.objects.filter(diario=diario).order_by("-id").first()
 
-    # =====================================================
-    # MAPEAR PRESENÇAS
-    # =====================================================
+    # ======================================================
+    # 8. MAPEAR PRESENÇAS JÁ REGISTRADAS
+    # ======================================================
     presencas_map = {}
 
     if chamada:
-
-        presencas = Presenca.objects.filter(chamada=chamada).values(
+        presencas = Presenca.objects.filter(
+            chamada=chamada,
+        ).values(
             "aluno_id",
             "status",
             "presente",
             "observacao",
         )
 
-        for p in presencas:
+        for presenca in presencas:
+            status = presenca.get("status")
 
-            status = p.get("status")
-
-            # Compatibilidade com registros antigos
+            # Compatibilidade com registros antigos.
             if not status:
-                status = "P" if p.get("presente") else "F"
+                status = "P" if presenca.get("presente") else "F"
 
-            presencas_map[p["aluno_id"]] = {
+            presencas_map[presenca["aluno_id"]] = {
                 "status": status,
-                "observacao": p.get("observacao") or "",
+                "observacao": presenca.get("observacao") or "",
             }
 
-    # =====================================================
-    # MONTAR RESPOSTA
-    # =====================================================
+    # ======================================================
+    # 9. MONTAR RESPOSTA
+    # Mantém os campos atuais e acrescenta "transferido".
+    # ======================================================
     for aluno in alunos:
-
         extra = presencas_map.get(aluno["id"])
 
         if extra:
             aluno["status"] = extra["status"]
             aluno["observacao"] = extra["observacao"]
-
         else:
-            # padrão continua sendo presente
             aluno["status"] = "P"
             aluno["observacao"] = ""
 
-    return JsonResponse(
-        {
-            "alunos": alunos,
-        }
-    )
+    return JsonResponse({"alunos": alunos})
 
 
 # ======================================================
 # 3) SALVAR PRESENÇAS
 # ======================================================
+
+
 @csrf_exempt
 @login_required
 def salvar_presencas(request):
-    logger.warning("====== SALVAR PRESENCAS ======")
-    logger.warning(f"USER: {request.user}")
-    logger.warning(f"ROLE: {getattr(request.user, 'role', None)}")
-    logger.warning(f"METHOD: {request.method}")
-    logger.warning(f"BODY: {request.body}")
-
     acesso = get_professor_or_gestor(request.user)
 
     if acesso == "bloqueado":
         return JsonResponse(
-            {"status": "erro", "mensagem": "Acesso negado."}, status=403
+            {"status": "erro", "mensagem": "Acesso negado."},
+            status=403,
         )
 
     if request.method != "POST":
         return JsonResponse(
-            {"status": "erro", "mensagem": "Método não permitido"}, status=405
+            {
+                "status": "erro",
+                "mensagem": "Método não permitido",
+            },
+            status=405,
         )
 
     try:
         data = json.loads(request.body)
     except Exception:
-        return JsonResponse({"status": "erro", "mensagem": "JSON inválido"}, status=400)
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "JSON inválido",
+            },
+            status=400,
+        )
 
     turma_id = data.get("turma")
     disciplina_id = data.get("disciplina")
@@ -307,45 +387,93 @@ def salvar_presencas(request):
 
     if not turma_id or not disciplina_id or not data_aula:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Campos obrigatórios faltando."}, status=400
+            {
+                "status": "erro",
+                "mensagem": "Campos obrigatórios faltando.",
+            },
+            status=400,
+        )
+
+    if not isinstance(lista, list):
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "A lista de alunos enviada é inválida.",
+            },
+            status=400,
+        )
+
+    if any(not isinstance(item, dict) for item in lista):
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Existem registros de alunos inválidos.",
+            },
+            status=400,
+        )
+
+    if any(item.get("aluno_id") in (None, "") for item in lista):
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": ("Um ou mais registros não possuem aluno válido."),
+            },
+            status=400,
         )
 
     professor = None
 
     if acesso == "professor":
         professor = Docente.objects.filter(
-            user=request.user, escola=request.escola
+            user=request.user,
+            escola=request.escola,
         ).first()
 
         if not professor:
             return JsonResponse(
                 {
                     "status": "erro",
-                    "mensagem": "Professor não está vinculado corretamente.",
+                    "mensagem": ("Professor não está vinculado corretamente."),
                 },
                 status=400,
             )
 
     try:
-        turma = Turma.objects.get(id=turma_id, escola=request.escola)
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=request.escola,
+        )
     except Turma.DoesNotExist:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Turma inválida."}, status=404
+            {
+                "status": "erro",
+                "mensagem": "Turma inválida.",
+            },
+            status=404,
         )
 
     try:
-        disciplina = Disciplina.objects.get(id=disciplina_id, escola=request.escola)
+        disciplina = Disciplina.objects.get(
+            id=disciplina_id,
+            escola=request.escola,
+        )
     except Disciplina.DoesNotExist:
         return JsonResponse(
-            {"status": "erro", "mensagem": "Disciplina inválida."}, status=404
+            {
+                "status": "erro",
+                "mensagem": "Disciplina inválida.",
+            },
+            status=404,
         )
 
-    # Professor só pode lançar chamada das turmas/disciplina dele
+    # Professor só pode lançar chamada das turmas/disciplina dele.
     if acesso == "professor":
         permitido = TurmaDisciplina.objects.filter(
-            turma=turma, disciplina=disciplina, professor=professor
+            turma=turma,
+            disciplina=disciplina,
+            professor=professor,
+            escola=request.escola,
         ).exists()
-
         if not permitido:
             return JsonResponse(
                 {
@@ -358,11 +486,54 @@ def salvar_presencas(request):
             )
 
     try:
-        data_aula = datetime.strptime(data_aula, "%Y-%m-%d").date()
-
-    except ValueError:
+        data_aula = datetime.strptime(
+            data_aula,
+            "%Y-%m-%d",
+        ).date()
+    except (ValueError, TypeError):
         return JsonResponse(
-            {"status": "erro", "mensagem": "Data inválida."}, status=400
+            {
+                "status": "erro",
+                "mensagem": "Data inválida.",
+            },
+            status=400,
+        )
+
+    # =====================================================
+    # VALIDAR ALUNOS DA TURMA
+    # =====================================================
+    # Aceita alunos que ainda estejam vinculados à turma
+    # pelo campo turma_principal ou pelo relacionamento M2M.
+    # Alunos transferidos não podem ter suas presenças
+    # alteradas na turma de origem.
+    # =====================================================
+
+    alunos_enviados_ids = {str(item.get("aluno_id")) for item in lista}
+
+    alunos_atuais_ids = set(
+        str(aluno_id)
+        for aluno_id in Aluno.objects.filter(
+            escola=request.escola,
+            ativo=True,
+        )
+        .filter(Q(turma_principal=turma) | Q(turmas=turma))
+        .distinct()
+        .values_list("id", flat=True)
+    )
+
+    alunos_nao_pertencentes = alunos_enviados_ids - alunos_atuais_ids
+
+    if alunos_nao_pertencentes:
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": (
+                    "Não foi possível salvar a chamada porque "
+                    "um ou mais alunos não pertencem mais a esta turma. "
+                    "Recarregue a página para atualizar a lista."
+                ),
+            },
+            status=409,
         )
 
     erros_alunos = []
@@ -371,9 +542,9 @@ def salvar_presencas(request):
         with transaction.atomic():
 
             # =====================================================
-            # CHAMADA AGORA É INDEPENDENTE DO DIÁRIO
+            # CRIAR OU RECUPERAR A CHAMADA
             # =====================================================
-            chamada, _ = Chamada.objects.get_or_create(
+            chamada, chamada_criada = Chamada.objects.get_or_create(
                 turma=turma,
                 disciplina=disciplina,
                 professor=(professor if acesso == "professor" else None),
@@ -388,26 +559,31 @@ def salvar_presencas(request):
             # SALVAR PRESENÇAS
             # =====================================================
             for item in lista:
-
                 aluno_id = item.get("aluno_id")
 
-                status = item.get("status", "").strip().upper()
+                status_presenca = (item.get("status") or "").strip().upper()
 
-                # Compatibilidade com versão antiga
-                if status not in ("P", "F", "J"):
+                # Compatibilidade com a versão antiga.
+                if status_presenca not in ("P", "F", "J"):
                     presente_bool = bool(item.get("presente", False))
-                    status = "P" if presente_bool else "F"
+                    status_presenca = "P" if presente_bool else "F"
 
-                presente = status == "P"
+                presente = status_presenca == "P"
 
                 observacao = (item.get("observacao") or "").strip()
 
                 try:
-                    aluno = Aluno.objects.get(id=aluno_id, escola=request.escola)
-
+                    aluno = Aluno.objects.get(
+                        id=aluno_id,
+                        escola=request.escola,
+                        ativo=True,
+                    )
                 except Aluno.DoesNotExist:
                     erros_alunos.append(
-                        {"aluno_id": aluno_id, "mensagem": "Aluno não encontrado."}
+                        {
+                            "aluno_id": aluno_id,
+                            "mensagem": "Aluno não encontrado.",
+                        }
                     )
                     continue
 
@@ -415,17 +591,57 @@ def salvar_presencas(request):
                     chamada=chamada,
                     aluno=aluno,
                     defaults={
-                        "status": status,
+                        "status": status_presenca,
                         "presente": presente,
                         "observacao": observacao,
                     },
+                )
+
+            # =====================================================
+            # AUDITORIA
+            # =====================================================
+            # Registra a criação somente quando a chamada
+            # realmente foi criada nesta requisição.
+            # =====================================================
+            if chamada_criada:
+                total_alunos = chamada.presencas.count()
+
+                total_presentes = chamada.presencas.filter(status="P").count()
+
+                total_faltas = chamada.presencas.filter(status="F").count()
+
+                total_justificadas = chamada.presencas.filter(status="J").count()
+
+                professor_nome = ""
+
+                if chamada.professor:
+                    professor_nome = getattr(
+                        chamada.professor,
+                        "nome",
+                        str(chamada.professor),
+                    )
+
+                AuditoriaChamada.objects.create(
+                    chamada=chamada,
+                    chamada_id_original=chamada.id,
+                    turma_nome=turma.nome,
+                    disciplina_nome=disciplina.nome,
+                    professor_nome=professor_nome,
+                    data_chamada=chamada.data,
+                    acao=AuditoriaChamada.ACAO_CRIADA,
+                    usuario=request.user,
+                    usuario_nome=(request.user.get_full_name().strip()),
+                    total_alunos=total_alunos,
+                    total_presentes=total_presentes,
+                    total_faltas=total_faltas,
+                    total_justificadas=total_justificadas,
                 )
 
     except IntegrityError:
         return JsonResponse(
             {
                 "status": "erro",
-                "mensagem": ("Erro de integridade ao salvar " "a chamada."),
+                "mensagem": "Erro de integridade ao salvar a chamada.",
             },
             status=400,
         )
@@ -443,18 +659,42 @@ def salvar_presencas(request):
         )
 
     if erros_alunos:
-        return JsonResponse({"status": "parcial", "erros": erros_alunos}, status=207)
+        return JsonResponse(
+            {
+                "status": "parcial",
+                "erros": erros_alunos,
+            },
+            status=207,
+        )
 
-    return JsonResponse({"status": "sucesso", "mensagem": "Chamada salva com sucesso!"})
+    return JsonResponse(
+        {
+            "status": "sucesso",
+            "mensagem": "Chamada salva com sucesso!",
+        }
+    )
 
 
 @login_required
 def disciplinas_por_turma(request, turma_id):
-    turma = get_object_or_404(Turma, id=turma_id, escola=request.escola)
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=request.escola,
+    )
 
-    qs = TurmaDisciplina.objects.filter(turma=turma).select_related("disciplina")
+    qs = TurmaDisciplina.objects.filter(
+        turma=turma,
+        escola=request.escola,
+    ).select_related("disciplina")
 
-    disciplinas = [{"id": td.disciplina.id, "nome": td.disciplina.nome} for td in qs]
+    disciplinas = [
+        {
+            "id": td.disciplina.id,
+            "nome": td.disciplina.nome,
+        }
+        for td in qs
+    ]
 
     return JsonResponse(disciplinas, safe=False)
 
@@ -475,7 +715,10 @@ def listar_chamadas(request):
 
     sem_filtros = not filtro_data and not filtro_turma and not filtro_disciplina
 
-    professor = Docente.objects.filter(user=user, escola=user.escola).first()
+    professor = Docente.objects.filter(
+        user=user,
+        escola=user.escola,
+    ).first()
 
     # =====================================================
     # PERFIL PROFESSOR
@@ -491,90 +734,62 @@ def listar_chamadas(request):
             .order_by("nome")
         )
 
-        disciplinas = (
-            Disciplina.objects.filter(
-                turmadisciplina__professor=professor,
-                escola=user.escola,
-            )
-            .distinct()
-            .order_by("nome")
-        )
-
         turmas_ids = list(turmas.values_list("id", flat=True))
 
-        disciplinas_ids = list(disciplinas.values_list("id", flat=True))
-
-        # ==============================================
-        # NOVA ESTRUTURA
-        # ==============================================
         base = Chamada.objects.filter(
             escola=user.escola,
             turma_id__in=turmas_ids,
-            disciplina_id__in=disciplinas_ids,
-        )
-
-        # Professor enxerga apenas suas chamadas
-        # ou chamadas antigas sem professor definido
-        base = base.filter(Q(professor=professor) | Q(professor__isnull=True))
+        ).filter(Q(professor=professor) | Q(professor__isnull=True))
 
     # =====================================================
     # DIRETOR / COORDENADOR
     # =====================================================
     else:
 
-        base = Chamada.objects.filter(escola=user.escola)
+        turmas = Turma.objects.filter(
+            escola=user.escola,
+        ).order_by("nome")
 
-        turmas = Turma.objects.filter(escola=user.escola).order_by("nome")
-
-        disciplinas = Disciplina.objects.filter(escola=user.escola).order_by("nome")
-
-    # =====================================================
-    # DATAS DISPONÍVEIS
-    # =====================================================
-    datas_chamadas = (
-        Chamada.objects.filter(escola=user.escola)
-        .values_list(
-            "data",
-            flat=True,
+        base = Chamada.objects.filter(
+            escola=user.escola,
         )
-        .distinct()
-        .order_by("-data")
-    )
 
     # =====================================================
-    # SEM FILTROS -> MOSTRA HOJE
+    # SEM FILTROS
     # =====================================================
     if sem_filtros:
-        base = base.filter(data=hoje)
 
+        base = base.filter(data=hoje)
         filtro_data = hoje_str
 
     # =====================================================
-    # FILTRO DATA
+    # FILTROS
     # =====================================================
+    if filtro_turma:
+        base = base.filter(
+            turma_id=filtro_turma,
+        )
+
+    if filtro_disciplina:
+        base = base.filter(
+            disciplina_id=filtro_disciplina,
+        )
+
     if filtro_data:
+
         try:
+
             data_convertida = datetime.strptime(
                 filtro_data,
                 "%Y-%m-%d",
             ).date()
 
-            base = base.filter(data=data_convertida)
+            base = base.filter(
+                data=data_convertida,
+            )
 
         except ValueError:
             pass
-
-    # =====================================================
-    # FILTRO TURMA
-    # =====================================================
-    if filtro_turma:
-        base = base.filter(turma_id=filtro_turma)
-
-    # =====================================================
-    # FILTRO DISCIPLINA
-    # =====================================================
-    if filtro_disciplina:
-        base = base.filter(disciplina_id=filtro_disciplina)
 
     # =====================================================
     # QUERY FINAL
@@ -602,9 +817,7 @@ def listar_chamadas(request):
         20,
     )
 
-    pagina = request.GET.get("page")
-
-    chamadas = paginator.get_page(pagina)
+    chamadas = paginator.get_page(request.GET.get("page"))
 
     # =====================================================
     # RENDER
@@ -615,12 +828,10 @@ def listar_chamadas(request):
         {
             "chamadas": chamadas,
             "turmas": turmas,
-            "disciplinas": disciplinas,
             "data_hoje": hoje_str,
             "filtro_data": filtro_data or "",
             "filtro_turma": filtro_turma or "",
             "filtro_disciplina": filtro_disciplina or "",
-            "datas_chamadas": datas_chamadas,
         },
     )
 
@@ -940,6 +1151,7 @@ def atualizar_chamada(request, chamada_id):
     )
 
 
+@login_required
 def relatorio_chamadas(request):
     hoje = timezone.now().date()
 
@@ -949,22 +1161,31 @@ def relatorio_chamadas(request):
     disciplina_id = request.GET.get("disciplina")
 
     # ===============================
-    # BASE QUERYSET (OTIMIZADO)
+    # BASE QUERYSET
     # ===============================
     chamadas = (
-        Chamada.objects.select_related(
-            "diario",
-            "diario__turma",
-            "diario__disciplina",
-            "diario__professor",
+        Chamada.objects.filter(
+            escola=request.user.escola,
+        )
+        .select_related(
+            "turma",
+            "disciplina",
+            "professor",
         )
         .annotate(
-            presentes=Count("presenca", filter=Q(presenca__presente=True)),
-            ausentes=Count("presenca", filter=Q(presenca__presente=False)),
+            presentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=True),
+            ),
+            ausentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=False),
+            ),
         )
         .order_by(
-            "-diario__data_ministrada",
-            "diario__hora_inicio",
+            "-data",
+            "turma__nome",
+            "disciplina__nome",
         )
     )
 
@@ -972,22 +1193,35 @@ def relatorio_chamadas(request):
     # FILTROS
     # ===============================
     if ano:
-        chamadas = chamadas.filter(diario__data_ministrada__year=ano)
+        chamadas = chamadas.filter(
+            data__year=ano,
+        )
 
     if mes:
-        chamadas = chamadas.filter(diario__data_ministrada__month=mes)
+        chamadas = chamadas.filter(
+            data__month=mes,
+        )
 
     if turma_id:
-        chamadas = chamadas.filter(diario__turma_id=turma_id)
+        chamadas = chamadas.filter(
+            turma_id=turma_id,
+        )
 
     if disciplina_id:
-        chamadas = chamadas.filter(diario__disciplina_id=disciplina_id)
+        chamadas = chamadas.filter(
+            disciplina_id=disciplina_id,
+        )
 
     # ===============================
     # DADOS AUXILIARES (FILTROS)
     # ===============================
-    turmas = Turma.objects.all().order_by("nome")
-    disciplinas = Disciplina.objects.all().order_by("nome")
+    turmas = Turma.objects.filter(
+        escola=request.user.escola,
+    ).order_by("nome")
+
+    disciplinas = Disciplina.objects.filter(
+        escola=request.user.escola,
+    ).order_by("nome")
 
     meses = [
         {"valor": 1, "nome": "Janeiro"},
@@ -1012,9 +1246,14 @@ def relatorio_chamadas(request):
         "ano_atual": hoje.year,
     }
 
-    return render(request, "pages/chamada/relatorio_chamadas.html", context)
+    return render(
+        request,
+        "pages/chamada/relatorio_chamadas.html",
+        context,
+    )
 
 
+@login_required
 def relatorio_chamadas_pdf(request):
     hoje = timezone.now().date()
 
@@ -1023,21 +1262,27 @@ def relatorio_chamadas_pdf(request):
 
     chamadas = (
         Chamada.objects.select_related(
-            "diario",
-            "diario__turma",
-            "diario__disciplina",
-            "diario__professor",
-            "diario__escola",
+            "turma",
+            "disciplina",
+            "professor",
+            "escola",
         )
         .filter(
-            diario__data_ministrada__year=ano,
-            diario__data_ministrada__month=mes,
+            escola=request.user.escola,
+            data__year=ano,
+            data__month=mes,
         )
         .annotate(
-            presentes=Count("presenca", filter=Q(presenca__presente=True)),
-            ausentes=Count("presenca", filter=Q(presenca__presente=False)),
+            presentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=True),
+            ),
+            ausentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=False),
+            ),
         )
-        .order_by("diario__data_ministrada")
+        .order_by("data")
     )
 
     response = HttpResponse(content_type="application/pdf")
@@ -1057,16 +1302,27 @@ def relatorio_chamadas_pdf(request):
     styles = getSampleStyleSheet()
     elementos = []
 
-    escola = chamadas.first().diario.escola if chamadas.exists() else None
+    escola = request.user.escola
 
     # ===============================
     # CABEÇALHO
     # ===============================
-    elementos.append(Paragraph("<b>RELATÓRIO MENSAL DE CHAMADAS</b>", styles["Title"]))
+    elementos.append(
+        Paragraph(
+            "<b>RELATÓRIO MENSAL DE CHAMADAS</b>",
+            styles["Title"],
+        )
+    )
+
     elementos.append(Spacer(1, 12))
 
     if escola:
-        elementos.append(Paragraph(f"<b>Escola:</b> {escola.nome}", styles["Normal"]))
+        elementos.append(
+            Paragraph(
+                f"<b>Escola:</b> {escola.nome}",
+                styles["Normal"],
+            )
+        )
 
     elementos.append(
         Paragraph(
@@ -1074,6 +1330,7 @@ def relatorio_chamadas_pdf(request):
             styles["Normal"],
         )
     )
+
     elementos.append(Spacer(1, 20))
 
     # ===============================
@@ -1094,20 +1351,24 @@ def relatorio_chamadas_pdf(request):
     total_ausentes = 0
 
     for chamada in chamadas:
+
         dados.append(
             [
-                chamada.diario.data_ministrada.strftime("%d/%m/%Y"),
-                chamada.diario.turma.nome,
-                chamada.diario.disciplina.nome,
-                chamada.diario.professor.nome if chamada.diario.professor else "-",
+                chamada.data.strftime("%d/%m/%Y"),
+                chamada.turma.nome if chamada.turma else "-",
+                chamada.disciplina.nome if chamada.disciplina else "-",
+                chamada.professor.nome if chamada.professor else "-",
                 chamada.presentes,
                 chamada.ausentes,
             ]
         )
+
         total_presentes += chamada.presentes
         total_ausentes += chamada.ausentes
 
-    # Linha de totais
+    # ===============================
+    # LINHA DE TOTAIS
+    # ===============================
     dados.append(
         [
             "",
@@ -1119,7 +1380,10 @@ def relatorio_chamadas_pdf(request):
         ]
     )
 
-    tabela = Table(dados, repeatRows=1)
+    tabela = Table(
+        dados,
+        repeatRows=1,
+    )
 
     tabela.setStyle(
         TableStyle(
@@ -1137,44 +1401,125 @@ def relatorio_chamadas_pdf(request):
     elementos.append(tabela)
 
     doc.build(elementos)
+
     return response
 
 
+@login_required
 def resumo_mensal_turma_professor(request):
     hoje = timezone.now().date()
 
     mes = int(request.GET.get("mes", hoje.month))
     ano = int(request.GET.get("ano", hoje.year))
 
-    # ===============================
-    # BASE QUERYSET
-    # ===============================
-    resumo = (
-        Chamada.objects.select_related(
-            "diario",
-            "diario__turma",
-            "diario__professor",
+    # =====================================
+    # BASE
+    # =====================================
+
+    resumo = list(
+        Chamada.objects.filter(
+            escola=request.user.escola,
+            data__year=ano,
+            data__month=mes,
         )
-        .filter(
-            diario__data_ministrada__year=ano,
-            diario__data_ministrada__month=mes,
+        .select_related(
+            "turma",
+            "professor",
         )
         .values(
-            "diario__turma__id",
-            "diario__turma__nome",
-            "diario__professor__id",
-            "diario__professor__nome",
+            "turma__id",
+            "turma__nome",
+            "professor__id",
+            "professor__nome",
         )
         .annotate(
-            total_aulas=Count("id", distinct=True),
-            total_presentes=Count("presencas", filter=Q(presencas__presente=True)),
-            total_ausentes=Count("presencas", filter=Q(presencas__presente=False)),
+            total_aulas=Count(
+                "id",
+                distinct=True,
+            ),
+            total_presentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=True),
+            ),
+            total_ausentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=False),
+            ),
         )
         .order_by(
-            "diario__turma__nome",
-            "diario__professor__nome",
+            "turma__nome",
+            "professor__nome",
         )
     )
+
+    # =====================================
+    # PAGINAÇÃO
+    # =====================================
+
+    paginator = Paginator(resumo, 25)
+
+    page_number = request.GET.get("page")
+
+    resumo = paginator.get_page(page_number)
+
+    pagina_atual = resumo.number
+
+    inicio = max(pagina_atual - 2, 1)
+
+    fim = min(
+        pagina_atual + 2,
+        paginator.num_pages,
+    )
+
+    page_range = range(inicio, fim + 1)
+
+    # =====================================
+    # AJUSTES
+    # =====================================
+
+    for item in resumo:
+
+        total = item["total_presentes"] + item["total_ausentes"]
+
+        if total:
+
+            item["percentual"] = round(
+                item["total_presentes"] * 100 / total,
+                1,
+            )
+
+        else:
+
+            item["percentual"] = 0
+
+    # =====================================
+    # DASHBOARD
+    # =====================================
+
+    total_turmas = len({item["turma__id"] for item in resumo})
+
+    total_professores = len(
+        {item["professor__id"] for item in resumo if item["professor__id"]}
+    )
+
+    total_aulas = sum(item["total_aulas"] for item in resumo)
+
+    total_presentes = sum(item["total_presentes"] for item in resumo)
+
+    total_ausentes = sum(item["total_ausentes"] for item in resumo)
+
+    media_presenca = (
+        round(
+            total_presentes * 100 / (total_presentes + total_ausentes),
+            1,
+        )
+        if (total_presentes + total_ausentes)
+        else 0
+    )
+
+    # =====================================
+    # MESES
+    # =====================================
 
     meses = [
         {"valor": 1, "nome": "Janeiro"},
@@ -1191,16 +1536,32 @@ def resumo_mensal_turma_professor(request):
         {"valor": 12, "nome": "Dezembro"},
     ]
 
+    # =====================================
+    # CONTEXT
+    # =====================================
+
     context = {
         "resumo": resumo,
         "meses": meses,
         "mes_atual": mes,
         "ano_atual": ano,
+        "total_turmas": total_turmas,
+        "total_professores": total_professores,
+        "total_aulas": total_aulas,
+        "total_presentes": total_presentes,
+        "total_ausentes": total_ausentes,
+        "media_presenca": media_presenca,
+        "page_range": page_range,
     }
 
-    return render(request, "pages/chamada/resumo_mensal_turma_professor.html", context)
+    return render(
+        request,
+        "pages/chamada/resumo_mensal_turma_professor.html",
+        context,
+    )
 
 
+@login_required
 def export_resumo_mensal_csv(request):
     hoje = timezone.now().date()
 
@@ -1208,34 +1569,47 @@ def export_resumo_mensal_csv(request):
     ano = int(request.GET.get("ano", hoje.year))
 
     resumo = (
-        Chamada.objects.select_related(
-            "diario",
-            "diario__turma",
-            "diario__professor",
+        Chamada.objects.filter(
+            escola=request.user.escola,
+            data__year=ano,
+            data__month=mes,
         )
-        .filter(
-            diario__data_ministrada__year=ano,
-            diario__data_ministrada__month=mes,
+        .select_related(
+            "turma",
+            "professor",
         )
         .values(
-            "diario__turma__nome",
-            "diario__professor__nome",
+            "turma__nome",
+            "professor__nome",
         )
         .annotate(
-            total_aulas=Count("id", distinct=True),
-            total_presentes=Count("presencas", filter=Q(presencas__presente=True)),
-            total_ausentes=Count("presencas", filter=Q(presencas__presente=False)),
+            total_aulas=Count(
+                "id",
+                distinct=True,
+            ),
+            total_presentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=True),
+            ),
+            total_ausentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=False),
+            ),
         )
         .order_by(
-            "diario__turma__nome",
-            "diario__professor__nome",
+            "turma__nome",
+            "professor__nome",
         )
     )
 
-    response = HttpResponse(content_type="text/csv")
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+
     response["Content-Disposition"] = (
-        f'attachment; filename="resumo_mensal_{mes:02d}_{ano}.csv"'
+        f'attachment; filename="painel_gerencial_{mes:02d}_{ano}.csv"'
     )
+
+    # UTF-8 BOM para abrir corretamente no Excel
+    response.write("\ufeff")
 
     writer = csv.writer(response)
 
@@ -1243,88 +1617,272 @@ def export_resumo_mensal_csv(request):
         [
             "Turma",
             "Professor",
-            "Total de Aulas",
-            "Total de Presentes",
-            "Total de Ausentes",
+            "Aulas",
+            "Presenças",
+            "Faltas",
+            "Frequência (%)",
         ]
     )
 
     for item in resumo:
+
+        total = item["total_presentes"] + item["total_ausentes"]
+
+        percentual = (
+            round(
+                item["total_presentes"] * 100 / total,
+                1,
+            )
+            if total
+            else 0
+        )
+
         writer.writerow(
             [
-                item["diario__turma__nome"],
-                item["diario__professor__nome"] or "-",
+                item["turma__nome"],
+                item["professor__nome"] or "-",
                 item["total_aulas"],
                 item["total_presentes"],
                 item["total_ausentes"],
+                percentual,
             ]
         )
 
     return response
 
 
+@login_required
 def export_resumo_mensal_excel(request):
     hoje = timezone.now().date()
 
     mes = int(request.GET.get("mes", hoje.month))
     ano = int(request.GET.get("ano", hoje.year))
 
-    resumo = (
-        Chamada.objects.select_related(
-            "diario",
-            "diario__turma",
-            "diario__professor",
+    resumo = list(
+        Chamada.objects.filter(
+            escola=request.user.escola,
+            data__year=ano,
+            data__month=mes,
         )
-        .filter(
-            diario__data_ministrada__year=ano,
-            diario__data_ministrada__month=mes,
+        .select_related(
+            "turma",
+            "professor",
         )
         .values(
-            "diario__turma__nome",
-            "diario__professor__nome",
+            "turma__nome",
+            "professor__nome",
         )
         .annotate(
-            total_aulas=Count("id", distinct=True),
-            total_presentes=Count("presencas", filter=Q(presencas__presente=True)),
-            total_ausentes=Count("presencas", filter=Q(presencas__presente=False)),
+            total_aulas=Count(
+                "id",
+                distinct=True,
+            ),
+            total_presentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=True),
+            ),
+            total_ausentes=Count(
+                "presencas",
+                filter=Q(presencas__presente=False),
+            ),
         )
         .order_by(
-            "diario__turma__nome",
-            "diario__professor__nome",
+            "turma__nome",
+            "professor__nome",
         )
+    )
+
+    total_turmas = len({item["turma__nome"] for item in resumo})
+
+    total_professores = len(
+        {item["professor__nome"] for item in resumo if item["professor__nome"]}
+    )
+
+    total_aulas = sum(item["total_aulas"] for item in resumo)
+
+    total_presentes = sum(item["total_presentes"] for item in resumo)
+
+    total_ausentes = sum(item["total_ausentes"] for item in resumo)
+
+    media_presenca = (
+        round(
+            total_presentes * 100 / (total_presentes + total_ausentes),
+            1,
+        )
+        if (total_presentes + total_ausentes)
+        else 0
     )
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Resumo Mensal"
+    ws.title = "Painel Gerencial"
 
-    ws.append(
-        [
-            "Turma",
-            "Professor",
-            "Total de Aulas",
-            "Total de Presentes",
-            "Total de Ausentes",
-        ]
+    azul = PatternFill("solid", fgColor="2563EB")
+    cinza = PatternFill("solid", fgColor="F3F4F6")
+    verde = PatternFill("solid", fgColor="22C55E")
+    amarelo = PatternFill("solid", fgColor="F59E0B")
+    vermelho = PatternFill("solid", fgColor="EF4444")
+
+    titulo = Font(
+        bold=True,
+        color="FFFFFF",
+        size=18,
     )
 
-    for item in resumo:
-        ws.append(
-            [
-                item["diario__turma__nome"],
-                item["diario__professor__nome"] or "-",
-                item["total_aulas"],
-                item["total_presentes"],
-                item["total_ausentes"],
-            ]
+    cabecalho = Font(
+        bold=True,
+        color="FFFFFF",
+    )
+
+    bold = Font(bold=True)
+
+    center = Alignment(
+        horizontal="center",
+        vertical="center",
+    )
+
+    thin = Side(
+        border_style="thin",
+        color="DDDDDD",
+    )
+
+    border = Border(
+        left=thin,
+        right=thin,
+        top=thin,
+        bottom=thin,
+    )
+
+    # ==========================
+    # CABEÇALHO
+    # ==========================
+
+    ws.merge_cells("A1:G1")
+
+    ws["A1"] = "PAINEL GERENCIAL DE CHAMADAS"
+    ws["A1"].fill = azul
+    ws["A1"].font = titulo
+    ws["A1"].alignment = center
+
+    ws["A3"] = "Período"
+    ws["B3"] = f"{mes:02d}/{ano}"
+
+    ws["A4"] = "Turmas"
+    ws["B4"] = total_turmas
+
+    ws["A5"] = "Professores"
+    ws["B5"] = total_professores
+
+    ws["A6"] = "Aulas"
+    ws["B6"] = total_aulas
+
+    ws["A7"] = "Presenças"
+    ws["B7"] = total_presentes
+
+    ws["A8"] = "Faltas"
+    ws["B8"] = total_ausentes
+
+    ws["A9"] = "Frequência Média"
+    ws["B9"] = f"{media_presenca}%"
+
+    for linha in range(3, 10):
+        ws[f"A{linha}"].font = bold
+
+    # ==========================
+    # TABELA
+    # ==========================
+
+    headers = [
+        "Turma",
+        "Professor",
+        "Aulas",
+        "Presenças",
+        "Faltas",
+        "Frequência (%)",
+    ]
+
+    linha_inicio = 11
+
+    for col, texto in enumerate(headers, start=1):
+
+        cell = ws.cell(
+            row=linha_inicio,
+            column=col,
+            value=texto,
         )
+
+        cell.fill = azul
+        cell.font = cabecalho
+        cell.alignment = center
+        cell.border = border
+
+    linha = linha_inicio + 1
+
+    for item in resumo:
+
+        total = item["total_presentes"] + item["total_ausentes"]
+
+        percentual = (
+            round(
+                item["total_presentes"] * 100 / total,
+                1,
+            )
+            if total
+            else 0
+        )
+
+        dados = [
+            item["turma__nome"],
+            item["professor__nome"] or "-",
+            item["total_aulas"],
+            item["total_presentes"],
+            item["total_ausentes"],
+            percentual,
+        ]
+
+        for col, valor in enumerate(dados, start=1):
+
+            cell = ws.cell(
+                row=linha,
+                column=col,
+                value=valor,
+            )
+
+            cell.border = border
+
+            if col >= 3:
+                cell.alignment = center
+
+        if percentual >= 75:
+            ws.cell(row=linha, column=6).fill = verde
+        elif percentual >= 50:
+            ws.cell(row=linha, column=6).fill = amarelo
+        else:
+            ws.cell(row=linha, column=6).fill = vermelho
+
+        if linha % 2 == 0:
+            for col in range(1, 7):
+                if col != 6:
+                    ws.cell(row=linha, column=col).fill = cinza
+
+        linha += 1
+
+    ws.freeze_panes = "A12"
+    ws.auto_filter.ref = f"A11:F{linha-1}"
+
+    ws.column_dimensions["A"].width = 28
+    ws.column_dimensions["B"].width = 30
+    ws.column_dimensions["C"].width = 12
+    ws.column_dimensions["D"].width = 14
+    ws.column_dimensions["E"].width = 12
+    ws.column_dimensions["F"].width = 18
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
     response["Content-Disposition"] = (
-        f'attachment; filename="resumo_mensal_{mes:02d}_{ano}.xlsx"'
+        f'attachment; filename="painel_gerencial_{mes:02d}_{ano}.xlsx"'
     )
 
     wb.save(response)
@@ -1336,6 +1894,7 @@ def export_resumo_mensal_excel(request):
 def relatorio_anual_chamadas(request):
 
     acesso = get_professor_or_gestor(request.user)
+
     if acesso == "bloqueado":
         return render(request, "errors/403.html", status=403)
 
@@ -1347,7 +1906,10 @@ def relatorio_anual_chamadas(request):
         ano = int(ano)
 
     resumo = (
-        DiarioDeClasse.objects.filter(escola=request.escola, data_ministrada__year=ano)
+        Chamada.objects.filter(
+            escola=request.escola,
+            data__year=ano,
+        )
         .values(
             "turma__nome",
             "disciplina__nome",
@@ -1356,17 +1918,21 @@ def relatorio_anual_chamadas(request):
         .annotate(
             total_aulas=Count("id", distinct=True),
             total_presentes=Count(
-                "chamada__presencas",
-                filter=Q(chamada__presencas__presente=True),
+                "presencas",
+                filter=Q(presencas__presente=True),
                 distinct=True,
             ),
             total_ausentes=Count(
-                "chamada__presencas",
-                filter=Q(chamada__presencas__presente=False),
+                "presencas",
+                filter=Q(presencas__presente=False),
                 distinct=True,
             ),
         )
-        .order_by("turma__nome", "disciplina__nome")
+        .order_by(
+            "turma__nome",
+            "disciplina__nome",
+            "professor__nome",
+        )
     )
 
     return render(
@@ -1383,6 +1949,7 @@ def relatorio_anual_chamadas(request):
 def relatorio_anual_chamadas_pdf(request):
 
     acesso = get_professor_or_gestor(request.user)
+
     if acesso == "bloqueado":
         return render(request, "errors/403.html", status=403)
 
@@ -1395,22 +1962,29 @@ def relatorio_anual_chamadas_pdf(request):
 
     resumo = (
         Presenca.objects.filter(
-            chamada__diario__data_ministrada__year=ano,
-            chamada__diario__turma__escola=request.escola,
+            chamada__data__year=ano,
+            chamada__escola=request.escola,
         )
         .values(
-            "chamada__diario__turma__nome",
-            "chamada__diario__disciplina__nome",
-            "chamada__diario__professor__nome",
+            "chamada__turma__nome",
+            "chamada__disciplina__nome",
+            "chamada__professor__nome",
         )
         .annotate(
             total_aulas=Count("chamada", distinct=True),
-            total_presentes=Count("id", filter=Q(presente=True)),
-            total_ausentes=Count("id", filter=Q(presente=False)),
+            total_presentes=Count(
+                "id",
+                filter=Q(presente=True),
+            ),
+            total_ausentes=Count(
+                "id",
+                filter=Q(presente=False),
+            ),
         )
         .order_by(
-            "chamada__diario__turma__nome",
-            "chamada__diario__disciplina__nome",
+            "chamada__turma__nome",
+            "chamada__disciplina__nome",
+            "chamada__professor__nome",
         )
     )
 
@@ -1432,7 +2006,7 @@ def relatorio_anual_chamadas_pdf(request):
     pdf.drawString(2 * cm, y, f"Escola: {request.escola.nome}")
     y -= 1.2 * cm
 
-    # CABEÇALHO DA TABELA
+    # CABEÇALHO
     pdf.setFont("Helvetica-Bold", 10)
     pdf.drawString(2 * cm, y, "Turma")
     pdf.drawString(6 * cm, y, "Disciplina")
@@ -1448,35 +2022,58 @@ def relatorio_anual_chamadas_pdf(request):
     pdf.setFont("Helvetica", 10)
 
     for r in resumo:
+
         if y < 2 * cm:
             pdf.showPage()
             y = height - 2 * cm
+
+            pdf.setFont("Helvetica-Bold", 10)
+            pdf.drawString(2 * cm, y, "Turma")
+            pdf.drawString(6 * cm, y, "Disciplina")
+            pdf.drawString(10 * cm, y, "Professor")
+            pdf.drawString(14 * cm, y, "Aulas")
+            pdf.drawString(15.5 * cm, y, "P")
+            pdf.drawString(17 * cm, y, "F")
+
+            y -= 0.4 * cm
+            pdf.line(2 * cm, y, 19 * cm, y)
+            y -= 0.5 * cm
+
             pdf.setFont("Helvetica", 10)
 
-        pdf.drawString(2 * cm, y, r["chamada__diario__turma__nome"][:20])
-        pdf.drawString(6 * cm, y, r["chamada__diario__disciplina__nome"][:20])
-        pdf.drawString(10 * cm, y, (r["chamada__diario__professor__nome"] or "—")[:18])
+        pdf.drawString(2 * cm, y, r["chamada__turma__nome"][:20])
+        pdf.drawString(6 * cm, y, r["chamada__disciplina__nome"][:20])
+        pdf.drawString(
+            10 * cm,
+            y,
+            (r["chamada__professor__nome"] or "—")[:18],
+        )
         pdf.drawRightString(15 * cm, y, str(r["total_aulas"]))
         pdf.drawRightString(16.5 * cm, y, str(r["total_presentes"]))
         pdf.drawRightString(18 * cm, y, str(r["total_ausentes"]))
 
         y -= 0.45 * cm
 
-    pdf.showPage()
     pdf.save()
 
     buffer.seek(0)
-    return HttpResponse(buffer, content_type="application/pdf")
+
+    return HttpResponse(
+        buffer,
+        content_type="application/pdf",
+    )
 
 
 @login_required
 def relatorio_anual_chamadas_excel(request):
 
     acesso = get_professor_or_gestor(request.user)
+
     if acesso == "bloqueado":
         return JsonResponse({"erro": "Acesso negado"}, status=403)
 
     ano = request.GET.get("ano")
+
     if not ano:
         return JsonResponse({"erro": "Ano não informado"}, status=400)
 
@@ -1484,22 +2081,29 @@ def relatorio_anual_chamadas_excel(request):
 
     resumo = (
         Presenca.objects.filter(
-            chamada__diario__data_ministrada__year=ano,
-            chamada__diario__turma__escola=request.escola,
+            chamada__data__year=ano,
+            chamada__escola=request.escola,
         )
         .values(
-            "chamada__diario__turma__nome",
-            "chamada__diario__disciplina__nome",
-            "chamada__diario__professor__nome",
+            "chamada__turma__nome",
+            "chamada__disciplina__nome",
+            "chamada__professor__nome",
         )
         .annotate(
             total_aulas=Count("chamada", distinct=True),
-            total_presentes=Count("id", filter=Q(presente=True)),
-            total_ausentes=Count("id", filter=Q(presente=False)),
+            total_presentes=Count(
+                "id",
+                filter=Q(presente=True),
+            ),
+            total_ausentes=Count(
+                "id",
+                filter=Q(presente=False),
+            ),
         )
         .order_by(
-            "chamada__diario__turma__nome",
-            "chamada__diario__disciplina__nome",
+            "chamada__turma__nome",
+            "chamada__disciplina__nome",
+            "chamada__professor__nome",
         )
     )
 
@@ -1507,7 +2111,6 @@ def relatorio_anual_chamadas_excel(request):
     ws = wb.active
     ws.title = f"Chamadas {ano}"
 
-    # CABEÇALHO
     headers = [
         "Turma",
         "Disciplina",
@@ -1518,28 +2121,27 @@ def relatorio_anual_chamadas_excel(request):
     ]
 
     ws.append(headers)
+
     from openpyxl.styles import Font, Alignment
 
-    # ESTILO DO CABEÇALHO
     for col in range(1, len(headers) + 1):
         cell = ws.cell(row=1, column=col)
         cell.font = Font(bold=True)
         cell.alignment = Alignment(horizontal="center")
 
-    # DADOS
     for r in resumo:
         ws.append(
             [
-                r["chamada__diario__turma__nome"],
-                r["chamada__diario__disciplina__nome"],
-                r["chamada__diario__professor__nome"] or "-",
+                r["chamada__turma__nome"],
+                r["chamada__disciplina__nome"],
+                r["chamada__professor__nome"] or "-",
                 r["total_aulas"],
                 r["total_presentes"],
                 r["total_ausentes"],
             ]
         )
 
-    # AUTO AJUSTE DE COLUNAS
+    # Autoajuste das colunas
     for col in ws.columns:
         max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
         ws.column_dimensions[col[0].column_letter].width = max_length + 3
@@ -1547,9 +2149,115 @@ def relatorio_anual_chamadas_excel(request):
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
     response["Content-Disposition"] = (
         f'attachment; filename="relatorio_chamadas_{ano}.xlsx"'
     )
 
     wb.save(response)
+
     return response
+
+
+@login_required
+def api_disciplinas_por_turma(request):
+
+    turma_id = request.GET.get("turma")
+
+    if not turma_id:
+        return JsonResponse([], safe=False)
+
+    turma = get_object_or_404(
+        Turma,
+        id=turma_id,
+        escola=request.user.escola,
+    )
+
+    disciplinas = (
+        Disciplina.objects.filter(
+            escola=request.user.escola,
+            turmadisciplina__turma=turma,
+            turmadisciplina__escola=request.user.escola,
+        )
+        .distinct()
+        .order_by("nome")
+        .values("id", "nome")
+    )
+
+    return JsonResponse(list(disciplinas), safe=False)
+
+
+@login_required
+def api_datas_chamada(request):
+
+    turma_id = request.GET.get("turma")
+    disciplina_id = request.GET.get("disciplina")
+
+    if not turma_id or not disciplina_id:
+        return JsonResponse([], safe=False)
+
+    base = Chamada.objects.filter(
+        escola=request.user.escola,
+        turma_id=turma_id,
+        disciplina_id=disciplina_id,
+    )
+
+    professor = Docente.objects.filter(
+        user=request.user,
+        escola=request.user.escola,
+    ).first()
+
+    if request.user.role == "professor" and professor:
+        base = base.filter(Q(professor=professor) | Q(professor__isnull=True))
+
+    datas = base.order_by("data").values_list("data", flat=True).distinct()
+
+    return JsonResponse(
+        [data.strftime("%Y-%m-%d") for data in datas],
+        safe=False,
+    )
+
+
+@login_required
+@require_POST
+def excluir_chamada(request, chamada_id):
+
+    chamada = get_object_or_404(
+        Chamada.all_objects,
+        id=chamada_id,
+        escola=request.user.escola,
+    )
+
+    if chamada.excluido:
+
+        messages.warning(request, "Esta chamada já foi excluída.")
+
+        return redirect("chamada:listar_chamadas")
+
+    config = ConfiguracaoChamada(request.user.escola)
+
+    if not pode_excluir_chamada(
+        request.user,
+        chamada,
+        config,
+    ):
+        raise PermissionDenied
+
+    chamada.excluido = True
+    chamada.excluido_por = request.user
+    chamada.data_exclusao = timezone.now()
+
+    chamada.save(
+        update_fields=[
+            "excluido",
+            "excluido_por",
+            "data_exclusao",
+        ]
+    )
+
+    messages.success(request, "Chamada excluída com sucesso.")
+
+    return redirect("chamada:listar_chamadas")
+
+
+relatorio_chamadas_pdf

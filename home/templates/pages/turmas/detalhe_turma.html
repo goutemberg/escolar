@@ -127,7 +127,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     ensureFuse(function() {
-      function removerAluno(turmaId, alunoId) {
+      window.removerAluno = function (turmaId, alunoId) {
     if (!confirm("Remover este aluno da turma?")) return;
 
     fetch(`/turmas/${turmaId}/remover-aluno/`, {
@@ -140,7 +140,7 @@
     }).then(() => location.reload());
 }
 
-function removerProfessor(turmaId, professorId) {
+window.removerProfessor = function (turmaId, professorId) {
     if (!confirm("Remover este professor da turma?")) return;
 
     fetch(`/turmas/${turmaId}/remover-professor/`, {

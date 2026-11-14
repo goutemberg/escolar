@@ -16,11 +16,9 @@ from io import BytesIO
 from django.http import JsonResponse, HttpResponse
 import os
 
-
 # =========================================
 # PDF DO BOLETIM
 # =========================================
-
 
 
 @login_required
@@ -29,17 +27,9 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     # ================================
     # DADOS BASE
     # ================================
-    aluno = get_object_or_404(
-        Aluno,
-        id=aluno_id,
-        escola=request.user.escola
-    )
+    aluno = get_object_or_404(Aluno, id=aluno_id, escola=request.user.escola)
 
-    turma = get_object_or_404(
-        Turma,
-        id=turma_id,
-        escola=request.user.escola
-    )
+    turma = get_object_or_404(Turma, id=turma_id, escola=request.user.escola)
 
     escola = turma.escola
 
@@ -56,8 +46,7 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
         try:
             if os.path.exists(boletim_obj.pdf.path):
                 return HttpResponse(
-                    boletim_obj.pdf.read(),
-                    content_type="application/pdf"
+                    boletim_obj.pdf.read(), content_type="application/pdf"
                 )
         except:
             pass  # cloudinary ou erro → ignora
@@ -75,13 +64,19 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     # ================================
     # HEADER
     # ================================
-    elements.append(Paragraph(f"<b>BOLETIM ESCOLAR - {datetime.now().year}</b>", styles["Title"]))
+    elements.append(
+        Paragraph(f"<b>BOLETIM ESCOLAR - {datetime.now().year}</b>", styles["Title"])
+    )
     elements.append(Spacer(1, 10))
 
     elements.append(Paragraph(f"<b>Escola:</b> {escola.nome}", styles["Normal"]))
     elements.append(Paragraph(f"<b>Aluno:</b> {aluno.nome}", styles["Normal"]))
     elements.append(Paragraph(f"<b>Turma:</b> {turma.nome}", styles["Normal"]))
-    elements.append(Paragraph(f"<b>Data:</b> {datetime.now().strftime('%d/%m/%Y')}", styles["Normal"]))
+    elements.append(
+        Paragraph(
+            f"<b>Data:</b> {datetime.now().strftime('%d/%m/%Y')}", styles["Normal"]
+        )
+    )
 
     elements.append(Spacer(1, 20))
 
@@ -139,22 +134,30 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
                 else:
                     media = "-"
             else:
-                media = item["bimestres"][b] if item["bimestres"][b] is not None else "-"
+                media = (
+                    item["bimestres"][b] if item["bimestres"][b] is not None else "-"
+                )
 
-            data.append([
-                item["disciplina"],
-                Paragraph(notas_texto, styles["Normal"]),
-                str(media)
-            ])
+            data.append(
+                [
+                    item["disciplina"],
+                    Paragraph(notas_texto, styles["Normal"]),
+                    str(media),
+                ]
+            )
 
         table = Table(data, colWidths=[150, 220, 60])
 
-        table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), AZUL_NUCLEO),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ]))
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), AZUL_NUCLEO),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("GRID", (0, 0), (-1, -1), 0.3, colors.grey),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
 
         elements.append(table)
         elements.append(Spacer(1, 20))
@@ -166,9 +169,17 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
         elements.append(Spacer(1, 10))
         elements.append(Paragraph("<b>Legenda:</b>", styles["Heading3"]))
 
-        elements.append(Paragraph("<font color='#2e7d32'><b>O</b></font> - Ótimo", styles["Normal"]))
-        elements.append(Paragraph("<font color='#f9a825'><b>B</b></font> - Bom", styles["Normal"]))
-        elements.append(Paragraph("<font color='#1565c0'><b>E</b></font> - Evolução", styles["Normal"]))
+        elements.append(
+            Paragraph("<font color='#2e7d32'><b>O</b></font> - Ótimo", styles["Normal"])
+        )
+        elements.append(
+            Paragraph("<font color='#f9a825'><b>B</b></font> - Bom", styles["Normal"])
+        )
+        elements.append(
+            Paragraph(
+                "<font color='#1565c0'><b>E</b></font> - Evolução", styles["Normal"]
+            )
+        )
 
     # ================================
     # BUILD PDF
@@ -182,8 +193,7 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
     # 💾 SALVAR (LOCAL OU CLOUDINARY)
     # ================================
     boletim_obj.pdf.save(
-        f"boletins/boletim_{aluno.id}_{turma.id}.pdf",
-        ContentFile(pdf)
+        f"boletins/boletim_{aluno.id}_{turma.id}.pdf", ContentFile(pdf)
     )
 
     # ================================
@@ -198,16 +208,10 @@ def gerar_pdf_boletim(request, aluno_id, turma_id):
 @login_required
 def boletim_turma(request, turma_id):
 
-    turma = get_object_or_404(
-        Turma,
-        id=turma_id,
-        escola=request.user.escola
-    )
+    turma = get_object_or_404(Turma, id=turma_id, escola=request.user.escola)
 
     alunos = Aluno.objects.filter(
-        turma_principal=turma,
-        escola=turma.escola,
-        ativo=True
+        turma_principal=turma, escola=turma.escola, ativo=True
     ).order_by("nome")
 
     resultado = []
@@ -217,11 +221,7 @@ def boletim_turma(request, turma_id):
         boletim_obj = gerar_e_salvar_boletim(aluno, turma)
         boletim = boletim_obj.dados
 
-        medias = [
-            d["media_final"]
-            for d in boletim
-            if d["media_final"] is not None
-        ]
+        medias = [d["media_final"] for d in boletim if d["media_final"] is not None]
 
         media_final = None
 
@@ -229,38 +229,36 @@ def boletim_turma(request, turma_id):
             media_final = sum(medias) / len(medias)
             media_final = arredondar_media_personalizada(media_final)
 
-        resultado.append({
-            "aluno": aluno,
-            "media": media_final,
-            "status": (
-                "Aprovado" if media_final and media_final >= 7
-                else "Recuperação" if media_final and media_final >= 5
-                else "Reprovado"
-            )
-        })
+        resultado.append(
+            {
+                "aluno": aluno,
+                "media": media_final,
+                "status": (
+                    "Aprovado"
+                    if media_final and media_final >= 7
+                    else (
+                        "Recuperação"
+                        if media_final and media_final >= 5
+                        else "Reprovado"
+                    )
+                ),
+            }
+        )
 
-    return render(request, "boletim/boletim_turma.html", {
-        "turma": turma,
-        "resultado": resultado
-    })
+    return render(
+        request, "boletim/boletim_turma.html", {"turma": turma, "resultado": resultado}
+    )
 
 
 @login_required
 def boletim(request, aluno_id, turma_id=None):
 
-    aluno = get_object_or_404(
-        Aluno,
-        id=aluno_id,
-        escola=request.user.escola
-    )
+    aluno = get_object_or_404(Aluno, id=aluno_id, escola=request.user.escola)
 
     turma = None
 
     if turma_id:
-        turma = Turma.objects.filter(
-            id=turma_id,
-            escola=request.user.escola
-        ).first()
+        turma = Turma.objects.filter(id=turma_id, escola=request.user.escola).first()
 
     if not turma:
         turma = aluno.turma_principal
@@ -283,43 +281,37 @@ def boletim(request, aluno_id, turma_id=None):
     return redirect("gerar_pdf_boletim", aluno_id=aluno.id, turma_id=turma.id)
 
 
-
 @login_required
 def escolher_turma_boletim(request, aluno_id):
 
-    aluno = get_object_or_404(
-        Aluno,
-        id=aluno_id,
-        escola=request.user.escola
+    aluno = get_object_or_404(Aluno, id=aluno_id, escola=request.user.escola)
+
+    turmas = (
+        Turma.objects.filter(
+            Q(alunos=aluno) | Q(alunos_principais=aluno), escola=request.user.escola
+        )
+        .distinct()
+        .order_by("nome")
     )
 
-    turmas = Turma.objects.filter(
-        Q(alunos=aluno) | Q(alunos_principais=aluno),
-        escola=request.user.escola
-    ).distinct().order_by("nome")
-
-    return render(request, "pages/escolher_turma_boletim.html", {
-        "aluno": aluno,
-        "turmas": turmas
-    })
+    return render(
+        request, "pages/escolher_turma_boletim.html", {"aluno": aluno, "turmas": turmas}
+    )
 
 
 @login_required
 def boletim_aluno_redirect(request, aluno_id):
 
-    aluno = get_object_or_404(
-        Aluno,
-        id=aluno_id,
-        escola=request.user.escola
-    )
+    aluno = get_object_or_404(Aluno, id=aluno_id, escola=request.user.escola)
 
     turma = aluno.turma_principal or aluno.turmas.first()
 
     if not turma:
-        turma = Turma.objects.filter(
-            Q(alunos=aluno),
-            escola=request.user.escola
-        ).order_by("id").first()
+        turma = (
+            Turma.objects.filter(Q(alunos=aluno), escola=request.user.escola)
+            .order_by("id")
+            .first()
+        )
 
     if not turma:
         return redirect("escolher_turma_boletim", aluno_id=aluno.id)
@@ -335,27 +327,18 @@ def boletim_aluno_redirect(request, aluno_id):
 @login_required
 def baixar_boletim(request, aluno_id):
 
-    aluno = get_object_or_404(
-        Aluno,
-        id=aluno_id,
-        escola=request.user.escola
-    )
+    aluno = get_object_or_404(Aluno, id=aluno_id, escola=request.user.escola)
 
     turma = aluno.turma_principal or aluno.turmas.first()
 
     if not turma:
         return JsonResponse({"erro": "Aluno sem turma."}, status=400)
 
-    boletim = Boletim.objects.filter(
-        aluno=aluno,
-        turma=turma
-    ).first()
+    boletim = Boletim.objects.filter(aluno=aluno, turma=turma).first()
 
     # 🔥 SE NÃO EXISTE → NÃO GERA
     if not boletim or not boletim.pdf:
-        return JsonResponse({
-            "erro": "Boletim ainda não foi gerado."
-        }, status=404)
+        return JsonResponse({"erro": "Boletim ainda não foi gerado."}, status=404)
 
     # 🔥 DOWNLOAD DIRETO
     return redirect(boletim.pdf.url)

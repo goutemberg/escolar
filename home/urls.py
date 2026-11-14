@@ -189,7 +189,6 @@ urlpatterns = [
     # --------------------------------
     # Admin temporário
     # --------------------------------
-    path("criar-admin-temp/", views_root.create_admin_temp, name="criar-admin-temp"),
     path("chamada/", include(("home.routes.chamada", "chamada"), namespace="chamada")),
     path("turmas/", include(("home.routes.turmas", "turmas"), namespace="turmas")),
     path(
@@ -232,13 +231,13 @@ urlpatterns = [
         "avaliacoes/",
         include(("home.routes.avaliacoes", "avaliacoes"), namespace="avaliacoes"),
     ),
-    # path(
-    #     "",
-    #     include(
-    #         ("home.routes.fechamento_ano_letivo", "fechamento_ano_letivo"),
-    #         namespace="fechamento_ano_letivo",
-    #     ),
-    # ),
+    path(
+        "fechamento-ano-letivo/",
+        include(
+            ("home.routes.fechamento_ano_letivo", "fechamento_ano_letivo"),
+            namespace="fechamento_ano_letivo",
+        ),
+    ),
     #######################################
     #         RESET SENHA
     #######################################
@@ -323,4 +322,40 @@ urlpatterns = [
     path("", include("home.routes.relatorio_chamada_professor")),
     # APP
     path("app/", views_root.app_mobile, name="app_mobile"),
+    # --------------------------------
+    # Matrículas
+    # --------------------------------
+    path(
+        "matriculas/",
+        include(
+            ("home.routes.matricula", "matricula"),
+            namespace="matricula",
+        ),
+    ),
+    # --------------------------------
+    # Transferencia Interna
+    # --------------------------------
+    path(
+        "transferencia-interna/",
+        include(
+            (
+                "home.routes.transferencia_interna",
+                "transferencia_interna",
+            ),
+            namespace="transferencia_interna",
+        ),
+    ),
+    # --------------------------------
+    # Dashboard do Diretor
+    # --------------------------------
+    path(
+        "dashboard/diretor/",
+        include(
+            (
+                "home.routes.dashboard_diretor",
+                "dashboard_diretor",
+            ),
+            namespace="dashboard_diretor",
+        ),
+    ),
 ]

@@ -1,11 +1,30 @@
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener("DOMContentLoaded", () => {
 
-  const inputBusca = document.getElementById('buscaPessoa');
-  const tipoPessoa = document.getElementById('tipoPessoa');
-  const disciplinaSelect = document.getElementById('disciplinaSelecionada');
-  const campoTags = document.getElementById('turmaMontadaTags');
-  const form = document.getElementById('turmaForm');
-  const sistemaSelect = document.getElementById('sistemaAvaliacao');
+  // ============================
+  // Elementos do DOM
+  // ============================
+
+  const inputBusca = document.getElementById("buscaPessoa");
+  const tipoPessoa = document.getElementById("tipoPessoa");
+  const disciplinaSelect = document.getElementById("disciplinaSelecionada");
+  const campoTags = document.getElementById("turmaMontadaTags");
+  const form = document.getElementById("turmaForm");
+
+  console.log("FORM:", form);
+
+  const sistemaSelect = document.getElementById("sistemaAvaliacao");
+
+  const nomeTurmaSelect = document.getElementById("nomeTurmaSelect");
+  const turnoTurma = document.getElementById("turnoTurma");
+  const anoTurma = document.getElementById("anoTurma");
+  const salaTurma = document.getElementById("salaTurma");
+  const descricaoTurma = document.getElementById("descricaoTurma");
+
+  const botaoSalvar = document.querySelector('#turmaForm button[type="submit"]');
+
+  // ============================
+  // Estado
+  // ============================
 
   let lastLista = [];
 
@@ -15,8 +34,12 @@ document.addEventListener('DOMContentLoaded', function () {
     alunos: []
   };
 
-  function normalizaNome(s) {
-    return (s || "")
+  // ============================
+  // Helpers
+  // ============================
+
+  function normalizaNome(valor) {
+    return (valor || "")
       .toString()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -24,27 +47,30 @@ document.addEventListener('DOMContentLoaded', function () {
       .trim();
   }
 
-  function sortPorNome(lista) {
-    return (lista || []).slice().sort((a, b) => {
-      const an = normalizaNome(a?.nome);
-      const bn = normalizaNome(b?.nome);
-      return an.localeCompare(bn, "pt-BR");
-    });
+  function sortPorNome(lista = []) {
+    return [...lista].sort((a, b) =>
+      normalizaNome(a?.nome).localeCompare(
+        normalizaNome(b?.nome),
+        "pt-BR"
+      )
+    );
   }
 
   function alunoJaNaTurma(id) {
-    return turma.alunos.some(a => String(a.id) === String(id));
+    return turma.alunos.some(
+      aluno => String(aluno.id) === String(id)
+    );
   }
 
   function professorJaNaDisciplina(professorId, disciplinaId) {
-    return turma.professores.some(p =>
-      String(p.professor_id) === String(professorId) &&
-      String(p.disciplina_id) === String(disciplinaId)
+    return turma.professores.some(professor =>
+      String(professor.professor_id) === String(professorId) &&
+      String(professor.disciplina_id) === String(disciplinaId)
     );
   }
 
   function getDisciplinaIdSelecionada() {
-    return disciplinaSelect ? (disciplinaSelect.value || "") : "";
+    return disciplinaSelect?.value || "";
   }
 
   function renderSugestoesAtuais() {
@@ -52,89 +78,138 @@ document.addEventListener('DOMContentLoaded', function () {
     mostrarSugestoes(lastLista);
   }
 
+  // ============================
+  // Inicialização
+  // ============================
+
   const params = new URLSearchParams(window.location.search);
-  const turmaId = params.get('turma_id');
+  const turmaId = params.get("turma_id");
 
   if (turmaId) {
     turma.id = turmaId;
 
-    const botaoSalvar = document.querySelector('#turmaForm button[type="submit"]');
-    if (botaoSalvar) botaoSalvar.textContent = 'Salvar Edição';
+    if (botaoSalvar) {
+      botaoSalvar.textContent = "Salvar Edição";
+    }
 
     carregarTurma(turmaId);
   }
 
   if (tipoPessoa) {
-    tipoPessoa.addEventListener('change', atualizarCampoDisciplina);
+    tipoPessoa.addEventListener("change", atualizarCampoDisciplina);
     atualizarCampoDisciplina();
   }
 
+  if (disciplinaSelect) {
+    disciplinaSelect.addEventListener(
+      "change",
+      renderSugestoesAtuais
+    );
+  }
+
+  // ============================
+  // Eventos
+  // ============================
+
   function atualizarCampoDisciplina() {
-    const tipo = tipoPessoa.value;
 
     if (!disciplinaSelect) return;
 
-    disciplinaSelect.disabled = tipo !== 'professor';
+    const ehProfessor = tipoPessoa.value === "professor";
 
-    if (tipo !== 'professor') {
-      disciplinaSelect.value = '';
+    disciplinaSelect.disabled = !ehProfessor;
+
+    if (!ehProfessor) {
+      disciplinaSelect.value = "";
     }
 
     renderSugestoesAtuais();
   }
 
+  // Mantido por compatibilidade com HTML existente
   window.atualizarCampoDisciplina = atualizarCampoDisciplina;
 
-  if (disciplinaSelect) {
-    disciplinaSelect.addEventListener("change", renderSugestoesAtuais);
+  // ============================
+  // Carregamento
+  // ============================
+
+  async function carregarTurma(id) {
+
+    try {
+
+      const response = await fetch(`/turmas/api/turmas/${id}/`);
+
+      if (!response.ok) {
+        throw new Error("Erro ao carregar turma.");
+      }
+
+      const data = await response.json();
+
+      preencherFormulario(data);
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert("Erro ao carregar dados da turma.");
+
+    }
   }
 
-  function carregarTurma(id) {
-    fetch(`/turmas/api/turmas/${id}/`)
-      .then(res => res.json())
-      .then(data => {
+  function preencherFormulario(data) {
 
-        document.getElementById('nomeTurmaSelect').value = data.nome;
-        document.getElementById('turnoTurma').value = data.turno;
-        document.getElementById('anoTurma').value = data.ano;
-        document.getElementById('salaTurma').value = data.sala;
-        document.getElementById('descricaoTurma').value = data.descricao || '';
+    nomeTurmaSelect.value = data.nome;
+    turnoTurma.value = data.turno;
+    anoTurma.value = data.ano;
+    salaTurma.value = data.sala;
+    descricaoTurma.value = data.descricao || "";
 
-        if (sistemaSelect && data.sistema_avaliacao) {
-          sistemaSelect.value = data.sistema_avaliacao;
-        }
+    if (sistemaSelect && data.sistema_avaliacao) {
+      sistemaSelect.value = data.sistema_avaliacao;
+    }
 
-        turma.alunos = sortPorNome(data.alunos || []);
+    turma.alunos = sortPorNome(data.alunos || []);
 
-        turma.professores = sortPorNome((data.professores || []).map(p => ({
-          professor_id: p.professor_id,
-          nome: p.nome,
-          disciplina_id: p.disciplina_id,
-          disciplina_nome: p.disciplina_nome
-        })));
+    turma.professores = sortPorNome(
+      (data.professores || []).map(professor => ({
+        professor_id: professor.professor_id,
+        nome: professor.nome,
+        disciplina_id: professor.disciplina_id,
+        disciplina_nome: professor.disciplina_nome
+      }))
+    );
 
-        atualizarTags();
-      })
-      .catch(() => alert("Erro ao carregar dados da turma."));
+    const selectCoordenadores = document.getElementById("coordenadoresSelect");
+
+    if (selectCoordenadores) {
+      Array.from(selectCoordenadores.options).forEach(option => {
+        option.selected = (data.coordenadores || []).some(
+          coordenador => String(coordenador.id) === option.value
+        );
+      });
+    }
+
+    atualizarTags();
   }
 
+  // Mantido por compatibilidade com o HTML atual
   window.adicionarPessoa = function () {
 
-    const sugestoes = document.getElementById('sugestoes');
-    const lista = sugestoes?.dataset.lista ? JSON.parse(sugestoes.dataset.lista) : [];
+    const sugestoes = document.getElementById("sugestoes");
+    const lista = sugestoes?.dataset.lista
+      ? JSON.parse(sugestoes.dataset.lista)
+      : [];
 
-    const idSelecionado = sugestoes.dataset.selecionado;
-
-    const pessoa = lista.find(p => String(p.id) === String(idSelecionado));
+    const pessoa = lista.find(
+      p => String(p.id) === String(sugestoes.dataset.selecionado)
+    );
 
     if (!pessoa) {
       alert("Selecione um nome da lista.");
       return;
     }
 
-    const tipo = tipoPessoa.value;
-
-    if (tipo === 'aluno') {
+    if (tipoPessoa.value === "aluno") {
 
       if (alunoJaNaTurma(pessoa.id)) {
         alert("Este aluno já está na turma.");
@@ -151,7 +226,6 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
 
       const disciplinaId = getDisciplinaIdSelecionada();
-      const disciplinaNome = disciplinaSelect.options[disciplinaSelect.selectedIndex].text;
 
       if (!disciplinaId) {
         alert("Selecione uma disciplina.");
@@ -167,174 +241,256 @@ document.addEventListener('DOMContentLoaded', function () {
         professor_id: pessoa.id,
         nome: pessoa.nome,
         disciplina_id: disciplinaId,
-        disciplina_nome: disciplinaNome
+        disciplina_nome:
+          disciplinaSelect.options[
+            disciplinaSelect.selectedIndex
+          ].text
       });
 
       turma.professores = sortPorNome(turma.professores);
     }
 
-    inputBusca.value = '';
+    inputBusca.value = "";
+
     limparSugestoes();
+
     atualizarTags();
   };
 
   function atualizarTags() {
 
-    campoTags.innerHTML = '';
+    campoTags.innerHTML = "";
 
-    turma.professores.forEach(p => {
+    turma.professores.forEach(professor => {
 
-      const tag = criarTag(
-        `👨‍🏫 ${p.nome} – ${p.disciplina_nome}`,
-        () => {
+      campoTags.appendChild(
+        criarTag(
+          `👨‍🏫 ${professor.nome} – ${professor.disciplina_nome}`,
+          () => {
 
-          turma.professores = turma.professores.filter(x =>
-            !(String(x.professor_id) === String(p.professor_id) &&
-              String(x.disciplina_id) === String(p.disciplina_id))
-          );
+            turma.professores = turma.professores.filter(item =>
+              !(
+                String(item.professor_id) === String(professor.professor_id) &&
+                String(item.disciplina_id) === String(professor.disciplina_id)
+              )
+            );
 
-          atualizarTags();
-        }
+            atualizarTags();
+
+          }
+        )
       );
 
-      campoTags.appendChild(tag);
     });
 
-    turma.alunos.forEach(a => {
+    turma.alunos.forEach(aluno => {
 
-      const tag = criarTag(
-        `👦 ${a.nome}`,
-        () => {
+      campoTags.appendChild(
+        criarTag(
+          `👦 ${aluno.nome}`,
+          () => {
 
-          turma.alunos = turma.alunos.filter(x => String(x.id) !== String(a.id));
+            turma.alunos = turma.alunos.filter(
+              item => String(item.id) !== String(aluno.id)
+            );
 
-          atualizarTags();
-        }
+            atualizarTags();
+
+          }
+        )
       );
 
-      campoTags.appendChild(tag);
     });
+
   }
 
   function criarTag(texto, onRemove) {
 
-    const div = document.createElement('div');
-    div.className = 'tag-item';
+    const tag = document.createElement("div");
 
-    div.innerHTML = `${texto} <button type="button">×</button>`;
+    tag.className = "tag-item";
 
-    div.querySelector('button').addEventListener('click', onRemove);
+    tag.innerHTML = `
+    ${texto}
+    <button type="button">×</button>
+  `;
 
-    return div;
+    tag.querySelector("button")
+      .addEventListener("click", onRemove);
+
+    return tag;
+
   }
 
-  inputBusca.addEventListener("keyup", function () {
+  inputBusca.addEventListener("keyup", buscarPessoas);
 
-    const nome = this.value.trim();
-    const tipo = tipoPessoa.value;
+  async function buscarPessoas() {
+
+    const nome = inputBusca.value.trim();
 
     if (nome.length < 2) {
+
       limparSugestoes();
+
       lastLista = [];
+
       return;
+
     }
 
-    fetch(`/autocomplete_pessoa/?nome=${encodeURIComponent(nome)}&tipo=${tipo}`)
-      .then(res => res.json())
-      .then(lista => {
+    try {
 
-        if (!Array.isArray(lista)) lista = [];
+      const response = await fetch(
+        `/autocomplete_pessoa/?nome=${encodeURIComponent(nome)}&tipo=${tipoPessoa.value}`
+      );
 
-        lista = sortPorNome(lista);
+      let lista = await response.json();
 
-        lastLista = lista;
+      if (!Array.isArray(lista)) {
+        lista = [];
+      }
 
-        mostrarSugestoes(lista);
-      })
-      .catch(() => {
-        limparSugestoes();
-        lastLista = [];
-      });
+      lastLista = sortPorNome(lista);
 
-  });
+      mostrarSugestoes(lastLista);
+
+    } catch (error) {
+
+      console.error(error);
+
+      limparSugestoes();
+
+      lastLista = [];
+
+    }
+
+  }
 
   function mostrarSugestoes(lista) {
 
-    const ul = document.getElementById('sugestoes');
+    const sugestoes = document.getElementById("sugestoes");
 
-    ul.innerHTML = '';
-    ul.dataset.lista = JSON.stringify(lista);
+    sugestoes.innerHTML = "";
 
-    lista.forEach(p => {
+    sugestoes.dataset.lista = JSON.stringify(lista);
 
-      const li = document.createElement('li');
+    lista.forEach(pessoa => {
 
-      li.textContent = p.nome;
+      const li = document.createElement("li");
 
-      li.addEventListener("mousedown", function (ev) {
+      li.textContent = pessoa.nome;
 
-        ev.preventDefault();
+      li.addEventListener("mousedown", event => {
 
-        inputBusca.value = p.nome;
+        event.preventDefault();
 
-        ul.dataset.selecionado = p.id;
+        inputBusca.value = pessoa.nome;
 
-        ul.innerHTML = '';
+        sugestoes.dataset.selecionado = pessoa.id;
+
+        sugestoes.innerHTML = "";
+
       });
 
-      ul.appendChild(li);
+      sugestoes.appendChild(li);
+
     });
+
   }
 
   function limparSugestoes() {
-    const ul = document.getElementById('sugestoes');
-    if (ul) ul.innerHTML = '';
+
+    const sugestoes = document.getElementById("sugestoes");
+
+    if (sugestoes) {
+      sugestoes.innerHTML = "";
+    }
+
   }
+
+  console.log("Entrou no if?", !!form);
 
   if (form) {
 
-    document.getElementById("turmaForm").addEventListener("submit", function (e) {
+    form.addEventListener("submit", async function (e) {
+
+      console.log("ENTREI NO SUBMIT");
 
       e.preventDefault();
 
-      const formData = new FormData(form);
+      const payload = {
 
-      turma.alunos.forEach(a => {
-        formData.append("alunos_ids", a.id);
-      });
+        turma_id: turma.id,
 
-      turma.professores.forEach(p => {
-        formData.append("prof_disc", JSON.stringify(turma.professores));
-      });
+        nome: nomeTurmaSelect.value,
+        turno: turnoTurma.value,
+        ano: anoTurma.value,
+        sala: salaTurma.value,
+        descricao: descricaoTurma.value,
 
-      const url = "/turmas/salvar/";
+        tipo_turma: document.getElementById("tipoTurma").value,
+        sistema_avaliacao: sistemaSelect.value,
+        polivalente: document.getElementById("chamadaPolivalente").value,
 
-fetch(url, {
-  method: "POST",
-  body: formData,
-  headers: {
-    "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
-  }
-      })
-      .then(res => res.json())
-      .then(resp => {
+        alunos_ids: turma.alunos.map(a => a.id),
+
+        professores: turma.professores.map(p => ({
+          professor_id: p.professor_id,
+          disciplina_id: p.disciplina_id
+        })),
+
+        coordenadores_ids: Array.from(
+          document.getElementById("coordenadoresSelect").selectedOptions
+        ).map(option => option.value)
+
+      };
+
+      const url = turma.id
+        ? `/turmas/${turma.id}/editar/`
+        : "/turmas/cadastrar/";
+
+      try {
+
+        if (botaoSalvar) {
+          botaoSalvar.disabled = true;
+        }
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const resp = await response.json();
 
         if (resp.success) {
 
           alert("Turma salva com sucesso!");
 
-          if (!turma.id) {
-            window.location.href = `/turmas/${resp.turma_id}/editar/`;
-          }
-
+          window.location.href = window.URL_LISTAR_TURMAS;
         } else {
 
           alert(resp.error || "Erro ao salvar turma.");
 
         }
 
-      })
-      .catch(() => alert("Erro ao salvar turma."));
+      } catch (error) {
+
+        console.error(error);
+
+        alert("Erro ao salvar turma.");
+
+      } finally {
+
+        if (botaoSalvar) {
+          botaoSalvar.disabled = false;
+        }
+
+      }
+
     });
 
   }

@@ -1,36 +1,35 @@
 import json
-from datetime import datetime
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
-from django.shortcuts import get_object_or_404, render
-from django.contrib.auth.decorators import login_required
-from home.models import ObservacaoInfantil
-from django.http import HttpResponse
-from django.template.loader import get_template
-from django.http import HttpResponse
 
+from datetime import datetime
+
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
-from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+
 from weasyprint import HTML
 
-
 from home.models import (
-    AvaliacaoInfantil,
-    AvaliacaoResposta,
-    AvaliacaoItem,
     Aluno,
-    Turma,
     AvaliacaoCategoria,
+    AvaliacaoInfantil,
+    AvaliacaoItem,
+    AvaliacaoResposta,
+    ObservacaoInfantil,
+    Turma,
 )
+
 
 @csrf_exempt
 @login_required
 def salvar_avaliacao_infantil(request):
 
     if request.method != "POST":
-        return JsonResponse({"erro": "Método não permitido"}, status=405)
+        return JsonResponse(
+            {"erro": "Método não permitido"},
+            status=405,
+        )
 
     try:
         dados = json.loads(request.body)
@@ -42,51 +41,87 @@ def salvar_avaliacao_infantil(request):
         todas_respostas = []
         todas_observacoes = []
 
+        # =====================================================
+        # 🔐 VALIDA TURMA DA ESCOLA
+        # =====================================================
+
+        turma = get_object_or_404(
+            Turma,
+            id=turma_id,
+            escola=request.user.escola,
+        )
+
+        # =====================================================
+        # 🔥 AVALIAÇÕES
+        # =====================================================
+
         for av in dados.get("avaliacoes", []):
+
             aluno_id = av.get("aluno_id")
 
-            # 🔥 AVALIAÇÃO (mantém simples)
-            avaliacao, _ = AvaliacaoInfantil.objects.get_or_create(
-                aluno_id=aluno_id,
-                turma_id=turma_id,
-                bimestre=bimestre,
-                ano=ano
+            # =================================================
+            # 🔐 VALIDA ALUNO DA ESCOLA
+            # =================================================
+
+            aluno = get_object_or_404(
+                Aluno,
+                id=aluno_id,
+                escola=request.user.escola,
             )
 
-            # 🔥 MONTA TODAS AS RESPOSTAS (SEM SALVAR AINDA)
+            # =================================================
+            # 🔥 AVALIAÇÃO
+            # =================================================
+
+            avaliacao, _ = AvaliacaoInfantil.objects.get_or_create(
+                aluno=aluno,
+                turma=turma,
+                bimestre=bimestre,
+                ano=ano,
+            )
+
+            # =================================================
+            # 🔥 MONTA TODAS AS RESPOSTAS
+            # =================================================
+
             for item_id, valor in av.get("respostas", {}).items():
 
-                todas_respostas.append({
-                    "avaliacao_id": avaliacao.id,
-                    "item_id": int(item_id),
-                    "valor": valor
-                })
+                todas_respostas.append(
+                    {
+                        "avaliacao_id": avaliacao.id,
+                        "item_id": int(item_id),
+                        "valor": valor,
+                    }
+                )
 
+            # =================================================
             # 🔥 OBSERVAÇÃO
+            # =================================================
+
             texto = av.get("observacao", "")
 
             if texto:
-                todas_observacoes.append({
-                    "aluno_id": aluno_id,
-                    "turma_id": turma_id,
-                    "bimestre": bimestre,
-                    "ano": ano,
-                    "texto": texto,
-                    "escola_id": request.user.escola.id
-                })
+
+                todas_observacoes.append(
+                    {
+                        "aluno_id": aluno.id,
+                        "turma_id": turma.id,
+                        "bimestre": bimestre,
+                        "ano": ano,
+                        "texto": texto,
+                        "escola_id": request.user.escola.id,
+                    }
+                )
 
         # =====================================================
-        # 🔥 RESPOSTAS (BULK) — CORRIGIDO AQUI
+        # 🔥 RESPOSTAS (BULK)
         # =====================================================
 
         existentes = AvaliacaoResposta.objects.filter(
             avaliacao_id__in=[r["avaliacao_id"] for r in todas_respostas]
         )
 
-        mapa_existentes = {
-            (r.avaliacao_id, r.item_id): r
-            for r in existentes
-        }
+        mapa_existentes = {(r.avaliacao_id, r.item_id): r for r in existentes}
 
         para_update = []
         para_create = []
@@ -94,32 +129,53 @@ def salvar_avaliacao_infantil(request):
 
         for r in todas_respostas:
 
-            chave = (r["avaliacao_id"], r["item_id"])
+            chave = (
+                r["avaliacao_id"],
+                r["item_id"],
+            )
+
             valor = r["valor"]
 
-            # 🔥 SE FOR NULL → DELETE
+            # =================================================
+            # NULL → DELETE
+            # =================================================
+
             if valor is None:
+
                 if chave in mapa_existentes:
                     para_delete.append(mapa_existentes[chave].id)
+
                 continue
 
-            # 🔥 UPDATE
+            # =================================================
+            # UPDATE
+            # =================================================
+
             if chave in mapa_existentes:
+
                 obj = mapa_existentes[chave]
                 obj.valor = valor
+
                 para_update.append(obj)
 
-            # 🔥 CREATE
+            # =================================================
+            # CREATE
+            # =================================================
+
             else:
+
                 para_create.append(
                     AvaliacaoResposta(
                         avaliacao_id=r["avaliacao_id"],
                         item_id=r["item_id"],
-                        valor=valor
+                        valor=valor,
                     )
                 )
 
+        # =====================================================
         # 🔥 EXECUÇÃO EM LOTE
+        # =====================================================
+
         if para_delete:
             AvaliacaoResposta.objects.filter(id__in=para_delete).delete()
 
@@ -127,22 +183,23 @@ def salvar_avaliacao_infantil(request):
             AvaliacaoResposta.objects.bulk_create(para_create)
 
         if para_update:
-            AvaliacaoResposta.objects.bulk_update(para_update, ["valor"])
+            AvaliacaoResposta.objects.bulk_update(
+                para_update,
+                ["valor"],
+            )
 
         # =====================================================
-        # 🔥 OBSERVAÇÕES (SEM ALTERAÇÃO)
+        # 🔥 OBSERVAÇÕES
         # =====================================================
 
         existentes_obs = ObservacaoInfantil.objects.filter(
-            turma_id=turma_id,
+            turma=turma,
             bimestre=bimestre,
-            ano=ano
+            ano=ano,
+            escola=request.user.escola,
         )
 
-        mapa_obs = {
-            (o.aluno_id): o
-            for o in existentes_obs
-        }
+        mapa_obs = {o.aluno_id: o for o in existentes_obs}
 
         obs_update = []
         obs_create = []
@@ -150,47 +207,57 @@ def salvar_avaliacao_infantil(request):
         for o in todas_observacoes:
 
             if o["aluno_id"] in mapa_obs:
+
                 obj = mapa_obs[o["aluno_id"]]
                 obj.texto = o["texto"]
+
                 obs_update.append(obj)
+
             else:
-                obs_create.append(
-                    ObservacaoInfantil(**o)
-                )
+
+                obs_create.append(ObservacaoInfantil(**o))
 
         if obs_create:
             ObservacaoInfantil.objects.bulk_create(obs_create)
 
         if obs_update:
-            ObservacaoInfantil.objects.bulk_update(obs_update, ["texto"])
+            ObservacaoInfantil.objects.bulk_update(
+                obs_update,
+                ["texto"],
+            )
 
         return JsonResponse({"ok": True})
 
     except Exception as e:
-        return JsonResponse({"erro": str(e)}, status=500)
+
+        return JsonResponse(
+            {"erro": str(e)},
+            status=500,
+        )
 
 
 @login_required
 def tela_avaliacao_infantil(request):
 
-    itens_qs = AvaliacaoItem.objects.filter(
-        escola=request.user.escola,
-        ativo=True
-    ).select_related('categoria').order_by('categoria__ordem', 'ordem')
+    itens_qs = (
+        AvaliacaoItem.objects.filter(escola=request.user.escola, ativo=True)
+        .select_related("categoria")
+        .order_by("categoria__ordem", "ordem")
+    )
 
     itens = [
         {
             "id": i.id,
             "descricao": i.descricao,
             "categoria_id": i.categoria.id,
-            "categoria_nome": i.categoria.nome
+            "categoria_nome": i.categoria.nome,
         }
         for i in itens_qs
     ]
 
-    return render(request, "pages/avaliacao_infantil.html", {
-        "itens": json.dumps(itens) 
-    })
+    return render(
+        request, "pages/avaliacao_infantil.html", {"itens": json.dumps(itens)}
+    )
 
 
 @login_required
@@ -199,15 +266,23 @@ def buscar_alunos_por_turma(request):
     turma_id = request.GET.get("turma_id")
 
     if not turma_id:
-        return JsonResponse({"erro": "Turma não informada"}, status=400)
+        return JsonResponse(
+            {"erro": "Turma não informada"},
+            status=400,
+        )
 
     try:
+        turma = get_object_or_404(
+            Turma,
+            id=turma_id,
+            escola=request.user.escola,
+        )
+
         alunos = (
-            Aluno.objects
-            .filter(
-                turmas__id=turma_id,
+            Aluno.objects.filter(
+                turmas=turma,
                 escola=request.user.escola,
-                ativo=True
+                ativo=True,
             )
             .values("id", "nome")
             .distinct()
@@ -217,7 +292,10 @@ def buscar_alunos_por_turma(request):
         return JsonResponse({"alunos": list(alunos)})
 
     except Exception as e:
-        return JsonResponse({"erro": str(e)}, status=500)
+        return JsonResponse(
+            {"erro": str(e)},
+            status=500,
+        )
 
 
 @login_required
@@ -228,23 +306,44 @@ def buscar_avaliacoes_infantil(request):
     ano = datetime.now().year
 
     if not turma_id or not bimestre:
-        return JsonResponse({"erro": "Dados inválidos"}, status=400)
+        return JsonResponse(
+            {"erro": "Dados inválidos"},
+            status=400,
+        )
 
     try:
+        # =====================================================
+        # 🔐 VALIDA TURMA DA ESCOLA
+        # =====================================================
+
+        turma = get_object_or_404(
+            Turma,
+            id=turma_id,
+            escola=request.user.escola,
+        )
+
+        # =====================================================
+        # 🔥 AVALIAÇÕES
+        # =====================================================
+
         avaliacoes = AvaliacaoInfantil.objects.filter(
-            turma_id=turma_id,
+            turma=turma,
             bimestre=bimestre,
             ano=ano,
-            aluno__escola=request.user.escola
+            aluno__escola=request.user.escola,
         )
 
         resposta_dict = {}
 
         respostas = AvaliacaoResposta.objects.filter(
             avaliacao__in=avaliacoes
-        ).select_related('avaliacao', 'item')
+        ).select_related(
+            "avaliacao",
+            "item",
+        )
 
         for r in respostas:
+
             aluno_id = r.avaliacao.aluno_id
 
             if aluno_id not in resposta_dict:
@@ -252,29 +351,32 @@ def buscar_avaliacoes_infantil(request):
 
             resposta_dict[aluno_id][r.item_id] = r.valor
 
-        # =========================
-        # 🔥 NOVO: BUSCAR OBSERVAÇÕES
-        # =========================
-        from home.models import ObservacaoInfantil
+        # =====================================================
+        # 🔥 OBSERVAÇÕES
+        # =====================================================
 
         observacoes_qs = ObservacaoInfantil.objects.filter(
-            turma_id=turma_id,
+            turma=turma,
             bimestre=bimestre,
             ano=ano,
-            aluno__escola=request.user.escola
+            aluno__escola=request.user.escola,
+            escola=request.user.escola,
         )
 
-        observacoes_dict = {
-            o.aluno_id: o.texto for o in observacoes_qs
-        }
+        observacoes_dict = {o.aluno_id: o.texto for o in observacoes_qs}
 
-        return JsonResponse({
-            "avaliacoes": resposta_dict,
-            "observacoes": observacoes_dict  # 🔥 NOVO
-        })
+        return JsonResponse(
+            {
+                "avaliacoes": resposta_dict,
+                "observacoes": observacoes_dict,
+            }
+        )
 
     except Exception as e:
-        return JsonResponse({"erro": str(e)}, status=500)
+        return JsonResponse(
+            {"erro": str(e)},
+            status=500,
+        )
 
 
 @login_required
@@ -282,18 +384,10 @@ def buscar_turmas(request):
 
     try:
         turmas = Turma.objects.filter(
-            escola=request.user.escola,
-            status="ATIVA",
-            sistema_avaliacao="CON"
+            escola=request.user.escola, status="ATIVA", sistema_avaliacao="CON"
         ).order_by("nome")
 
-        data = [
-            {
-                "id": t.id,
-                "nome": t.nome
-            }
-            for t in turmas
-        ]
+        data = [{"id": t.id, "nome": t.nome} for t in turmas]
 
         return JsonResponse({"turmas": data})
 
@@ -306,13 +400,15 @@ def configuracao_avaliacao_infantil(request):
 
     escola = request.user.escola
 
-    categorias = AvaliacaoCategoria.objects.filter(
-        escola=escola
-    ).prefetch_related('itens').order_by('ordem')
+    categorias = (
+        AvaliacaoCategoria.objects.filter(escola=escola)
+        .prefetch_related("itens")
+        .order_by("ordem")
+    )
 
-    return render(request, "pages/config_avaliacao_infantil.html", {
-        "categorias": categorias
-    })
+    return render(
+        request, "pages/config_avaliacao_infantil.html", {"categorias": categorias}
+    )
 
 
 @csrf_exempt
@@ -320,7 +416,10 @@ def configuracao_avaliacao_infantil(request):
 def salvar_item_avaliacao(request):
 
     if request.method != "POST":
-        return JsonResponse({"erro": "Método inválido"}, status=405)
+        return JsonResponse(
+            {"erro": "Método inválido"},
+            status=405,
+        )
 
     try:
         data = json.loads(request.body)
@@ -328,18 +427,35 @@ def salvar_item_avaliacao(request):
         categoria_id = data.get("categoria_id")
         descricao = data.get("descricao")
 
+        # =====================================================
+        # 🔐 VALIDA CATEGORIA DA ESCOLA
+        # =====================================================
+
+        categoria = get_object_or_404(
+            AvaliacaoCategoria,
+            id=categoria_id,
+            escola=request.user.escola,
+        )
+
+        # =====================================================
+        # 🔥 CRIA ITEM
+        # =====================================================
+
         AvaliacaoItem.objects.create(
-            categoria_id=categoria_id,
+            categoria=categoria,
             descricao=descricao,
             escola=request.user.escola,
-            ativo=True
+            ativo=True,
         )
 
         return JsonResponse({"ok": True})
 
     except Exception as e:
-        return JsonResponse({"erro": str(e)}, status=500)
-    
+        return JsonResponse(
+            {"erro": str(e)},
+            status=500,
+        )
+
 
 @csrf_exempt
 @login_required
@@ -353,10 +469,7 @@ def salvar_categoria(request):
 
         nome = data.get("nome")
 
-        AvaliacaoCategoria.objects.create(
-            nome=nome,
-            escola=request.user.escola
-        )
+        AvaliacaoCategoria.objects.create(nome=nome, escola=request.user.escola)
 
         return JsonResponse({"ok": True})
 
@@ -375,10 +488,7 @@ def editar_categoria(request, id):
         data = json.loads(request.body)
         nome = data.get("nome")
 
-        categoria = AvaliacaoCategoria.objects.get(
-            id=id,
-            escola=request.user.escola
-        )
+        categoria = AvaliacaoCategoria.objects.get(id=id, escola=request.user.escola)
 
         categoria.nome = nome
         categoria.save()
@@ -393,10 +503,7 @@ def editar_categoria(request, id):
 def excluir_categoria(request, id):
 
     try:
-        categoria = AvaliacaoCategoria.objects.get(
-            id=id,
-            escola=request.user.escola
-        )
+        categoria = AvaliacaoCategoria.objects.get(id=id, escola=request.user.escola)
 
         categoria.delete()
 
@@ -417,10 +524,7 @@ def editar_item(request, id):
         data = json.loads(request.body)
         descricao = data.get("descricao")
 
-        item = AvaliacaoItem.objects.get(
-            id=id,
-            escola=request.user.escola
-        )
+        item = AvaliacaoItem.objects.get(id=id, escola=request.user.escola)
 
         item.descricao = descricao
         item.save()
@@ -435,10 +539,7 @@ def editar_item(request, id):
 def excluir_item(request, id):
 
     try:
-        item = AvaliacaoItem.objects.get(
-            id=id,
-            escola=request.user.escola
-        )
+        item = AvaliacaoItem.objects.get(id=id, escola=request.user.escola)
 
         item.delete()
 
@@ -463,8 +564,7 @@ def salvar_ordem(request):
         for cat_index, cat in enumerate(categorias):
 
             categoria = AvaliacaoCategoria.objects.get(
-                id=cat["id"],
-                escola=request.user.escola
+                id=cat["id"], escola=request.user.escola
             )
 
             categoria.ordem = cat_index
@@ -472,10 +572,7 @@ def salvar_ordem(request):
 
             for item_index, item_id in enumerate(cat["itens"]):
 
-                item = AvaliacaoItem.objects.get(
-                    id=item_id,
-                    escola=request.user.escola
-                )
+                item = AvaliacaoItem.objects.get(id=item_id, escola=request.user.escola)
 
                 item.ordem = item_index
                 item.save()
@@ -486,30 +583,20 @@ def salvar_ordem(request):
         return JsonResponse({"erro": str(e)}, status=500)
 
 
-
 @login_required
 def boletim_infantil(request, aluno_id, turma_id):
 
-    aluno = get_object_or_404(
-        Aluno,
-        id=aluno_id,
-        escola=request.user.escola
-    )
+    aluno = get_object_or_404(Aluno, id=aluno_id, escola=request.user.escola)
 
-    turma = get_object_or_404(
-        Turma,
-        id=turma_id,
-        escola=request.user.escola
-    )
+    turma = get_object_or_404(Turma, id=turma_id, escola=request.user.escola)
 
-    avaliacoes = AvaliacaoInfantil.objects.filter(
-        aluno=aluno,
-        turma=turma
-    ).order_by('-ano', '-bimestre')
+    avaliacoes = AvaliacaoInfantil.objects.filter(aluno=aluno, turma=turma).order_by(
+        "-ano", "-bimestre"
+    )
 
     respostas = AvaliacaoResposta.objects.filter(
         avaliacao__in=avaliacoes
-    ).select_related('item__categoria', 'avaliacao')
+    ).select_related("item__categoria", "avaliacao")
 
     dados = {}
 
@@ -524,10 +611,9 @@ def boletim_infantil(request, aluno_id, turma_id):
         if categoria not in dados[chave]:
             dados[chave][categoria] = []
 
-        dados[chave][categoria].append({
-            "descricao": r.item.descricao,
-            "valor": r.valor
-        })
+        dados[chave][categoria].append(
+            {"descricao": r.item.descricao, "valor": r.valor}
+        )
 
     # =========================
     # OBSERVAÇÕES POR PERÍODO
@@ -535,21 +621,23 @@ def boletim_infantil(request, aluno_id, turma_id):
     observacoes_por_periodo = {}
 
     observacoes = ObservacaoInfantil.objects.filter(
-        aluno=aluno,
-        turma=turma,
-        escola=request.user.escola
+        aluno=aluno, turma=turma, escola=request.user.escola
     )
 
     for obs in observacoes:
         chave = f"{obs.bimestre}/{obs.ano}"
         observacoes_por_periodo[chave] = obs.texto
 
-    return render(request, "pages/boletim_infantil.html", {
-        "aluno": aluno,
-        "turma": turma,
-        "dados": dados,
-        "observacoes": observacoes_por_periodo 
-    })
+    return render(
+        request,
+        "pages/boletim_infantil.html",
+        {
+            "aluno": aluno,
+            "turma": turma,
+            "dados": dados,
+            "observacoes": observacoes_por_periodo,
+        },
+    )
 
 
 @csrf_exempt
@@ -557,7 +645,10 @@ def boletim_infantil(request, aluno_id, turma_id):
 def salvar_observacao_infantil(request):
 
     if request.method != "POST":
-        return JsonResponse({"erro": "Método inválido"}, status=405)
+        return JsonResponse(
+            {"erro": "Método inválido"},
+            status=405,
+        )
 
     try:
         data = json.loads(request.body)
@@ -569,46 +660,64 @@ def salvar_observacao_infantil(request):
 
         ano = datetime.now().year
 
+        # =====================================================
+        # 🔐 VALIDA ALUNO DA ESCOLA
+        # =====================================================
+
+        aluno = get_object_or_404(
+            Aluno,
+            id=aluno_id,
+            escola=request.user.escola,
+        )
+
+        # =====================================================
+        # 🔐 VALIDA TURMA DA ESCOLA
+        # =====================================================
+
+        turma = get_object_or_404(
+            Turma,
+            id=turma_id,
+            escola=request.user.escola,
+        )
+
+        # =====================================================
+        # 🔥 SALVA OBSERVAÇÃO
+        # =====================================================
+
         observacao, _ = ObservacaoInfantil.objects.update_or_create(
-            aluno_id=aluno_id,
-            turma_id=turma_id,
+            aluno=aluno,
+            turma=turma,
             bimestre=bimestre,
             ano=ano,
             defaults={
                 "texto": texto,
-                "escola": request.user.escola
-            }
+                "escola": request.user.escola,
+            },
         )
 
         return JsonResponse({"ok": True})
 
     except Exception as e:
-        return JsonResponse({"erro": str(e)}, status=500)
+        return JsonResponse(
+            {"erro": str(e)},
+            status=500,
+        )
 
 
 @login_required
 def boletim_infantil_pdf(request, aluno_id, turma_id):
 
-    aluno = get_object_or_404(
-        Aluno,
-        id=aluno_id,
-        escola=request.user.escola
-    )
+    aluno = get_object_or_404(Aluno, id=aluno_id, escola=request.user.escola)
 
-    turma = get_object_or_404(
-        Turma,
-        id=turma_id,
-        escola=request.user.escola
-    )
+    turma = get_object_or_404(Turma, id=turma_id, escola=request.user.escola)
 
-    avaliacoes = AvaliacaoInfantil.objects.filter(
-        aluno=aluno,
-        turma=turma
-    ).order_by('-ano', '-bimestre')
+    avaliacoes = AvaliacaoInfantil.objects.filter(aluno=aluno, turma=turma).order_by(
+        "-ano", "-bimestre"
+    )
 
     respostas = AvaliacaoResposta.objects.filter(
         avaliacao__in=avaliacoes
-    ).select_related('item__categoria', 'avaliacao')
+    ).select_related("item__categoria", "avaliacao")
 
     dados = {}
 
@@ -623,21 +732,16 @@ def boletim_infantil_pdf(request, aluno_id, turma_id):
         if categoria not in dados[chave]:
             dados[chave][categoria] = []
 
-        dados[chave][categoria].append({
-            "descricao": r.item.descricao,
-            "valor": r.valor
-        })
+        dados[chave][categoria].append(
+            {"descricao": r.item.descricao, "valor": r.valor}
+        )
 
     # 🔥 OBSERVAÇÃO
     observacoes = ObservacaoInfantil.objects.filter(
-        aluno=aluno,
-        turma=turma,
-        escola=request.user.escola
+        aluno=aluno, turma=turma, escola=request.user.escola
     )
 
-    observacoes_dict = {
-        f"{o.bimestre}/{o.ano}": o.texto for o in observacoes
-    }
+    observacoes_dict = {f"{o.bimestre}/{o.ano}": o.texto for o in observacoes}
 
     html_string = render_to_string(
         "pages/boletim_infantil.html",
@@ -646,9 +750,8 @@ def boletim_infantil_pdf(request, aluno_id, turma_id):
             "turma": turma,
             "dados": dados,
             "observacoes": observacoes_dict,
-            "user": request.user
-
-        }
+            "user": request.user,
+        },
     )
 
     html = HTML(string=html_string)

@@ -1,0 +1,812 @@
+{% extends 'layout/base.html' %}
+{% load static %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
+
+  <style>
+    /* ============================================================
+                               PÁGINA
+                               ============================================================ */
+    
+    .matriculas-page {
+      width: 100%;
+    }
+    
+    /* ============================================================
+                               TÍTULO
+                               ============================================================ */
+    
+    .matriculas-header {
+      margin-bottom: 28px;
+    }
+    
+    .matriculas-header h1 {
+      margin: 0;
+      font-size: 32px;
+      font-weight: 700;
+      color: #343a40;
+    }
+    
+    .matriculas-header .linha-titulo {
+      width: 100%;
+      height: 3px;
+      background: #1e73be;
+      margin-top: 18px;
+      border-radius: 2px;
+    }
+    
+    /* ============================================================
+                               CABEÇALHO DO ANO LETIVO
+                               ============================================================ */
+    
+    .ano-letivo-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    
+    .ano-letivo-info {
+      font-size: 24px;
+      font-weight: 600;
+      color: #212529;
+    }
+    
+    .ano-letivo-info span {
+      font-weight: 700;
+    }
+    
+    /* ============================================================
+                               INDICADORES
+                               ============================================================ */
+    
+    .matriculas-indicadores {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .indicador-matricula {
+      background: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    
+    .indicador-icone {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: #e9f2fb;
+      color: #1e73be;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 20px;
+    }
+    
+    .indicador-conteudo {
+      min-width: 0;
+    }
+    
+    .indicador-label {
+      display: block;
+      font-size: 13px;
+      color: #6c757d;
+      margin-bottom: 3px;
+    }
+    
+    .indicador-valor {
+      display: block;
+      font-size: 24px;
+      font-weight: 700;
+      color: #212529;
+      line-height: 1.1;
+    }
+    
+    /* ============================================================
+                               CONTROLES
+                               ============================================================ */
+    
+    .matriculas-controles {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .campo-busca {
+      position: relative;
+      flex: 1;
+      min-width: 280px;
+    }
+    
+    .campo-busca i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6c757d;
+      font-size: 18px;
+      pointer-events: none;
+    }
+    
+    .campo-busca input {
+      width: 100%;
+      height: 44px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      padding: 8px 14px 8px 42px;
+      font-size: 15px;
+      outline: none;
+      box-sizing: border-box;
+    }
+    
+    .campo-busca input:focus {
+      border-color: #1e73be;
+      box-shadow: 0 0 0 2px rgba(30, 115, 190, 0.12);
+    }
+    
+    .filtro-matricula {
+      height: 44px;
+      min-width: 170px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      padding: 0 12px;
+      background: #fff;
+      font-size: 15px;
+      color: #343a40;
+      outline: none;
+    }
+    
+    .filtro-matricula:focus {
+      border-color: #1e73be;
+      box-shadow: 0 0 0 2px rgba(30, 115, 190, 0.12);
+    }
+    
+    .btn-nova-matricula {
+      height: 44px;
+      border: none;
+      border-radius: 6px;
+      padding: 0 18px;
+      background: #1e73be;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    
+    .btn-nova-matricula:hover {
+      background: #155fa0;
+      color: #fff;
+      text-decoration: none;
+    }
+    
+    /* ============================================================
+                               TABELA
+                               ============================================================ */
+    
+    .matriculas-tabela-container {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: 8px;
+      box-shadow: 0 2px 7px rgba(0, 0, 0, 0.08);
+    }
+    
+    .matriculas-tabela {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      margin: 0;
+    }
+    
+    .matriculas-tabela thead th {
+      background: #1e73be;
+      color: #fff;
+      padding: 15px 18px;
+      font-size: 15px;
+      font-weight: 700;
+      text-align: left;
+      white-space: nowrap;
+      border: none;
+    }
+    
+    .matriculas-tabela thead th:first-child {
+      border-top-left-radius: 8px;
+    }
+    
+    .matriculas-tabela thead th:last-child {
+      border-top-right-radius: 8px;
+    }
+    
+    .matriculas-tabela tbody td {
+      padding: 14px 18px;
+      font-size: 15px;
+      color: #343a40;
+      border-bottom: 1px solid #e9ecef;
+      vertical-align: middle;
+    }
+    
+    .matriculas-tabela tbody tr:hover {
+      background: #f8f9fa;
+    }
+    
+    .matriculas-tabela tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    /* ============================================================
+                               STATUS
+                               ============================================================ */
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    
+    .status-ativa {
+      background: #dff5e5;
+      color: #198754;
+    }
+    
+    .status-concluida {
+      background: #e2e3e5;
+      color: #495057;
+    }
+    
+    .status-transferida {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .status-cancelada {
+      background: #f8d7da;
+      color: #842029;
+    }
+    
+    /* ============================================================
+                               MATRÍCULA / ALUNO
+                               ============================================================ */
+    
+    .numero-matricula {
+      font-weight: 700;
+      color: #1e73be;
+      white-space: nowrap;
+    }
+    
+    .nome-aluno {
+      font-weight: 600;
+      color: #212529;
+    }
+    
+    .sem-turma {
+      color: #6c757d;
+      font-style: italic;
+    }
+    
+    /* ============================================================
+                               AÇÕES
+                               ============================================================ */
+    
+    .acoes-matricula {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .acao-matricula {
+      width: 34px;
+      height: 34px;
+      border-radius: 5px;
+      border: 1px solid #dee2e6;
+      background: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #495057;
+      text-decoration: none;
+      transition: 0.15s;
+    }
+    
+    .acao-matricula:hover {
+      background: #f1f3f5;
+      color: #1e73be;
+      text-decoration: none;
+    }
+    
+    /* ============================================================
+                               ESTADO VAZIO
+                               ============================================================ */
+    
+    .estado-vazio {
+      padding: 45px 20px !important;
+      text-align: center;
+      color: #6c757d !important;
+    }
+    
+    .estado-vazio i {
+      display: block;
+      font-size: 42px;
+      margin-bottom: 12px;
+      color: #adb5bd;
+    }
+    
+    .estado-vazio strong {
+      display: block;
+      font-size: 17px;
+      color: #495057;
+      margin-bottom: 5px;
+    }
+    
+    .estado-vazio span {
+      font-size: 14px;
+    }
+    
+    /* ============================================================
+                               SEM RESULTADOS DE FILTRO
+                               ============================================================ */
+    
+    .linha-sem-filtro {
+      display: none;
+    }
+    
+    /* ============================================================
+                               RODAPÉ DA LISTAGEM
+                               ============================================================ */
+    
+    .matriculas-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 18px;
+      color: #6c757d;
+      font-size: 14px;
+    }
+    
+    /* ============================================================
+                               RESPONSIVO
+                               ============================================================ */
+    
+    @media (max-width: 900px) {
+      .matriculas-indicadores {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .matriculas-header h1 {
+        font-size: 27px;
+      }
+    
+      .ano-letivo-box {
+        align-items: flex-start;
+      }
+    
+      .ano-letivo-info {
+        font-size: 20px;
+      }
+    
+      .matriculas-controles {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    
+      .campo-busca {
+        min-width: 100%;
+      }
+    
+      .filtro-matricula,
+      .btn-nova-matricula {
+        width: 100%;
+      }
+    
+      .matriculas-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="matriculas-page">
+    <!--      =========================================================
+         TÍTULO
+         =========================================================      -->
+
+    <div class="matriculas-header">
+      <h1>Matrículas</h1>
+
+      <div class="linha-titulo"></div>
+    </div>
+
+    {% if ano_ativo %}
+      <!--      =====================================================
+           ANO LETIVO
+           =====================================================      -->
+
+      <div class="ano-letivo-box">
+        <div class="ano-letivo-info">
+          Ano Letivo:
+          <span>{{ ano_ativo.ano }}</span>
+        </div>
+      </div>
+
+      <!--      =====================================================
+           INDICADORES
+           =====================================================      -->
+
+      <div class="matriculas-indicadores">
+        <div class="indicador-matricula">
+          <div class="indicador-icone">
+            <i class="bi bi-person-vcard"></i>
+          </div>
+
+          <div class="indicador-conteudo">
+            <span class="indicador-label">Total de matrículas</span>
+
+            <span class="indicador-valor">{{ matriculas|length }}</span>
+          </div>
+        </div>
+
+        <div class="indicador-matricula">
+          <div class="indicador-icone">
+            <i class="bi bi-person-check"></i>
+          </div>
+
+          <div class="indicador-conteudo">
+            <span class="indicador-label">Matrículas ativas</span>
+
+            <span class="indicador-valor" id="indicadorAtivas">0</span>
+          </div>
+        </div>
+
+        <div class="indicador-matricula">
+          <div class="indicador-icone">
+            <i class="bi bi-person-exclamation"></i>
+          </div>
+
+          <div class="indicador-conteudo">
+            <span class="indicador-label">Sem turma</span>
+
+            <span class="indicador-valor" id="indicadorSemTurma">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!--      =====================================================
+           CONTROLES
+           =====================================================      -->
+
+      <div class="matriculas-controles">
+        <div class="campo-busca">
+          <i class="bi bi-search"></i>
+
+          <input type="text" id="buscaMatricula" placeholder="Buscar aluno ou matrícula..." autocomplete="off" />
+        </div>
+
+        <select id="filtroTurma" class="filtro-matricula">
+          <option value="">Turma: Todas</option>
+
+          {% for turma in turmas %}
+            <option value="{{ turma.id }}">{{ turma.nome }}</option>
+          {% endfor %}
+
+          <option value="SEM_TURMA">Sem turma</option>
+        </select>
+
+        <select id="filtroStatus" class="filtro-matricula">
+          <option value="">Status: Todos</option>
+
+          <option value="ATIVA">Ativas</option>
+
+          <option value="CONCLUIDA">Concluídas</option>
+
+          <option value="TRANSFERIDA">Transferidas</option>
+
+          <option value="CANCELADA">Canceladas</option>
+        </select>
+
+        <a href="{% url 'matricula:nova' %}" class="btn-nova-matricula">
+          <i class="bi bi-plus-lg"></i>
+          Nova Matrícula
+        </a>
+      </div>
+
+      <!--      =====================================================
+           TABELA
+           =====================================================      -->
+
+      <div class="matriculas-tabela-container">
+        <table class="matriculas-tabela" id="tabelaMatriculas">
+          <thead>
+            <tr>
+              <th>Matrícula</th>
+
+              <th>Aluno</th>
+
+              <th>Turma</th>
+
+              <th>Status</th>
+
+              <th>Data da Matrícula</th>
+
+              <th>Ações</th>
+            </tr>
+          </thead>
+
+          <tbody id="tabelaMatriculasBody">
+            {% for matricula in matriculas %}
+              <tr data-nome="{{ matricula.aluno.nome|lower }}"
+                data-matricula="{{ matricula.aluno.matricula|lower }}"
+                data-status="{{ matricula.status }}"
+                data-turma="{% if matricula.turma %}
+                  {{ matricula.turma.id }}
+                {% else %}
+                  
+                  
+                  
+                  
+                  SEM_TURMA
+
+
+
+
+                {% endif %}">
+                <td>
+                  <span class="numero-matricula">{{ matricula.aluno.matricula }}</span>
+                </td>
+
+                <td>
+                  <span class="nome-aluno">{{ matricula.aluno.nome }}</span>
+                </td>
+
+                <td>
+                  {% if matricula.turma %}
+                    {{ matricula.turma.nome }}
+                  {% else %}
+                    <span class="sem-turma">Sem turma</span>
+                  {% endif %}
+                </td>
+
+                <td>
+                  {% if matricula.status == 'ATIVA' %}
+                    <span class="status-badge status-ativa">Ativa</span>
+                  {% elif matricula.status == 'CONCLUIDA' %}
+                    <span class="status-badge status-concluida">Concluída</span>
+                  {% elif matricula.status == 'TRANSFERIDA' %}
+                    <span class="status-badge status-transferida">Transferida</span>
+                  {% elif matricula.status == 'CANCELADA' %}
+                    <span class="status-badge status-cancelada">Cancelada</span>
+                  {% else %}
+                    <span class="status-badge">{{ matricula.get_status_display }}</span>
+                  {% endif %}
+                </td>
+
+                <td>{{ matricula.data_matricula|date:'d/m/Y' }}</td>
+
+                <td>
+                  <div class="acoes-matricula">
+                    <!-- Visualizar -->
+                    <a href="{% url 'matricula:visualizar' matricula.id %}" class="acao-matricula" title="Visualizar matrícula" aria-label="Visualizar matrícula"><i class="bi bi-eye"></i></a>
+
+                    <!-- Editar -->
+                    <a href="{% url 'matricula:editar' matricula.id %}" class="acao-matricula" title="Editar matrícula" aria-label="Editar matrícula"><i class="bi bi-pencil"></i></a>
+
+                    <!-- Emitir Declaração -->
+                    <a href="{% url 'matricula:declaracao' matricula.id %}" class="acao-matricula" title="Emitir declaração de matrícula" aria-label="Emitir declaração de matrícula" target="_blank"><i class="bi bi-file-earmark-text"></i></a>
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr id="linhaSemResultados">
+                <td colspan="6" class="estado-vazio">
+                  <i class="bi bi-person-vcard"></i>
+
+                  <strong>Nenhuma matrícula encontrada</strong>
+
+                  <span>Não existem matrículas cadastradas para o ano letivo {{ ano_ativo.ano }}.</span>
+                </td>
+              </tr>
+            {% endfor %}
+
+            <!--      =================================================
+                 RESULTADO DE FILTRO
+                 =================================================      -->
+
+            <tr id="linhaSemFiltro" class="linha-sem-filtro">
+              <td colspan="6" class="estado-vazio">
+                <i class="bi bi-search"></i>
+
+                <strong>Nenhuma matrícula encontrada</strong>
+
+                <span>Nenhuma matrícula corresponde aos filtros informados.</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!--      =====================================================
+           RODAPÉ
+           =====================================================      -->
+
+      <div class="matriculas-footer">
+        <span id="contadorMatriculas">
+          {% if matriculas %}
+            {{ matriculas|length }} matrículas
+          {% else %}
+            0 matrículas
+          {% endif %}
+        </span>
+
+        <span>Ano letivo {{ ano_ativo.ano }}</span>
+      </div>
+    {% else %}
+      <!--      =====================================================
+           SEM ANO LETIVO ATIVO
+           =====================================================      -->
+
+      <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle"></i>
+
+        Não existe um ano letivo ativo no momento.
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const busca = document.getElementById('buscaMatricula')
+      const filtroTurma = document.getElementById('filtroTurma')
+      const filtroStatus = document.getElementById('filtroStatus')
+      const contador = document.getElementById('contadorMatriculas')
+      const linhaSemFiltro = document.getElementById('linhaSemFiltro')
+    
+      const linhas = document.querySelectorAll('#tabelaMatriculasBody tr[data-nome]')
+    
+      const indicadorAtivas = document.getElementById('indicadorAtivas')
+    
+      const indicadorSemTurma = document.getElementById('indicadorSemTurma')
+    
+      /* ============================================================
+                               INDICADORES
+                               ============================================================ */
+    
+      function atualizarIndicadores() {
+        let ativas = 0
+        let semTurma = 0
+    
+        linhas.forEach(function (linha) {
+          const status = linha.dataset.status || ''
+          const turma = linha.dataset.turma || ''
+    
+          if (status === 'ATIVA') {
+            ativas++
+          }
+    
+          if (turma === 'SEM_TURMA') {
+            semTurma++
+          }
+        })
+    
+        if (indicadorAtivas) {
+          indicadorAtivas.textContent = ativas
+        }
+    
+        if (indicadorSemTurma) {
+          indicadorSemTurma.textContent = semTurma
+        }
+      }
+    
+      /* ============================================================
+                               FILTRAGEM
+                               ============================================================ */
+    
+      function filtrarMatriculas() {
+        const termo = busca ? busca.value.trim().toLowerCase() : ''
+    
+        const turmaSelecionada = filtroTurma ? filtroTurma.value : ''
+    
+        const statusSelecionado = filtroStatus ? filtroStatus.value : ''
+    
+        let quantidadeVisivel = 0
+    
+        linhas.forEach(function (linha) {
+          const nome = linha.dataset.nome || ''
+    
+          const numeroMatricula = linha.dataset.matricula || ''
+    
+          const statusMatricula = linha.dataset.status || ''
+    
+          const turmaMatricula = linha.dataset.turma || ''
+    
+          const correspondeBusca = !termo || nome.includes(termo) || numeroMatricula.includes(termo)
+    
+          const correspondeTurma = !turmaSelecionada || turmaMatricula === turmaSelecionada
+    
+          const correspondeStatus = !statusSelecionado || statusMatricula === statusSelecionado
+    
+          if (correspondeBusca && correspondeTurma && correspondeStatus) {
+            linha.style.display = ''
+    
+            quantidadeVisivel++
+          } else {
+            linha.style.display = 'none'
+          }
+        })
+    
+        /* ==========================================================
+                                 ESTADO SEM RESULTADOS
+                                 ========================================================== */
+    
+        if (linhaSemFiltro) {
+          if (quantidadeVisivel === 0 && linhas.length > 0) {
+            linhaSemFiltro.style.display = 'table-row'
+          } else {
+            linhaSemFiltro.style.display = 'none'
+          }
+        }
+    
+        /* ==========================================================
+                                 CONTADOR
+                                 ========================================================== */
+    
+        if (contador) {
+          if (quantidadeVisivel === 1) {
+            contador.textContent = '1 matrícula'
+          } else {
+            contador.textContent = `${quantidadeVisivel} matrículas`
+          }
+        }
+      }
+    
+      /* ============================================================
+                               EVENTOS
+                               ============================================================ */
+    
+      if (busca) {
+        busca.addEventListener('input', filtrarMatriculas)
+      }
+    
+      if (filtroTurma) {
+        filtroTurma.addEventListener('change', filtrarMatriculas)
+      }
+    
+      if (filtroStatus) {
+        filtroStatus.addEventListener('change', filtrarMatriculas)
+      }
+    
+      /* ============================================================
+                               INICIALIZAÇÃO
+                               ============================================================ */
+    
+      atualizarIndicadores()
+    
+      filtrarMatriculas()
+    })
+  </script>
+{% endblock %}

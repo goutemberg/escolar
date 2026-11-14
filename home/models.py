@@ -200,36 +200,107 @@ class Funcionario(models.Model):
 #  ALUNO
 # ================================================
 class Aluno(models.Model):
+
+    FORMA_ACESSO_CHOICES = [
+        ("matricula", "Matrícula"),
+        ("rematricula", "Rematrícula"),
+        ("transferencia", "Transferência"),
+    ]
+
+    SITUACAO_MATRICULA_CHOICES = [
+        ("matricula", "Matrícula"),
+        ("rematricula", "Rematrícula"),
+        ("transferencia", "Transferência"),
+    ]
+
+    NIVEL_MODALIDADE_CHOICES = [
+        ("Infantil", "Infantil"),
+        ("Fundamental I", "Fundamental I"),
+        ("Fundamental II", "Fundamental II"),
+    ]
+
     matricula = models.CharField(
-        max_length=20, unique=True, default=gerar_matricula_unica
+        max_length=20,
+        unique=True,
+        default=gerar_matricula_unica,
     )
-    nome = models.CharField(max_length=255, default="")
+
+    nome = models.CharField(
+        max_length=255,
+        default="",
+        db_index=True,
+    )
+
     data_nascimento = models.DateField(blank=True, null=True)
-    cpf = models.CharField(max_length=14, null=True, blank=True, default="")
-    rg = models.CharField(max_length=20, blank=True, null=True, default="")
+
+    cpf = models.CharField(
+        max_length=14,
+        blank=True,
+        null=True,
+        default="",
+        db_index=True,
+    )
+
+    rg = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        default="",
+    )
+
     sexo = models.CharField(max_length=10, default="")
     nacionalidade = models.CharField(max_length=50, default="")
     naturalidade = models.CharField(max_length=50, default="")
-    certidao_numero = models.CharField(max_length=50, blank=True, null=True, default="")
-    certidao_livro = models.CharField(max_length=50, blank=True, null=True, default="")
+
+    certidao_numero = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        default="",
+    )
+
+    certidao_livro = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        default="",
+    )
+
     tipo_sanguineo = models.CharField(max_length=3, default="")
+
     rua = models.CharField(max_length=100, default="")
     numero = models.CharField(max_length=10, default="")
     cep = models.CharField(max_length=10, default="")
     bairro = models.CharField(max_length=50, default="")
     cidade = models.CharField(max_length=50, default="")
     estado = models.CharField(max_length=2, default="")
+
     email = models.EmailField(default="")
     telefone = models.CharField(max_length=20, default="")
+
     ativo = models.BooleanField(default=True)
-    escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True, blank=True)
-    data_ingresso = models.DateField(null=True, blank=True)
-    dia_vencimento = models.IntegerField(null=True, blank=True)
+
+    escola = models.ForeignKey(
+        Escola,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
+
+    data_ingresso = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    dia_vencimento = models.IntegerField(
+        null=True,
+        blank=True,
+    )
 
     cor_raca = models.CharField(
         max_length=20,
-        null=True,
         blank=True,
+        null=True,
         choices=[
             ("branca", "Branca"),
             ("preta", "Preta"),
@@ -242,15 +313,19 @@ class Aluno(models.Model):
 
     responsavel_financeiro = models.CharField(
         max_length=10,
-        null=True,
         blank=True,
-        choices=[("pai", "Pai"), ("mae", "Mãe"), ("outro", "Outro")],
+        null=True,
+        choices=[
+            ("pai", "Pai"),
+            ("mae", "Mãe"),
+            ("outro", "Outro"),
+        ],
     )
 
     situacao_familiar = models.CharField(
         max_length=12,
-        null=True,
         blank=True,
+        null=True,
         choices=[
             ("casados", "Casados"),
             ("separados", "Separados"),
@@ -259,21 +334,41 @@ class Aluno(models.Model):
     )
 
     dispensa_ensino_religioso = models.BooleanField(default=False)
-    forma_acesso = models.CharField(max_length=50, null=True, blank=True)
+
+    forma_acesso = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        choices=FORMA_ACESSO_CHOICES,
+    )
+
     situacao_matricula = models.CharField(
         max_length=20,
-        null=True,
         blank=True,
-        choices=[
-            ("matricula", "Matrícula"),
-            ("rematricula", "Rematrícula"),
-            ("transferencia", "Transferência"),
-        ],
+        null=True,
+        choices=SITUACAO_MATRICULA_CHOICES,
+    )
+
+    # NOVO CAMPO
+    nivel_modalidade = models.CharField(
+        max_length=30,
+        blank=True,
+        null=True,
+        choices=NIVEL_MODALIDADE_CHOICES,
     )
 
     bolsa_familia = models.BooleanField(default=False)
-    serie_ano = models.CharField(max_length=50, blank=True)
-    turno_aluno = models.CharField(max_length=20, blank=True)
+
+    serie_ano = models.CharField(
+        max_length=50,
+        blank=True,
+    )
+
+    turno_aluno = models.CharField(
+        max_length=20,
+        blank=True,
+    )
+
     possui_necessidade_especial = models.BooleanField(default=False)
 
     desconto_mensal = models.DecimalField(
@@ -291,55 +386,29 @@ class Aluno(models.Model):
         related_name="alunos_principais",
     )
 
-    # =========================================================
-    # 🔥 VALIDAÇÃO E CONSISTÊNCIA
-    # =========================================================
-
-    def save(self, *args, **kwargs):
-
-        # 🔥 REGRA 1: aluno precisa ter turma
-        if not self.turma_principal:
-
-            # tenta recuperar da relação M2M
-            turma = self.turmas.first()
-
-            if turma:
-                self.turma_principal = turma
-            else:
-                raise ValidationError("Aluno precisa ter uma turma principal.")
-
-        super().save(*args, **kwargs)
-
-        # 🔥 REGRA 2: garantir que turma_principal esteja no M2M
-        if (
-            self.turma_principal
-            and not self.turmas.filter(id=self.turma_principal.id).exists()
-        ):
-            self.turmas.add(self.turma_principal)
-
-        # 🔥 REGRA 3: garantir apenas UMA turma ativa
-        turmas_ids = list(self.turmas.values_list("id", flat=True))
-
-        if len(turmas_ids) > 1:
-            self.turmas.clear()
-            self.turmas.add(self.turma_principal)
-
-    def __str__(self):
-        return f"{self.nome} ({self.matricula})"
-
     @property
     def turma(self):
-
+        """
+        Compatibilidade com código legado.
+        """
         if self.turma_principal:
             return self.turma_principal
 
-        if hasattr(self, "turmas") and self.turmas.exists():
+        if self.pk:
             return self.turmas.first()
 
         return None
 
     def __str__(self):
         return f"{self.nome} - {self.matricula}"
+
+    class Meta:
+        ordering = ["nome"]
+
+        indexes = [
+            models.Index(fields=["escola", "nome"]),
+            models.Index(fields=["escola", "ativo"]),
+        ]
 
 
 # ================================================
@@ -460,15 +529,36 @@ class Turma(models.Model):
         default="FUN",
     )
 
+    polivalente = models.BooleanField(
+        default=False,
+        verbose_name="Chamada Polivalente",
+    )
+
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,
         default="ATIVA",
     )
 
-    alunos = models.ManyToManyField(Aluno, blank=True, related_name="turmas")
+    alunos = models.ManyToManyField(
+        Aluno,
+        blank=True,
+        related_name="turmas",
+    )
 
-    escola = models.ForeignKey(Escola, on_delete=models.CASCADE, null=True, blank=True)
+    # NOVO CAMPO
+    coordenadores = models.ManyToManyField(
+        User,
+        blank=True,
+        related_name="turmas_coordenadas",
+    )
+
+    escola = models.ForeignKey(
+        Escola,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         if self.ano_letivo:
@@ -555,10 +645,18 @@ class DiarioDeClasse(models.Model):
         return f"{self.turma} - {self.data_ministrada}"
 
 
+class ChamadaManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(excluido=False)
+
+
 # ================================================
 #  CHAMADA (CABEÇALHO DA FREQUÊNCIA)
 # ================================================
 class Chamada(models.Model):
+
+    objects = ChamadaManager()
+    all_objects = models.Manager()
 
     # =====================================================
     # RELACIONAMENTO OPCIONAL COM O DIÁRIO
@@ -573,11 +671,6 @@ class Chamada(models.Model):
 
     # =====================================================
     # CONTEXTO DA CHAMADA
-    # =====================================================
-    # OBS:
-    # Todos começam como nullable para permitir a migração
-    # dos dados antigos sem quebrar produção.
-    # Depois podemos tornar obrigatórios.
     # =====================================================
 
     turma = models.ForeignKey(
@@ -621,6 +714,7 @@ class Chamada(models.Model):
     # =====================================================
     # AUDITORIA
     # =====================================================
+
     criado_por = models.ForeignKey(
         User,
         null=True,
@@ -632,6 +726,28 @@ class Chamada(models.Model):
     criado_em = models.DateTimeField(auto_now_add=True)
 
     atualizado_em = models.DateTimeField(auto_now=True)
+
+    # =====================================================
+    # EXCLUSÃO LÓGICA
+    # =====================================================
+
+    excluido = models.BooleanField(
+        default=False,
+        db_index=True,
+    )
+
+    excluido_por = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="chamadas_excluidas",
+    )
+
+    data_exclusao = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         verbose_name = "Chamada"
@@ -651,7 +767,8 @@ class Chamada(models.Model):
                     "professor",
                     "data",
                 ],
-                name="unique_chamada_por_turma_disciplina_professor_data",
+                condition=models.Q(excluido=False),
+                name="unique_chamada_ativa_por_turma_disciplina_professor_data",
             )
         ]
 
@@ -666,9 +783,7 @@ class Chamada(models.Model):
 
         turma_nome = self.turma.nome if self.turma else "Sem turma"
         disciplina_nome = self.disciplina.nome if self.disciplina else "Sem disciplina"
-
         professor_nome = self.professor.nome if self.professor else "Sem professor"
-
         data_str = self.data.strftime("%d/%m/%Y") if self.data else "Sem data"
 
         return (
@@ -1218,3 +1333,279 @@ class Boletim(models.Model):
 
     def __str__(self):
         return f"{self.aluno.nome} - {self.turma.nome}"
+
+
+class Matricula(models.Model):
+
+    STATUS_CHOICES = [
+        ("ATIVA", "Ativa"),
+        ("CONCLUIDA", "Concluída"),
+        ("TRANSFERIDA", "Transferida"),
+        ("CANCELADA", "Cancelada"),
+    ]
+
+    aluno = models.ForeignKey(
+        "Aluno",
+        on_delete=models.PROTECT,
+        related_name="matriculas",
+    )
+
+    ano_letivo = models.ForeignKey(
+        "AnoLetivo",
+        on_delete=models.PROTECT,
+        related_name="matriculas",
+    )
+
+    turma = models.ForeignKey(
+        "Turma",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="matriculas",
+    )
+
+    data_matricula = models.DateField(
+        default=timezone.now,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="ATIVA",
+    )
+
+    observacao = models.TextField(
+        blank=True,
+        default="",
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    atualizado_em = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["aluno", "ano_letivo"],
+                name="unique_matricula_aluno_ano",
+            ),
+        ]
+        ordering = ["-ano_letivo__ano", "aluno__nome"]
+
+    def __str__(self):
+        turma_nome = self.turma.nome if self.turma else "Sem turma"
+
+        return f"{self.aluno.nome} - " f"{self.ano_letivo.ano} - " f"{turma_nome}"
+
+
+from django.conf import settings
+
+
+class HistoricoAlocacaoAluno(models.Model):
+
+    class TipoMovimentacao(models.TextChoices):
+        MATRICULA = "matricula", "Matrícula"
+        TRANSFERENCIA_TURMA = "transferencia_turma", "Transferência de turma"
+        ALTERACAO_TURNO = "alteracao_turno", "Alteração de turno"
+        TRANSFERENCIA_TURMA_TURNO = (
+            "transferencia_turma_turno",
+            "Transferência de turma e turno",
+        )
+        REMANEJAMENTO = "remanejamento", "Remanejamento"
+        OUTRO = "outro", "Outro"
+
+    aluno = models.ForeignKey(
+        Aluno,
+        on_delete=models.CASCADE,
+        related_name="historico_alocacoes",
+    )
+
+    ano_letivo = models.ForeignKey(
+        AnoLetivo,
+        on_delete=models.PROTECT,
+        related_name="historico_alocacoes",
+    )
+
+    turma = models.ForeignKey(
+        Turma,
+        on_delete=models.PROTECT,
+        related_name="historico_alunos",
+    )
+
+    turno = models.CharField(
+        max_length=20,
+        blank=True,
+    )
+
+    data_inicio = models.DateField()
+
+    data_fim = models.DateField(
+        null=True,
+        blank=True,
+    )
+
+    tipo_movimentacao = models.CharField(
+        max_length=40,
+        choices=TipoMovimentacao.choices,
+    )
+
+    realizado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="historicos_alocacao_realizados",
+    )
+
+    observacao = models.TextField(
+        blank=True,
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    class Meta:
+        ordering = ["-data_inicio", "-criado_em"]
+        verbose_name = "Histórico de Alocação do Aluno"
+        verbose_name_plural = "Históricos de Alocação dos Alunos"
+
+    def __str__(self):
+        return (
+            f"{self.aluno} - "
+            f"{self.turma} - "
+            f"{self.turno} - "
+            f"{self.data_inicio}"
+        )
+
+
+class AuditoriaChamada(models.Model):
+    """
+    Histórico de eventos relacionados às chamadas.
+
+    O registro permanece mesmo que a Chamada original seja excluída.
+    """
+
+    ACAO_CRIADA = "CRIADA"
+    ACAO_EXCLUIDA = "EXCLUIDA"
+
+    ACAO_CHOICES = [
+        (ACAO_CRIADA, "Chamada criada"),
+        (ACAO_EXCLUIDA, "Chamada excluída"),
+    ]
+
+    # Referência para a chamada original.
+    # SET_NULL garante que a auditoria não seja apagada
+    # caso a Chamada seja excluída.
+    chamada = models.ForeignKey(
+        "Chamada",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditorias",
+        verbose_name="Chamada",
+    )
+
+    # Guarda o ID original mesmo depois que a FK for anulada.
+    chamada_id_original = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name="ID original da chamada",
+    )
+
+    # Snapshot dos dados principais da chamada.
+    # São independentes da existência da Chamada.
+    turma_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Turma",
+    )
+
+    disciplina_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Disciplina",
+    )
+
+    professor_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Professor",
+    )
+
+    data_chamada = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Data da chamada",
+    )
+
+    acao = models.CharField(
+        max_length=20,
+        choices=ACAO_CHOICES,
+        db_index=True,
+        verbose_name="Ação",
+    )
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="auditorias_chamadas",
+        verbose_name="Usuário",
+    )
+
+    usuario_nome = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Nome do usuário",
+    )
+
+    # Snapshot da situação da chamada no momento do evento.
+    total_alunos = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Total de alunos",
+    )
+
+    total_presentes = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Total de presentes",
+    )
+
+    total_faltas = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Total de faltas",
+    )
+
+    total_justificadas = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Total de faltas justificadas",
+    )
+
+    criado_em = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Registrado em",
+    )
+
+    class Meta:
+        verbose_name = "Auditoria de chamada"
+        verbose_name_plural = "Auditorias de chamadas"
+        ordering = ["-criado_em"]
+        indexes = [
+            models.Index(fields=["acao", "criado_em"]),
+            models.Index(fields=["chamada_id_original"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.acao} - "
+            f"Chamada #{self.chamada_id_original or 'N/A'} - "
+            f"{self.data_chamada or 'sem data'}"
+        )
