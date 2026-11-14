@@ -38,7 +38,7 @@ def buscar_chamadas_relatorio(request):
             "professor__user",
         )
         .filter(escola=escola)
-        .order_by("-criado_em")
+        .order_by("-data", "-id")
     )
 
     data_inicio = request.GET.get("data_inicio")

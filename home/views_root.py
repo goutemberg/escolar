@@ -91,10 +91,9 @@ from .models import (
     Chamada,
     Nota,
     RegistroPedagogico,
-    ModeloAvaliacao,
-    TipoAvaliacao,
     PasswordResetToken,
     AvisoPublico,
+    HistoricoAlocacaoAluno,
 )
 
 from home.models import NomeTurma, Avaliacao
@@ -2338,6 +2337,18 @@ def lancar_notas(request):
                 status=400,
             )
 
+        if bimestre not in (1, 2, 3, 4):
+            return JsonResponse(
+                {"erro": "Bimestre inválido."},
+                status=400,
+            )
+
+        if not isinstance(notas, dict):
+            return JsonResponse(
+                {"erro": "Formato de notas inválido."},
+                status=400,
+            )
+
         escola = request.user.escola
 
         try:
@@ -2359,7 +2370,7 @@ def lancar_notas(request):
             )
 
         # =====================================================
-        # 🔐 AUTORIZAÇÃO DO PROFESSOR
+        # AUTORIZAÇÃO DO PROFESSOR
         # =====================================================
 
         if request.user.role == "professor":
@@ -2393,22 +2404,20 @@ def lancar_notas(request):
                     status=403,
                 )
 
-        salvas = 0
-        alunos_afetados = set()
-
-        mapa_conceito = {
-            "1": "B",
-            "2": "O",
-            "3": "E",
-        }
-
         # =====================================================
-        # CARREGA TODOS OS ALUNOS DE UMA VEZ
+        # IDENTIFICA OS ALUNOS RECEBIDOS
         # =====================================================
 
-        ids_alunos = [
-            int(aluno_id) for aluno_id in notas.keys() if str(aluno_id).isdigit()
-        ]
+        ids_alunos = set()
+
+        for aluno_id in notas.keys():
+            try:
+                ids_alunos.add(int(aluno_id))
+            except (ValueError, TypeError):
+                return JsonResponse(
+                    {"erro": "Identificador de aluno inválido."},
+                    status=400,
+                )
 
         alunos_map = {
             aluno.id: aluno
@@ -2416,11 +2425,74 @@ def lancar_notas(request):
                 id__in=ids_alunos,
                 escola=escola,
                 ativo=True,
-            ).only("id")
+            ).only("id", "turma_principal_id")
         }
 
+        # Não permite ignorar silenciosamente alunos inexistentes,
+        # inativos ou pertencentes a outra escola.
+        if ids_alunos - set(alunos_map.keys()):
+            return JsonResponse(
+                {
+                    "erro": (
+                        "Um ou mais alunos são inválidos, estão "
+                        "inativos ou não pertencem a esta escola."
+                    )
+                },
+                status=400,
+            )
+
         # =====================================================
-        # CARREGA TODAS AS AVALIAÇÕES DE UMA VEZ
+        # VALIDA A MATRÍCULA ATUAL NA TURMA
+        # =====================================================
+
+        ids_alunos_m2m = set(
+            turma.alunos.filter(
+                escola=escola,
+                ativo=True,
+            ).values_list("id", flat=True)
+        )
+
+        ids_alunos_principais = set(
+            Aluno.objects.filter(
+                escola=escola,
+                ativo=True,
+                turma_principal=turma,
+            ).values_list("id", flat=True)
+        )
+
+        # Histórico encerrado na turma selecionada.
+        ids_historicos_turma = set(
+            HistoricoAlocacaoAluno.objects.filter(
+                turma=turma,
+                ano_letivo=turma.ano_letivo,
+                data_fim__isnull=False,
+                aluno__escola=escola,
+            ).values_list("aluno_id", flat=True)
+        )
+
+        # A matrícula principal atual prevalece quando o aluno
+        # possui uma alocação histórica encerrada na mesma turma.
+        ids_alunos_permitidos = ids_alunos_m2m | ids_alunos_principais
+
+        ids_alunos_permitidos -= ids_historicos_turma - ids_alunos_principais
+
+        ids_nao_autorizados = ids_alunos - ids_alunos_permitidos
+
+        if ids_nao_autorizados:
+            return JsonResponse(
+                {
+                    "erro": (
+                        "Não foi possível salvar as notas. "
+                        "Um ou mais alunos não estão atualmente "
+                        "matriculados nesta turma. As notas da "
+                        "turma de origem são somente para consulta."
+                    )
+                },
+                status=403,
+            )
+
+        # =====================================================
+        # CARREGA AS AVALIAÇÕES DA TURMA
         # =====================================================
 
         avaliacoes_map = {
@@ -2433,8 +2505,22 @@ def lancar_notas(request):
             ).only("id")
         }
 
+        if not avaliacoes_map and any(
+            isinstance(notas_aluno, dict) and notas_aluno
+            for notas_aluno in notas.values()
+        ):
+            return JsonResponse(
+                {
+                    "erro": (
+                        "Não existem avaliações válidas para "
+                        "esta turma, disciplina e bimestre."
+                    )
+                },
+                status=400,
+            )
+
         # =====================================================
-        # CARREGA TODAS AS NOTAS EXISTENTES DE UMA VEZ
+        # CARREGA AS NOTAS EXISTENTES
         # =====================================================
 
         notas_existentes = {
@@ -2448,38 +2534,52 @@ def lancar_notas(request):
 
         notas_para_criar = []
         notas_para_atualizar = []
+        alunos_afetados = set()
+
+        mapa_conceito = {
+            "1": "B",
+            "2": "O",
+            "3": "E",
+        }
 
         # =====================================================
         # PROCESSAMENTO
         # =====================================================
 
-        for aluno_id_str, notas_aluno in (notas or {}).items():
+        for aluno_id, notas_aluno in notas.items():
 
-            try:
-                aluno_id = int(aluno_id_str)
-            except (ValueError, TypeError):
-                continue
-
-            aluno = alunos_map.get(aluno_id)
-
-            if not aluno:
-                continue
+            aluno_id = int(aluno_id)
 
             if not isinstance(notas_aluno, dict):
-                continue
+                return JsonResponse(
+                    {"erro": "Formato de notas do aluno inválido."},
+                    status=400,
+                )
 
             for avaliacao_id_str, valor in notas_aluno.items():
 
                 try:
                     avaliacao_id = int(avaliacao_id_str)
                 except (ValueError, TypeError):
-                    continue
+                    return JsonResponse(
+                        {"erro": "Identificador de avaliação inválido."},
+                        status=400,
+                    )
 
                 avaliacao = avaliacoes_map.get(avaliacao_id)
 
                 if not avaliacao:
-                    continue
+                    return JsonResponse(
+                        {
+                            "erro": (
+                                "Uma ou mais avaliações não pertencem "
+                                "à turma, disciplina e bimestre selecionados."
+                            )
+                        },
+                        status=400,
+                    )
 
+                # Campo vazio não apaga uma nota já registrada.
                 if valor is None or str(valor).strip() == "":
                     continue
 
@@ -2487,9 +2587,9 @@ def lancar_notas(request):
 
                 nota_existente = notas_existentes.get((aluno_id, avaliacao_id))
 
-                # ==========================================
+                # =============================================
                 # CONCEITOS
-                # ==========================================
+                # =============================================
 
                 conceito = mapa_conceito.get(valor_str)
 
@@ -2513,13 +2613,12 @@ def lancar_notas(request):
                             )
                         )
 
-                    salvas += 1
                     alunos_afetados.add(aluno_id)
                     continue
 
-                # ==========================================
-                # NUMÉRICO
-                # ==========================================
+                # =============================================
+                # NOTAS NUMÉRICAS
+                # =============================================
 
                 valor_str = valor_str.replace(",", ".")
 
@@ -2530,7 +2629,18 @@ def lancar_notas(request):
                     TypeError,
                     ValueError,
                 ):
-                    continue
+                    return JsonResponse(
+                        {"erro": f"Valor de nota inválido: {valor_str}."},
+                        status=400,
+                    )
+
+                if not valor_dec.is_finite() or not (
+                    Decimal("0") <= valor_dec <= Decimal("10")
+                ):
+                    return JsonResponse(
+                        {"erro": ("As notas numéricas devem estar " "entre 0 e 10.")},
+                        status=400,
+                    )
 
                 if nota_existente:
                     nota_existente.valor = valor_dec
@@ -2550,7 +2660,6 @@ def lancar_notas(request):
                         )
                     )
 
-                salvas += 1
                 alunos_afetados.add(aluno_id)
 
         # =====================================================
@@ -2566,10 +2675,10 @@ def lancar_notas(request):
                 )
 
             if notas_para_atualizar:
-
                 notas_para_atualizar = list(
                     {
-                        (n.aluno_id, n.avaliacao_id): n for n in notas_para_atualizar
+                        (nota.aluno_id, nota.avaliacao_id): nota
+                        for nota in notas_para_atualizar
                     }.values()
                 )
 
@@ -2579,10 +2688,7 @@ def lancar_notas(request):
                     batch_size=500,
                 )
 
-            # ==========================================
-            # INVALIDA BOLETIM
-            # ==========================================
-
+            # Invalida os boletins dos alunos cujas notas mudaram.
             if alunos_afetados:
                 from home.models import Boletim
 
@@ -2595,35 +2701,32 @@ def lancar_notas(request):
         # RESPOSTA
         # =====================================================
 
-        total_alunos = len(notas or {})
+        total_notas_salvas = len(notas_para_criar) + len(notas_para_atualizar)
 
-        if salvas == 0:
+        if total_notas_salvas == 0:
             return JsonResponse(
-                {
-                    "mensagem": (
-                        "Nenhuma nota foi informada. " "Você pode salvar parcialmente."
-                    )
-                }
+                {"mensagem": ("Nenhuma nota nova ou alterada foi informada.")}
             )
 
-        if salvas < total_alunos:
-            faltantes = total_alunos - salvas
-
-            return JsonResponse(
-                {
-                    "mensagem": (
-                        f"Notas salvas com sucesso ({salvas}). "
-                        f"{faltantes} aluno(s) sem nota."
-                    )
-                }
-            )
-
-        return JsonResponse({"mensagem": f"Notas salvas com sucesso ({salvas})."})
-
-    except Exception as e:
         return JsonResponse(
-            {"erro": f"Erro ao processar: {str(e)}"},
+            {
+                "mensagem": (
+                    "Notas salvas com sucesso " f"({total_notas_salvas} registro(s))."
+                )
+            }
+        )
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"erro": "O conteúdo enviado não é um JSON válido."},
             status=400,
+        )
+
+    except Exception:
+        logger.exception("Erro ao processar lançamento de notas.")
+        return JsonResponse(
+            {"erro": "Erro interno ao processar as notas."},
+            status=500,
         )
 
 
@@ -2638,11 +2741,15 @@ def registrar_notas(request):
 
     escola = user.escola
 
-    professor = Docente.objects.filter(user=user, escola=escola).first()
+    professor = Docente.objects.filter(
+        user=user,
+        escola=escola,
+    ).first()
 
     if professor and user.role == "professor":
         relacoes = TurmaDisciplina.objects.filter(
-            professor=professor, turma__escola=escola
+            professor=professor,
+            turma__escola=escola,
         ).select_related("turma", "disciplina")
     else:
         relacoes = TurmaDisciplina.objects.filter(turma__escola=escola).select_related(
@@ -2650,7 +2757,10 @@ def registrar_notas(request):
         )
 
     turmas = (
-        Turma.objects.filter(turmadisciplina__in=relacoes, escola=escola)
+        Turma.objects.filter(
+            turmadisciplina__in=relacoes,
+            escola=escola,
+        )
         .distinct()
         .order_by("nome")
     )
@@ -2669,14 +2779,18 @@ def registrar_notas(request):
         else:
             disciplinas = (
                 Disciplina.objects.filter(
-                    turmadisciplina__turma_id=turma_id, escola=escola
+                    turmadisciplina__turma_id=turma_id,
+                    escola=escola,
                 )
                 .distinct()
                 .order_by("nome")
             )
     else:
         disciplinas = (
-            Disciplina.objects.filter(turmadisciplina__in=relacoes, escola=escola)
+            Disciplina.objects.filter(
+                turmadisciplina__in=relacoes,
+                escola=escola,
+            )
             .distinct()
             .order_by("nome")
         )
@@ -2686,44 +2800,134 @@ def registrar_notas(request):
     notas_dict = {}
     medias = {}
 
+    # Alunos que saíram da turma selecionada.
+    historicos_alunos_ids = set()
+
+    # Alunos atuais que possuem alocação anterior encerrada.
+    alunos_transferidos_ids = set()
+
+    # Notas originais das turmas anteriores, apenas para consulta.
+    notas_espelhadas = {}
+
     turma_sistema_avaliacao = "NUM"
 
     if turma_id and disciplina_id and bimestre:
 
-        turma = get_object_or_404(Turma, id=turma_id, escola=escola)
-        disciplina = get_object_or_404(Disciplina, id=disciplina_id, escola=escola)
+        turma = get_object_or_404(
+            Turma,
+            id=turma_id,
+            escola=escola,
+        )
+
+        disciplina = get_object_or_404(
+            Disciplina,
+            id=disciplina_id,
+            escola=escola,
+        )
 
         turma_sistema_avaliacao = (
             getattr(turma, "sistema_avaliacao", None) or "NUM"
         ).upper()
 
         # =====================================================
-        # 🔥 CORREÇÃO AQUI (REMOVE OR PROBLEMÁTICO)
+        # ALUNOS QUE JÁ PASSARAM PELA TURMA SELECIONADA
         # =====================================================
+
+        historicos_alunos_ids = set(
+            HistoricoAlocacaoAluno.objects.filter(
+                turma=turma,
+                ano_letivo=turma.ano_letivo,
+                data_fim__isnull=False,
+                aluno__escola=escola,
+                aluno__ativo=True,
+            ).values_list("aluno_id", flat=True)
+        )
+
+        # =====================================================
+        # ALUNOS ATUAIS
+        # =====================================================
+
+        alunos_atuais_ids = set(
+            turma.alunos.filter(
+                escola=escola,
+                ativo=True,
+            ).values_list("id", flat=True)
+        )
+
+        # Preserva a exibição dos alunos atuais e históricos.
+        todos_alunos_ids = alunos_atuais_ids | historicos_alunos_ids
+
         alunos = (
-            turma.alunos.filter(ativo=True)
+            Aluno.objects.filter(
+                id__in=todos_alunos_ids,
+                escola=escola,
+                ativo=True,
+            )
             .distinct()
             .only("id", "nome")
             .order_by("nome")
         )
 
+        # =====================================================
+        # IDENTIFICA ALUNOS TRANSFERIDOS PARA A TURMA ATUAL
+        # =====================================================
+
+        alocacoes_anteriores = (
+            HistoricoAlocacaoAluno.objects.filter(
+                aluno_id__in=alunos_atuais_ids,
+                ano_letivo=turma.ano_letivo,
+                data_fim__isnull=False,
+                aluno__escola=escola,
+                aluno__ativo=True,
+            )
+            .exclude(turma_id=turma.id)
+            .select_related("aluno", "turma")
+            .order_by("data_inicio")
+        )
+
+        alocacoes_por_aluno = {}
+
+        for alocacao in alocacoes_anteriores:
+            alocacoes_por_aluno.setdefault(alocacao.aluno_id, []).append(alocacao)
+
+        alunos_transferidos_ids = set(alocacoes_por_aluno.keys())
+
+        # =====================================================
+        # CONVERTE O BIMESTRE
+        # =====================================================
+
         try:
             bimestre = int(bimestre)
-        except:
+        except (ValueError, TypeError):
             bimestre = None
 
         if bimestre:
 
+            # =================================================
+            # AVALIAÇÕES DA TURMA ATUAL
+            # =================================================
+
             avaliacoes = (
                 Avaliacao.objects.filter(
-                    turma=turma, disciplina=disciplina, escola=escola, bimestre=bimestre
+                    turma=turma,
+                    disciplina=disciplina,
+                    escola=escola,
+                    bimestre=bimestre,
                 )
                 .select_related("tipo")
-                .only("id", "descricao", "tipo__peso")
+                .only(
+                    "id",
+                    "descricao",
+                    "tipo__peso",
+                )
                 .order_by("data")
             )
 
             avaliacoes_ids = list(avaliacoes.values_list("id", flat=True))
+
+            # =================================================
+            # NOTAS DA TURMA ATUAL
+            # =================================================
 
             if avaliacoes_ids:
 
@@ -2732,15 +2936,17 @@ def registrar_notas(request):
                     avaliacao__turma=turma,
                     avaliacao__disciplina=disciplina,
                     avaliacao__bimestre=bimestre,
-                    aluno_id__in=[a.id for a in alunos],
-                ).only("aluno_id", "avaliacao_id", "valor", "conceito")
+                    aluno_id__in=todos_alunos_ids,
+                ).only(
+                    "aluno_id",
+                    "avaliacao_id",
+                    "valor",
+                    "conceito",
+                )
 
-                for n in todas_notas:
+                for nota in todas_notas:
 
-                    if n.aluno_id not in notas_dict:
-                        notas_dict[n.aluno_id] = {}
-
-                    valor = n.valor if n.valor is not None else n.conceito
+                    valor = nota.valor if nota.valor is not None else nota.conceito
 
                     if valor is not None:
                         valor = str(valor).strip()
@@ -2748,34 +2954,140 @@ def registrar_notas(request):
                         if valor.endswith(".0"):
                             valor = valor[:-2]
 
-                        mapa_reverse = {"B": "1", "O": "2", "E": "3"}
+                        mapa_reverse = {
+                            "B": "1",
+                            "O": "2",
+                            "E": "3",
+                        }
 
                         valor = mapa_reverse.get(valor, valor)
 
-                    notas_dict.setdefault(n.aluno_id, {})[n.avaliacao_id] = valor
+                    notas_dict.setdefault(nota.aluno_id, {})[nota.avaliacao_id] = valor
+
+            # =================================================
+            # ESPELHAMENTO DAS NOTAS DAS TURMAS ANTERIORES
+            # =================================================
+            # Não cria nem altera registros de Nota.
+            # Busca somente notas da mesma disciplina e ano letivo.
+
+            if alunos_transferidos_ids:
+
+                turmas_origem_ids = {
+                    alocacao.turma_id
+                    for alocacoes in alocacoes_por_aluno.values()
+                    for alocacao in alocacoes
+                }
+
+                notas_anteriores = (
+                    Nota.objects.filter(
+                        escola=escola,
+                        aluno_id__in=alunos_transferidos_ids,
+                        avaliacao__turma_id__in=turmas_origem_ids,
+                        avaliacao__disciplina=disciplina,
+                        avaliacao__escola=escola,
+                    )
+                    .select_related(
+                        "aluno",
+                        "avaliacao",
+                        "avaliacao__turma",
+                        "avaliacao__disciplina",
+                    )
+                    .order_by(
+                        "aluno__nome",
+                        "avaliacao__bimestre",
+                        "avaliacao__data",
+                    )
+                )
+
+                for nota in notas_anteriores:
+
+                    alocacoes_aluno = alocacoes_por_aluno.get(nota.aluno_id, [])
+
+                    # Confirma que a avaliação pertence a uma
+                    # turma em que este aluno esteve alocado.
+                    alocacao_origem = next(
+                        (
+                            alocacao
+                            for alocacao in alocacoes_aluno
+                            if alocacao.turma_id == nota.avaliacao.turma_id
+                        ),
+                        None,
+                    )
+
+                    if not alocacao_origem:
+                        continue
+
+                    valor = nota.valor if nota.valor is not None else nota.conceito
+
+                    if valor is not None:
+                        valor = str(valor).strip()
+
+                        if valor.endswith(".0"):
+                            valor = valor[:-2]
+
+                        mapa_reverse = {
+                            "B": "1",
+                            "O": "2",
+                            "E": "3",
+                        }
+
+                        valor = mapa_reverse.get(valor, valor)
+
+                    notas_espelhadas.setdefault(nota.aluno_id, []).append(
+                        {
+                            "aluno_id": nota.aluno_id,
+                            "aluno_nome": nota.aluno.nome,
+                            "turma_origem_id": (nota.avaliacao.turma_id),
+                            "turma_origem": (nota.avaliacao.turma.nome),
+                            "disciplina": (nota.avaliacao.disciplina.nome),
+                            "bimestre": (nota.avaliacao.bimestre),
+                            "avaliacao_id": (nota.avaliacao_id),
+                            "avaliacao": (nota.avaliacao.descricao),
+                            "valor": valor,
+                        }
+                    )
+
+            # =================================================
+            # CÁLCULO DAS MÉDIAS DA TURMA ATUAL
+            # =================================================
 
             if turma_sistema_avaliacao == "NUM":
 
                 pesos_por_avaliacao = {
-                    av.id: Decimal(str(av.tipo.peso if av.tipo and av.tipo.peso else 1))
-                    for av in avaliacoes
+                    avaliacao.id: Decimal(
+                        str(
+                            avaliacao.tipo.peso
+                            if avaliacao.tipo and avaliacao.tipo.peso
+                            else 1
+                        )
+                    )
+                    for avaliacao in avaliacoes
                 }
 
                 for aluno in alunos:
 
                     aluno_notas = notas_dict.get(aluno.id, {})
+
                     numerador = Decimal("0")
                     denominador = Decimal("0")
 
-                    for av_id, v in aluno_notas.items():
+                    for avaliacao_id, valor in aluno_notas.items():
 
                         try:
-                            valor_dec = Decimal(str(v))
-                        except:
+                            valor_decimal = Decimal(str(valor))
+                        except (
+                            InvalidOperation,
+                            TypeError,
+                            ValueError,
+                        ):
                             continue
 
-                        peso = pesos_por_avaliacao.get(av_id, Decimal("1"))
-                        numerador += valor_dec * peso
+                        peso = pesos_por_avaliacao.get(
+                            avaliacao_id,
+                            Decimal("1"),
+                        )
+
+                        numerador += valor_decimal * peso
                         denominador += peso
 
                     medias[aluno.id] = (
@@ -2798,9 +3110,16 @@ def registrar_notas(request):
         "notas": notas_dict,
         "medias": medias,
         "turma_sistema_avaliacao": turma_sistema_avaliacao,
+        "historicos_alunos_ids": historicos_alunos_ids,
+        "alunos_transferidos_ids": alunos_transferidos_ids,
+        "notas_espelhadas": notas_espelhadas,
     }
 
-    return render(request, "pages/registrar_notas.html", context)
+    return render(
+        request,
+        "pages/registrar_notas.html",
+        context,
+    )
 
 
 def get_client_ip(request):

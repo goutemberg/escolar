@@ -56,6 +56,7 @@ from home.models import (
     Aluno,
     DiarioDeClasse,
     AuditoriaChamada,
+    HistoricoAlocacaoAluno,
 )
 
 import logging
@@ -157,7 +158,6 @@ def tela_chamada(request):
 # ======================================================
 @login_required
 def api_carregar_alunos(request, turma_id):
-
     try:
         turma = Turma.objects.get(
             id=turma_id,
@@ -169,54 +169,107 @@ def api_carregar_alunos(request, turma_id):
             status=404,
         )
 
-    # =====================================================
-    # ALUNOS DA TURMA
-    # =====================================================
-    alunos_qs = turma.alunos.filter(ativo=True).order_by("nome")
-
-    alunos = list(
-        alunos_qs.values(
-            "id",
-            "nome",
+    # ======================================================
+    # 1. ALUNOS ATUALMENTE VINCULADOS À TURMA
+    # Considera tanto a relação M2M quanto turma_principal.
+    # ======================================================
+    alunos_atuais_qs = (
+        Aluno.objects.filter(
+            escola=request.escola,
+            ativo=True,
         )
+        .filter(Q(turma_principal=turma) | Q(turmas=turma))
+        .distinct()
+        .order_by("nome")
+    )
+
+    alunos_por_id = {}
+
+    for aluno in alunos_atuais_qs:
+        alunos_por_id[aluno.id] = {
+            "id": aluno.id,
+            "nome": aluno.nome,
+            "transferido": False,
+        }
+
+    # ======================================================
+    # 2. ALUNOS COM ALOCAÇÃO HISTÓRICA ENCERRADA
+    # Somente do mesmo ano letivo e que não continuam
+    # vinculados à turma como alunos atuais.
+    # ======================================================
+    if turma.ano_letivo_id:
+        historicos_qs = (
+            HistoricoAlocacaoAluno.objects.filter(
+                turma=turma,
+                ano_letivo_id=turma.ano_letivo_id,
+                data_fim__isnull=False,
+                aluno__escola=request.escola,
+                aluno__ativo=True,
+            )
+            .exclude(Q(aluno__turma_principal=turma) | Q(aluno__turmas=turma))
+            .select_related("aluno")
+            .order_by("aluno__nome")
+        )
+
+        for historico in historicos_qs:
+            aluno = historico.aluno
+
+            # Evita duplicidade caso existam vários registros
+            # históricos para o mesmo aluno e a mesma turma.
+            if aluno.id not in alunos_por_id:
+                alunos_por_id[aluno.id] = {
+                    "id": aluno.id,
+                    "nome": aluno.nome,
+                    "transferido": True,
+                }
+
+    # Ordena a lista final pelo nome.
+    alunos = sorted(
+        alunos_por_id.values(),
+        key=lambda item: item["nome"].casefold(),
     )
 
     data_aula = request.GET.get("data")
     disciplina_id = request.GET.get("disciplina")
 
-    # =====================================================
-    # SEM CONTEXTO -> RETORNA APENAS ALUNOS
-    # =====================================================
+    # ======================================================
+    # 3. SEM DATA OU DISCIPLINA
+    # Retorna os alunos com a identificação histórica.
+    # ======================================================
     if not data_aula or not disciplina_id:
         return JsonResponse({"alunos": alunos})
 
-    # =====================================================
-    # VALIDAR DATA
-    # =====================================================
+    # ======================================================
+    # 4. VALIDAR DATA
+    # ======================================================
     try:
         data_aula_dt = datetime.strptime(
             data_aula,
             "%Y-%m-%d",
         ).date()
-
     except ValueError:
-        return JsonResponse({"alunos": alunos})
+        return JsonResponse(
+            {"alunos": alunos},
+            status=400,
+        )
 
-    # =====================================================
-    # VALIDAR DISCIPLINA
-    # =====================================================
+    # ======================================================
+    # 5. VALIDAR DISCIPLINA
+    # ======================================================
     try:
         disciplina = Disciplina.objects.get(
             id=disciplina_id,
             escola=request.escola,
         )
-    except Disciplina.DoesNotExist:
-        return JsonResponse({"alunos": alunos})
+    except (Disciplina.DoesNotExist, ValueError, TypeError):
+        return JsonResponse(
+            {"alunos": alunos},
+            status=400,
+        )
 
-    # =====================================================
-    # NOVO FLUXO:
-    # PROCURA DIRETAMENTE A CHAMADA
-    # =====================================================
+    # ======================================================
+    # 6. PROCURAR CHAMADA DIRETAMENTE
+    # ======================================================
     chamada = (
         Chamada.objects.filter(
             escola=request.escola,
@@ -228,11 +281,11 @@ def api_carregar_alunos(request, turma_id):
         .first()
     )
 
-    # =====================================================
-    # COMPATIBILIDADE COM DADOS ANTIGOS
-    # =====================================================
+    # ======================================================
+    # 7. COMPATIBILIDADE COM CHAMADAS ANTIGAS
+    # Vínculo com Diário de Classe permanece opcional.
+    # ======================================================
     if not chamada:
-
         diario = (
             DiarioDeClasse.objects.filter(
                 escola=request.escola,
@@ -247,68 +300,58 @@ def api_carregar_alunos(request, turma_id):
         if diario:
             chamada = Chamada.objects.filter(diario=diario).order_by("-id").first()
 
-    # =====================================================
-    # MAPEAR PRESENÇAS
-    # =====================================================
+    # ======================================================
+    # 8. MAPEAR PRESENÇAS JÁ REGISTRADAS
+    # ======================================================
     presencas_map = {}
 
     if chamada:
-
-        presencas = Presenca.objects.filter(chamada=chamada).values(
+        presencas = Presenca.objects.filter(
+            chamada=chamada,
+        ).values(
             "aluno_id",
             "status",
             "presente",
             "observacao",
         )
 
-        for p in presencas:
+        for presenca in presencas:
+            status = presenca.get("status")
 
-            status = p.get("status")
-
-            # Compatibilidade com registros antigos
+            # Compatibilidade com registros antigos.
             if not status:
-                status = "P" if p.get("presente") else "F"
+                status = "P" if presenca.get("presente") else "F"
 
-            presencas_map[p["aluno_id"]] = {
+            presencas_map[presenca["aluno_id"]] = {
                 "status": status,
-                "observacao": p.get("observacao") or "",
+                "observacao": presenca.get("observacao") or "",
             }
 
-    # =====================================================
-    # MONTAR RESPOSTA
-    # =====================================================
+    # ======================================================
+    # 9. MONTAR RESPOSTA
+    # Mantém os campos atuais e acrescenta "transferido".
+    # ======================================================
     for aluno in alunos:
-
         extra = presencas_map.get(aluno["id"])
 
         if extra:
             aluno["status"] = extra["status"]
             aluno["observacao"] = extra["observacao"]
-
         else:
-            # padrão continua sendo presente
             aluno["status"] = "P"
             aluno["observacao"] = ""
 
-    return JsonResponse(
-        {
-            "alunos": alunos,
-        }
-    )
+    return JsonResponse({"alunos": alunos})
 
 
 # ======================================================
 # 3) SALVAR PRESENÇAS
 # ======================================================
+
+
 @csrf_exempt
 @login_required
 def salvar_presencas(request):
-    # logger.warning("====== SALVAR PRESENCAS ======")
-    # logger.warning(f"USER: {request.user}")
-    # logger.warning(f"ROLE: {getattr(request.user, 'role', None)}")
-    # logger.warning(f"METHOD: {request.method}")
-    # logger.warning(f"BODY: {request.body}")
-
     acesso = get_professor_or_gestor(request.user)
 
     if acesso == "bloqueado":
@@ -351,6 +394,33 @@ def salvar_presencas(request):
             status=400,
         )
 
+    if not isinstance(lista, list):
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "A lista de alunos enviada é inválida.",
+            },
+            status=400,
+        )
+
+    if any(not isinstance(item, dict) for item in lista):
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": "Existem registros de alunos inválidos.",
+            },
+            status=400,
+        )
+
+    if any(item.get("aluno_id") in (None, "") for item in lista):
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": ("Um ou mais registros não possuem aluno válido."),
+            },
+            status=400,
+        )
+
     professor = None
 
     if acesso == "professor":
@@ -363,7 +433,7 @@ def salvar_presencas(request):
             return JsonResponse(
                 {
                     "status": "erro",
-                    "mensagem": "Professor não está vinculado corretamente.",
+                    "mensagem": ("Professor não está vinculado corretamente."),
                 },
                 status=400,
             )
@@ -396,7 +466,7 @@ def salvar_presencas(request):
             status=404,
         )
 
-    # Professor só pode lançar chamada das turmas/disciplina dele
+    # Professor só pode lançar chamada das turmas/disciplina dele.
     if acesso == "professor":
         permitido = TurmaDisciplina.objects.filter(
             turma=turma,
@@ -404,7 +474,6 @@ def salvar_presencas(request):
             professor=professor,
             escola=request.escola,
         ).exists()
-
         if not permitido:
             return JsonResponse(
                 {
@@ -421,8 +490,7 @@ def salvar_presencas(request):
             data_aula,
             "%Y-%m-%d",
         ).date()
-
-    except ValueError:
+    except (ValueError, TypeError):
         return JsonResponse(
             {
                 "status": "erro",
@@ -431,13 +499,50 @@ def salvar_presencas(request):
             status=400,
         )
 
+    # =====================================================
+    # VALIDAR ALUNOS DA TURMA
+    # =====================================================
+    # Aceita alunos que ainda estejam vinculados à turma
+    # pelo campo turma_principal ou pelo relacionamento M2M.
+    # Alunos transferidos não podem ter suas presenças
+    # alteradas na turma de origem.
+    # =====================================================
+
+    alunos_enviados_ids = {str(item.get("aluno_id")) for item in lista}
+
+    alunos_atuais_ids = set(
+        str(aluno_id)
+        for aluno_id in Aluno.objects.filter(
+            escola=request.escola,
+            ativo=True,
+        )
+        .filter(Q(turma_principal=turma) | Q(turmas=turma))
+        .distinct()
+        .values_list("id", flat=True)
+    )
+
+    alunos_nao_pertencentes = alunos_enviados_ids - alunos_atuais_ids
+
+    if alunos_nao_pertencentes:
+        return JsonResponse(
+            {
+                "status": "erro",
+                "mensagem": (
+                    "Não foi possível salvar a chamada porque "
+                    "um ou mais alunos não pertencem mais a esta turma. "
+                    "Recarregue a página para atualizar a lista."
+                ),
+            },
+            status=409,
+        )
+
     erros_alunos = []
 
     try:
         with transaction.atomic():
 
             # =====================================================
-            # CHAMADA AGORA É INDEPENDENTE DO DIÁRIO
+            # CRIAR OU RECUPERAR A CHAMADA
             # =====================================================
             chamada, chamada_criada = Chamada.objects.get_or_create(
                 turma=turma,
@@ -454,15 +559,13 @@ def salvar_presencas(request):
             # SALVAR PRESENÇAS
             # =====================================================
             for item in lista:
-
                 aluno_id = item.get("aluno_id")
 
-                status_presenca = item.get("status", "").strip().upper()
+                status_presenca = (item.get("status") or "").strip().upper()
 
-                # Compatibilidade com versão antiga
+                # Compatibilidade com a versão antiga.
                 if status_presenca not in ("P", "F", "J"):
                     presente_bool = bool(item.get("presente", False))
-
                     status_presenca = "P" if presente_bool else "F"
 
                 presente = status_presenca == "P"
@@ -473,8 +576,8 @@ def salvar_presencas(request):
                     aluno = Aluno.objects.get(
                         id=aluno_id,
                         escola=request.escola,
+                        ativo=True,
                     )
-
                 except Aluno.DoesNotExist:
                     erros_alunos.append(
                         {
@@ -497,17 +600,10 @@ def salvar_presencas(request):
             # =====================================================
             # AUDITORIA
             # =====================================================
-            #
-            # Só registra CRIADA quando a chamada realmente
-            # nasceu neste momento.
-            #
-            # Se o usuário apenas editar as presenças de uma
-            # chamada existente, não cria uma nova auditoria.
-            #
+            # Registra a criação somente quando a chamada
+            # realmente foi criada nesta requisição.
+            # =====================================================
             if chamada_criada:
-
-                # Os totais são calculados sobre os registros
-                # efetivamente gravados no banco.
                 total_alunos = chamada.presencas.count()
 
                 total_presentes = chamada.presencas.filter(status="P").count()
@@ -516,18 +612,6 @@ def salvar_presencas(request):
 
                 total_justificadas = chamada.presencas.filter(status="J").count()
 
-                # =================================================
-                # NOME DO PROFESSOR
-                # =================================================
-                #
-                # Para professor:
-                #   usamos o docente encontrado acima.
-                #
-                # Para coordenador/diretor:
-                #   a chamada pode não ter professor,
-                #   então tentamos usar o professor da própria
-                #   chamada, caso exista.
-                #
                 professor_nome = ""
 
                 if chamada.professor:
@@ -546,7 +630,7 @@ def salvar_presencas(request):
                     data_chamada=chamada.data,
                     acao=AuditoriaChamada.ACAO_CRIADA,
                     usuario=request.user,
-                    usuario_nome=request.user.get_full_name().strip(),
+                    usuario_nome=(request.user.get_full_name().strip()),
                     total_alunos=total_alunos,
                     total_presentes=total_presentes,
                     total_faltas=total_faltas,
@@ -557,7 +641,7 @@ def salvar_presencas(request):
         return JsonResponse(
             {
                 "status": "erro",
-                "mensagem": ("Erro de integridade ao salvar " "a chamada."),
+                "mensagem": "Erro de integridade ao salvar a chamada.",
             },
             status=400,
         )

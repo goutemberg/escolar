@@ -275,9 +275,11 @@ from reportlab.lib import colors
 
 @login_required
 def gerar_pdf_relatorio_individual(request):
+    from xml.sax.saxutils import escape
 
     usuario = request.user
     escola = usuario.escola
+
     if usuario.role not in ["professor", "coordenador", "diretor"]:
         return HttpResponse("Acesso negado", status=403)
 
@@ -288,16 +290,36 @@ def gerar_pdf_relatorio_individual(request):
     if not all([aluno_id, turma_id, ano_letivo]):
         return HttpResponse("Parâmetros inválidos", status=400)
 
-    aluno = Aluno.objects.get(id=aluno_id, escola=escola)
+    # =========================================
+    # BUSCA DOS DADOS
+    # =========================================
 
-    turma = Turma.objects.get(id=turma_id, escola=escola)
+    try:
+        ano_letivo = int(ano_letivo)
+
+        aluno = Aluno.objects.get(
+            id=aluno_id,
+            escola=escola,
+        )
+
+        turma = Turma.objects.get(
+            id=turma_id,
+            escola=escola,
+        )
+
+    except (ValueError, Aluno.DoesNotExist, Turma.DoesNotExist):
+        return HttpResponse("Aluno, turma ou ano letivo inválido.", status=400)
 
     registros = RelatorioIndividual.objects.filter(
         aluno=aluno,
         turma=turma,
-        ano_letivo=int(ano_letivo),
+        ano_letivo=ano_letivo,
         escola=escola,
     ).order_by("bimestre")
+
+    # =========================================
+    # CONFIGURAÇÃO DA RESPOSTA PDF
+    # =========================================
 
     response = HttpResponse(content_type="application/pdf")
 
@@ -317,7 +339,7 @@ def gerar_pdf_relatorio_individual(request):
     azul = colors.HexColor("#1E88E5")
 
     # =========================================
-    # 🎨 ESTILOS
+    # ESTILOS
     # =========================================
 
     titulo_escola = ParagraphStyle(
@@ -359,105 +381,236 @@ def gerar_pdf_relatorio_individual(request):
         parent=styles["Normal"],
         fontSize=9,
         leading=16,
-        spaceAfter=14,
+        spaceAfter=0,
         wordWrap="LTR",
-        alignment=4,  # justify
+        alignment=4,
     )
 
     story = []
 
     # =========================================
-    # 🏫 CABEÇALHO
+    # CABEÇALHO
     # =========================================
-
-    story.append(Paragraph(f"<b>{escola.nome.upper()}</b>", titulo_escola))
 
     story.append(
         Paragraph(
-            "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
+            f"<b>{escape(escola.nome.upper())}</b>",
+            titulo_escola,
+        )
+    )
+
+    story.append(
+        Paragraph(
+            "<font color='#1E88E5'>" "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" "</font>",
             styles["Normal"],
         )
     )
 
     story.append(Spacer(1, 6))
 
-    story.append(Paragraph("<b>RELATÓRIO INDIVIDUAL</b>", titulo_relatorio))
+    story.append(
+        Paragraph(
+            "<b>RELATÓRIO INDIVIDUAL</b>",
+            titulo_relatorio,
+        )
+    )
 
     # =========================================
-    # 📋 DADOS
+    # DADOS DO ALUNO
     # =========================================
 
-    story.append(Paragraph(f"<b>Aluno:</b> {aluno.nome}", label))
+    story.append(
+        Paragraph(
+            f"<b>Aluno:</b> {escape(aluno.nome)}",
+            label,
+        )
+    )
 
-    story.append(Paragraph(f"<b>Turma:</b> {turma.nome}", label))
+    story.append(
+        Paragraph(
+            f"<b>Turma:</b> {escape(turma.nome)}",
+            label,
+        )
+    )
 
-    story.append(Paragraph(f"<b>Ano Letivo:</b> {ano_letivo}", label))
+    story.append(
+        Paragraph(
+            f"<b>Ano Letivo:</b> {ano_letivo}",
+            label,
+        )
+    )
 
     story.append(Spacer(1, 12))
 
     # =========================================
-    # 📚 CONTEÚDO
+    # CONTEÚDO DOS BIMESTRES
     # =========================================
 
     if not registros.exists():
 
-        story.append(Paragraph("Nenhum registro encontrado.", texto_style))
+        story.append(
+            Paragraph(
+                "Nenhum registro encontrado.",
+                texto_style,
+            )
+        )
 
     else:
 
         for r in registros:
 
             story.append(
-                Paragraph(f"<b>{r.get_bimestre_display()}</b>", bimestre_style)
+                Paragraph(
+                    f"<b>{escape(r.get_bimestre_display())}</b>",
+                    bimestre_style,
+                )
             )
-
-            # =========================================
-            # 🎯 FORMATAÇÃO INTELIGENTE DO TEXTO
-            # =========================================
 
             texto = r.observacoes or "Sem observações."
 
-            texto_formatado = (
-                texto.replace("\r\n", "\n")
-                .replace("\n\n", "<br/><br/>")
-                .replace("\n", "<br/>")
-            )
+            # Normaliza as quebras de linha.
+            texto = texto.replace("\r\n", "\n").replace("\r", "\n")
 
-            # =========================================
-            # 📦 BLOCO VISUAL DO TEXTO
-            # =========================================
+            # Divide o conteúdo em blocos menores.
+            # Cada bloco será uma linha independente da tabela,
+            # permitindo a divisão entre páginas.
+            paragrafos = []
 
+            for linha in texto.split("\n"):
+
+                linha = linha.strip()
+
+                if not linha:
+                    paragrafos.append(Paragraph("&nbsp;", texto_style))
+                    continue
+
+                palavras = linha.split()
+                bloco_atual = ""
+
+                for palavra in palavras:
+
+                    # Trata também palavras excepcionalmente longas.
+                    if len(palavra) > 450:
+
+                        if bloco_atual:
+                            paragrafos.append(
+                                Paragraph(
+                                    escape(bloco_atual),
+                                    texto_style,
+                                )
+                            )
+                            bloco_atual = ""
+
+                        for inicio in range(0, len(palavra), 450):
+                            trecho = palavra[inicio : inicio + 450]
+
+                            paragrafos.append(
+                                Paragraph(
+                                    escape(trecho),
+                                    texto_style,
+                                )
+                            )
+
+                        continue
+
+                    candidato = f"{bloco_atual} {palavra}".strip()
+
+                    if len(candidato) > 450 and bloco_atual:
+
+                        paragrafos.append(
+                            Paragraph(
+                                escape(bloco_atual),
+                                texto_style,
+                            )
+                        )
+
+                        bloco_atual = palavra
+
+                    else:
+                        bloco_atual = candidato
+
+                if bloco_atual:
+                    paragrafos.append(
+                        Paragraph(
+                            escape(bloco_atual),
+                            texto_style,
+                        )
+                    )
+
+            # Evita criar uma tabela sem conteúdo.
+            if not paragrafos:
+                paragrafos.append(Paragraph("Sem observações.", texto_style))
+
+            # Cada parágrafo ocupa uma linha.
+            # splitByRow permite dividir a tabela entre páginas.
             tabela_texto = Table(
-                [[Paragraph(texto_formatado, texto_style)]], colWidths=[17 * cm]
+                [[paragrafo] for paragrafo in paragrafos],
+                colWidths=[17 * cm],
+                splitByRow=1,
             )
 
             tabela_texto.setStyle(
                 TableStyle(
                     [
-                        ("BACKGROUND", (0, 0), (-1, -1), colors.whitesmoke),
-                        ("BOX", (0, 0), (-1, -1), 0.5, colors.lightgrey),
-                        ("LEFTPADDING", (0, 0), (-1, -1), 10),
-                        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-                        ("TOPPADDING", (0, 0), (-1, -1), 10),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        (
+                            "BACKGROUND",
+                            (0, 0),
+                            (-1, -1),
+                            colors.whitesmoke,
+                        ),
+                        (
+                            "BOX",
+                            (0, 0),
+                            (-1, -1),
+                            0.5,
+                            colors.lightgrey,
+                        ),
+                        (
+                            "LEFTPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            10,
+                        ),
+                        (
+                            "RIGHTPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            10,
+                        ),
+                        (
+                            "TOPPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            5,
+                        ),
+                        (
+                            "BOTTOMPADDING",
+                            (0, 0),
+                            (-1, -1),
+                            5,
+                        ),
+                        (
+                            "VALIGN",
+                            (0, 0),
+                            (-1, -1),
+                            "TOP",
+                        ),
                     ]
                 )
             )
 
             story.append(tabela_texto)
-
             story.append(Spacer(1, 8))
 
     # =========================================
-    # ✍️ RODAPÉ / ASSINATURA
+    # RODAPÉ / ASSINATURA
     # =========================================
 
     story.append(Spacer(1, 20))
 
     story.append(
         Paragraph(
-            "<font color='#1E88E5'>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</font>",
+            "<font color='#1E88E5'>" "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" "</font>",
             styles["Normal"],
         )
     )
@@ -484,7 +637,7 @@ def gerar_pdf_relatorio_individual(request):
     story.append(assinatura_tabela)
 
     # =========================================
-    # 🚀 BUILD PDF
+    # GERAÇÃO DO PDF
     # =========================================
 
     doc.build(story)

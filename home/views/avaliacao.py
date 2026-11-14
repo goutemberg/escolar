@@ -11,6 +11,7 @@ from django.db import transaction
 from decimal import Decimal, InvalidOperation
 from home.utils import arredondar_media_personalizada
 from django.db import IntegrityError
+from django.core.paginator import Paginator
 
 from home.models import (
     Turma,
@@ -217,7 +218,6 @@ def avaliacoes(request):
                         partes = av.descricao.split()
 
                         if partes and partes[-1].isdigit():
-
                             ultimo_numero = max(ultimo_numero, int(partes[-1]))
 
                 # ====================================
@@ -293,22 +293,34 @@ def avaliacoes(request):
 
     tipos = TipoAvaliacao.objects.filter(escola=escola, ativo=True).order_by("nome")
 
-    avaliacoes_lista = (
+    # =========================================
+    # CONSULTA DE AVALIAÇÕES COM PAGINAÇÃO
+    # =========================================
+
+    avaliacoes_queryset = (
         Avaliacao.objects.filter(escola=escola)
         .select_related("turma", "disciplina", "tipo")
-        .order_by("turma__nome", "bimestre", "data", "descricao")
+        .order_by("-data", "-id")
     )
 
-    return render(
-        request,
-        "avaliacoes/avaliacoes.html",
-        {
-            "turmas": turmas,
-            "disciplinas": disciplinas,
-            "tipos": tipos,
-            "avaliacoes": avaliacoes_lista,
-        },
-    )
+    paginator = Paginator(avaliacoes_queryset, 50)
+
+    pagina = request.GET.get("page", 1)
+
+    avaliacoes_pagina = paginator.get_page(pagina)
+
+    # =========================================
+    # CONTEXTO
+    # =========================================
+
+    context = {
+        "turmas": turmas,
+        "disciplinas": disciplinas,
+        "tipos": tipos,
+        "avaliacoes": avaliacoes_pagina,
+    }
+
+    return render(request, "avaliacoes/avaliacoes.html", context)
 
 
 @login_required
